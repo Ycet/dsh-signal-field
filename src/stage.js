@@ -168,9 +168,10 @@ export function createStage(options) {
   }
 
   function fieldWanted(state) {
+    // v0.2.9：背景是否铺由「页面」开关决定；background.idle 只决定是否持续动画。
     if (!state.enabled) return false;
-    if (page === PAGE_HERO) return state.surfaces.hero.background;
-    if (page === PAGE_CHAT) return state.surfaces.chat.background;
+    if (page === PAGE_HERO) return state.pages.hero;
+    if (page === PAGE_CHAT) return state.pages.chat;
     return false;
   }
 
@@ -441,7 +442,7 @@ export function createStage(options) {
     const wanted =
       state.enabled &&
       page !== PAGE_NONE &&
-      state.surfaces.panels.hudGlass &&
+      state.pages.chat &&
       !!panel;
     if (!wanted) {
       destroyHudBackdrop();
@@ -512,7 +513,8 @@ export function createStage(options) {
   // ---- 标题 -------------------------------------------------------------
 
   function titleWanted(state) {
-    return state.enabled && page === PAGE_HERO && state.surfaces.hero.title;
+    // 标题只存在于新增会话页，因此它跟随「新建会话页面」开关。
+    return state.enabled && page === PAGE_HERO && state.pages.hero;
   }
 
   function removeTitle() {
@@ -689,21 +691,20 @@ export function createStage(options) {
     // 这样 HUD 玻璃、右栏背景这类跨区域能力在背景关掉时仍然可单独生效。
     root.toggleAttribute("data-mui-scope", page !== PAGE_NONE);
     root.toggleAttribute("data-mui-dark", dark);
+    // 输入框毛玻璃：v0.2.9 起是一个全局开关，再由当前页面开关决定是否生效。
+    const glassOn = state.glass.enabled;
     root.toggleAttribute(
       "data-mui-glass-hero",
-      state.surfaces.hero.glass && page === PAGE_HERO,
+      glassOn && page === PAGE_HERO && state.pages.hero,
     );
     root.toggleAttribute(
       "data-mui-glass-chat",
-      state.surfaces.chat.glass && page === PAGE_CHAT,
+      glassOn && page === PAGE_CHAT && state.pages.chat,
     );
-    // 跨区域能力只剩 HUD 面板：作用范围与开关都由 resolvePanelTargets 判定。
-    // 右侧边栏的动效背景已于 v0.2.4 按用户要求移除，不再建层、不再写属性。
-    const targets = resolvePanelTargets({
-      page,
-      hudGlass: state.surfaces.panels.hudGlass,
-    });
+    // HUD 面板没有独立开关：跟随「聊天会话页面」（见 resolvePanelTargets 注释）。
+    const targets = resolvePanelTargets({ page, chatPage: state.pages.chat });
     root.toggleAttribute("data-mui-hud-glass", targets.hud);
+    // 模糊半径已固定 14px（v0.2.9 移除滑块），这里仍写变量以保持 CSS 单一来源。
     root.style.setProperty("--mui-blur", `${state.glass.blur}px`);
     // 降级底色也放在根上：WebGL2 不可用时 CSS 径向渐变要用到这两个变量。
     root.style.setProperty("--mui-field-bg", dark ? "#070a12" : "#e7e9f0");

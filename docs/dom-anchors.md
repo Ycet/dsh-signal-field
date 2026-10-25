@@ -1,4 +1,4 @@
-# DOM 锚点标定记录（dsh-signal-field v0.2.8）
+# DOM 锚点标定记录（dsh-signal-field v0.2.9）
 
 本环境没有页面 DOM / 截图控制能力（认证后的页面不可从 shell 探测），因此锚点来自三处：
 **DSH 0.2.1-rc.3 自带 Client 包源码**、**已装插件的实测用法**、以及插件内置「自检信息」在运行中回读的真实计算结果。
@@ -368,3 +368,22 @@ v0.2.5 按面板外扩 24px 铺，实机上露出两个问题：
     内容区右缘之外的区域，重叠部分仍由内容区自己的场承担，观感是否一致待确认。
 14. 补场现在插在 `shell.overlay` 里、DOM 顺序在面板之前；若 `dsh-awesome-hud` 以后改用 portal 挂到
     `body`，JS 会退回 `z-index:-1` 的老路（此时面板玻璃会重新变白），需要一并复核。
+
+## 16. 设置页结构（v0.2.9 重组）
+
+设置页由 `src/settings-page.js` 渲染，v0.2.9 起固定为「总开关 → 模块 1『页面』→ 分割线 → 模块 2『动效』」：
+
+| 模块 | 行 | 绑定的设置字段 |
+| --- | --- | --- |
+| 总开关 | 启用全部动效 | `enabled` |
+| 页面 | 新建会话页面 | `pages.hero` |
+| 页面 | 聊天会话页面 | `pages.chat`（同时决定 HUD 面板毛玻璃） |
+| 动效 | 标题文字默认动效 / 标题文字鼠标交互 | `title.idle` / `title.interact` |
+| 动效 | 背景默认动效 / 背景鼠标交互 | `background.idle` / `background.interact` |
+| 动效 | 输入框毛玻璃效果 | `glass.enabled` |
+| 动效 | 背景强度（默认 30%） | `background.intensity` |
+
+- 分割线是纯样式元素 `.mui-divider`（`role="separator"`），不参与交互、不绑设置。
+- 生效判定集中在 `src/stage.js` 的 `fieldWanted` / `titleWanted` / `syncRoot`；HUD 玻璃的判定在 `src/page.js` 的 `resolvePanelTargets({ page, chatPage })`。
+- 已下线的行：HUD 面板独立开关（改为跟随聊天页）、毛玻璃模糊滑块（固定 14px）、两页各自的标题/背景/毛玻璃开关（改为页面开关 + 全局效果）。
+- 结构由 `test/settings-page.test.mjs` 用 React 替身真渲染一遍来锁：模块标题顺序、分割线数量、行顺序、已下线行不得复活。

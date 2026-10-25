@@ -199,9 +199,11 @@ html[data-mui-scope][data-mui-hud-glass][data-mui-dark] .hud-panel::before{
   margin:0 0 4px;font-size:12px;line-height:18px;font-weight:600;letter-spacing:.02em;
   text-transform:none;color:var(--dsw-alias-label-secondary);
 }
-.mui-page-group{display:flex;flex-direction:column;gap:2px;padding:8px 0 4px;border-top:1px solid color-mix(in srgb, var(--dsw-alias-label-primary) 7%, transparent)}
-.mui-page-group:first-of-type{border-top:0;padding-top:2px}
-.mui-page-title{margin:0 0 2px;font-size:13px;line-height:20px;font-weight:600;color:var(--dsw-alias-label-primary)}
+/* 两个模块之间的分割线（v0.2.9）：视觉上沿用原 page-group 的 7% 细线，但留出更明显的间距。 */
+.mui-divider{
+  height:1px;margin:-4px 0;border:0;
+  background:color-mix(in srgb, var(--dsw-alias-label-primary) 9%, transparent);
+}
 .mui-row{display:flex;align-items:flex-start;gap:16px;padding:8px 0;min-width:0}
 .mui-row-text{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 auto}
 .mui-row-label{font-size:13px;line-height:20px;color:var(--dsw-alias-label-primary)}

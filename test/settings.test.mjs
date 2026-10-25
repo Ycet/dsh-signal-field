@@ -14,64 +14,90 @@ import {
   sameState,
 } from '../src/settings.js';
 
-test('defaults: 10 个独立开关全开、总开关开、参数取参考值', () => {
+test('defaults: 两个页面 + 六个效果项，强度默认 30%', () => {
   const state = defaults();
+  assert.equal(state.version, 2);
   assert.equal(state.enabled, true);
+  assert.deepEqual(state.pages, { hero: true, chat: true });
   assert.deepEqual(state.title, { idle: true, interact: true });
-  assert.deepEqual(state.background, { idle: true, interact: true, intensity: 0.55 });
-  assert.deepEqual(state.glass, { blur: 14 });
-  const surfaceFlags = [
-    state.surfaces.hero.title,
-    state.surfaces.hero.background,
-    state.surfaces.hero.glass,
-    state.surfaces.chat.background,
-    state.surfaces.chat.glass,
-    state.surfaces.panels.hudGlass,
-  ];
-  assert.equal(surfaceFlags.every(Boolean), true);
-  const detailFlags = [
+  assert.deepEqual(state.background, { idle: true, interact: true, intensity: 0.3 });
+  assert.deepEqual(state.glass, { enabled: true, blur: 14 });
+  // 设置页模块 1 两行 + 模块 2 五项开关（强度是滑块，不计数）
+  const switches = [
+    state.pages.hero,
+    state.pages.chat,
     state.title.idle,
     state.title.interact,
     state.background.idle,
     state.background.interact,
+    state.glass.enabled,
   ];
-  assert.equal(detailFlags.length + surfaceFlags.length, 10);
+  assert.equal(switches.every(Boolean), true);
 });
 
-test('defaults: 页面两组 + 一个与页面无关的跨区域组', () => {
+test('defaults: 不再有 surfaces 结构，模糊半径固定 14', () => {
   const state = defaults();
-  assert.deepEqual(Object.keys(state.surfaces).sort(), ['chat', 'hero', 'panels']);
-  assert.deepEqual(Object.keys(state.surfaces.hero).sort(), ['background', 'glass', 'title']);
-  assert.deepEqual(Object.keys(state.surfaces.chat).sort(), ['background', 'glass']);
-  assert.deepEqual(Object.keys(state.surfaces.panels).sort(), ['hudGlass']);
+  assert.equal('surfaces' in state, false);
+  assert.equal(state.glass.blur, 14);
+  assert.deepEqual(Object.keys(state).sort(), [
+    'background',
+    'enabled',
+    'glass',
+    'pages',
+    'title',
+    'version',
+  ]);
 });
 
-test('normalize: 已移出作用范围的旧页面字段被静默丢弃', () => {
+test('迁移: 旧「按页 × 按效果」结构映射为页面开关 + 全局效果', () => {
   const state = normalize({
+    version: 1,
+    enabled: true,
+    title: { idle: false, interact: true },
+    background: { idle: true, interact: false, intensity: 0.55 },
     surfaces: {
+      hero: { title: true, background: false, glass: false },
+      chat: { background: false, glass: false },
+      panels: { hudGlass: true },
       plugins: { background: false },
-      schedules: { background: false },
-      hero: { title: false },
     },
+    glass: { blur: 20 },
   });
-  assert.deepEqual(Object.keys(state.surfaces).sort(), ['chat', 'hero', 'panels']);
-  assert.equal(state.surfaces.hero.title, false);
-  assert.equal('plugins' in state.surfaces, false);
-  assert.equal('schedules' in state.surfaces, false);
+  // 新增会话页任一效果开着 → 页面开启；聊天页两项全关 → 页面关闭
+  assert.deepEqual(state.pages, { hero: true, chat: false });
+  // 两页玻璃都关 → 全局玻璃关闭
+  assert.equal(state.glass.enabled, false);
+  // 旧默认强度 0.55 迁移为新默认 0.30；模糊半径保留原值
+  assert.equal(state.background.intensity, 0.3);
+  assert.equal(state.glass.blur, 20);
+  // 旧字段与未知页面组都不再出现在结果里
+  assert.equal('surfaces' in state, false);
 });
 
-test('normalize/patch: 跨区域开关可单独关闭，且右栏旧字段被丢弃', () => {
-  const off = normalize({ surfaces: { panels: { hudGlass: false } } });
-  assert.equal(off.surfaces.panels.hudGlass, false);
+test('迁移: 手调过的强度不被改写，新结构也不再被迁移', () => {
+  const tuned = normalize({
+    version: 1,
+    background: { intensity: 0.7 },
+    surfaces: { hero: { glass: true } },
+  });
+  assert.equal(tuned.background.intensity, 0.7);
 
-  // v0.2.4 移除了右侧边栏背景：旧存档里残留的 rightbarBackground 不应被恢复
-  const legacy = normalize({ surfaces: { panels: { hudGlass: true, rightbarBackground: false } } });
-  assert.equal('rightbarBackground' in legacy.surfaces.panels, false);
+  // 已经是 v2 结构：0.55 是用户自己拖的值，必须原样保留
+  const kept = normalize({ version: 2, background: { intensity: 0.55 } });
+  assert.equal(kept.background.intensity, 0.55);
+  const pages = normalize({ version: 2, pages: { hero: false, chat: true } });
+  assert.deepEqual(pages.pages, { hero: false, chat: true });
+});
 
-  const patched = patch(defaults(), { surfaces: { panels: { rightbarBackground: false } } });
-  assert.equal('rightbarBackground' in patched.surfaces.panels, false);
-  assert.equal(patched.surfaces.panels.hudGlass, true);
-  assert.equal(patched.surfaces.chat.glass, true);
+test('patch: 页面开关与玻璃总开关可单独改动，其余保持', () => {
+  const patched = patch(defaults(), { pages: { chat: false }, glass: { enabled: false } });
+  assert.equal(patched.pages.chat, false);
+  assert.equal(patched.pages.hero, true);
+  assert.equal(patched.glass.enabled, false);
+  assert.equal(patched.glass.blur, 14);
+  // 旧字段名不再被接受
+  const legacyPatch = patch(defaults(), { surfaces: { hero: { glass: false } } });
+  assert.equal(legacyPatch.glass.enabled, true);
 });
 
 test('normalize: 非对象输入回默认值', () => {
@@ -85,14 +111,17 @@ test('normalize: 丢弃未知键、类型错误回默认', () => {
     enabled: 'yes',
     unknown: 1,
     title: { idle: false, interact: 'no', extra: true },
-    surfaces: { hero: { title: false }, stranger: { background: false } },
+    pages: { hero: false, stranger: true },
+    glass: { enabled: 'maybe' },
   });
   assert.equal(state.enabled, true);
   assert.equal(state.title.idle, false);
   assert.equal(state.title.interact, true);
-  assert.equal(state.surfaces.hero.title, false);
+  assert.equal(state.pages.hero, false);
+  assert.equal(state.glass.enabled, true);
   assert.equal('unknown' in state, false);
-  assert.equal('stranger' in state.surfaces, false);
+  assert.equal('stranger' in state.pages, false);
+  assert.equal('surfaces' in state, false);
 });
 
 test('normalize: 数值钳位与步长吸附', () => {
@@ -118,11 +147,13 @@ test('normalize: 每次返回新对象，不复用默认值引用', () => {
 
 test('patch: 只改显式出现的键，其余保持不变', () => {
   const base = defaults();
-  const next = patch(base, { surfaces: { hero: { glass: false } } });
-  assert.equal(next.surfaces.hero.glass, false);
-  assert.equal(next.surfaces.hero.title, true);
-  assert.equal(next.surfaces.chat.glass, true);
-  assert.equal(next.background.intensity, 0.55);
+  const next = patch(base, { pages: { hero: false } });
+  assert.equal(next.pages.hero, false);
+  assert.equal(next.pages.chat, true);
+  assert.equal(next.background.intensity, 0.3);
+  // 旧字段名不再生效
+  const legacy = patch(base, { surfaces: { hero: { glass: false } } });
+  assert.equal(legacy.glass.enabled, true);
 });
 
 test('patch: partial 中的 undefined 不覆盖现有值', () => {
@@ -186,10 +217,13 @@ test('createStore: 无实质变化不写盘、不通知', () => {
 test('createStore: 重开（新实例）能读回上次设置', () => {
   const storage = memoryStorage();
   const first = createStore(storage);
-  first.update({ enabled: false, surfaces: { chat: { glass: false } } });
+  first.update({ enabled: false, pages: { chat: false }, glass: { enabled: false } });
   const second = createStore(storage);
-  assert.equal(second.getSnapshot().enabled, false);
-  assert.equal(second.getSnapshot().surfaces.chat.glass, false);
+  const state = second.getSnapshot();
+  assert.equal(state.enabled, false);
+  assert.equal(state.pages.chat, false);
+  assert.equal(state.pages.hero, true);
+  assert.equal(state.glass.enabled, false);
 });
 
 test('createStore: 写入异常不影响内存状态', () => {

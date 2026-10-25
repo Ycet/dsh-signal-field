@@ -1,9 +1,9 @@
-# dsh-signal-field v0.2.8
+# dsh-signal-field v0.2.9
 
 [![中文](https://img.shields.io/badge/简体中文-red?style=for-the-badge)](README.md)
 [![EN](https://img.shields.io/badge/English-blue?style=for-the-badge)](README_en.md)
 
-![version](https://img.shields.io/badge/version-v0.2.8-blue?style=for-the-badge)
+![version](https://img.shields.io/badge/version-v0.2.9-blue?style=for-the-badge)
 ![license](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
 ![platform](https://img.shields.io/badge/platform-DSH%20Web%20%2F%20Desktop-informational?style=for-the-badge)
 
@@ -45,22 +45,22 @@ v0.2.6 fixes two remaining artefacts: the layer used to be laid out as "panel re
 
 ## Settings page
 
-Settings → UI Motion (a `settings.section` entry with id `signal-field`, order 58, right after `dsh-ascii-whales`):
+Settings → UI Motion (a `settings.section` entry with id `signal-field`, order 58, right after `dsh-ascii-whales`). Since v0.2.9 the page has two modules separated by a divider:
 
-| Group | Rows |
+| Module | Rows |
 | --- | --- |
-| Master | Enable all motion |
-| New session | Headline / Backdrop / Composer frosted glass |
-| Chat session | Backdrop / Composer frosted glass |
-| Other areas | HUD panel frosted glass / Right sidebar backdrop |
-| Motion detail | Headline idle motion / Headline pointer interaction / Backdrop idle motion / Backdrop pointer interaction |
-| Parameters | Backdrop intensity (0–100%) / Glass blur (0–32 px) |
+| Master (above both modules) | Enable all effects |
+| **Pages** | New session page / Chat session page (each with a one-line hint) |
+| **Effects** | Headline default motion / Headline pointer interaction / Backdrop default motion / Backdrop pointer interaction / Composer frosted glass / Backdrop intensity (slider, **30%** by default) |
 
-- **11 independent switches + 1 master switch + 2 sliders**; changes apply immediately.
-- "Other areas" is page-independent: the HUD glass reuses the composer blur slider, and the right sidebar backdrop only applies while the sidebar is open.
-- A static note at the top of the "Pages" group states that the effects only run on the new-session and chat pages.
-- A "Diagnostics" block at the bottom renders anchors, layer sizes, computed styles and a page history automatically, so a page without motion can be diagnosed without devtools; `page=none` there means the current page is out of scope. Since v0.2.0 it also prints a `--- panels ---` section with the right sidebar state/backdrop/layer size and the HUD panel computed style.
-- Stored in browser `localStorage` under `dsh-signal-field:v1` and restored after a restart; "Restore defaults" clears it. The two obsolete page switches left behind by older versions are dropped silently on load, and every other setting is kept.
+- **1 master switch + 7 switches + 1 slider**: module 1 chooses which pages show the effects, module 2 tunes the effects themselves.
+- Turning a page off disables everything on that page (signal field, blueprint headline, composer glass) and returns it to the stock DSH look; with "New session page" off the headline is not mounted at all.
+- **The HUD panel has no switch of its own**: it follows the "Chat session page" switch, so turning the chat page off also reverts the panel; it is *not* controlled by "Composer frosted glass" (that switch only governs the composer card).
+- The blur radius is fixed at 14px (the old "Glass blur" slider was removed in v0.2.9) and shared by the composer and the HUD panel.
+- The headline only exists on the new session page, so the two headline rows are effectively hero-only.
+- A static note at the bottom of module 1 repeats that effects only run on the new session and chat pages; the plugin manager and automation pages keep the stock DSH look.
+- A "Diagnostics" block at the bottom renders anchors, layer sizes, computed styles and a page history automatically, so a page without effects can be diagnosed without devtools; `page=none` there means the current page is out of scope.
+- Stored in browser `localStorage` under `dsh-signal-field:v1` and restored after a restart; "Restore defaults" clears it. The pre-rename `dsh-motion-ui:v1` key is migrated once (see "Upgrading from dsh-motion-ui"), and the old per-page × per-effect structure is mapped semantically onto the new model (an old default intensity of 55% follows the new 30% default; hand-tuned values are kept).
 - Turning the master switch off destroys the canvas, stops animation and removes every injected scope attribute, restoring the stock DSH look.
 
 ---
@@ -147,6 +147,7 @@ Relation to `dsh-ascii-whales`: both style `[data-composer-card]`. This plugin's
 5. Expanding a question card / plan list: nothing covers or blurs the area beneath the overlay (the key v0.2.4 regression).
 6. Right sidebar: back to the stock DSH look, with **no** signal field.
 7. HUD panel: it reads as frosted glass and the signal field shows through blurred; the strip of the right-hand column **below** the panel is backdrop rather than a plain white block (the key v0.2.5 regression); there is **no** hard-edged patch and **no** denser band around the panel (the key v0.2.6 regression); turning "HUD panel frosted glass" off restores the original look and removes that backdrop layer.
+12. Settings structure (v0.2.9): only the "Pages" and "Effects" modules plus one divider; turning "Chat session page" off returns the chat page to the stock look and the HUD panel loses its glass too; backdrop intensity shows 30% by default.
 8. The HUD's own popups (git graph, branch/commit/confirm dialogs, file and branch menus, commit hover tip) are still centred in or anchored to the viewport — **not trapped inside the panel and not clipped**.
 9. Drag the headline to the page corners and over the composer: it stays visible and springs back on release.
 10. Regression: backdrops/headline/composer glass on both pages, light/dark switching, 10 switches and both sliders applying immediately and surviving a refresh; the plugin manager and scheduled-task page still keep the stock DSH look.

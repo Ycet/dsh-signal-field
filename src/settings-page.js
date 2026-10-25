@@ -3,6 +3,11 @@ import React from "react";
 /**
  * dsh-signal-field · 「设置 → UI 动画」页
  *
+ * v0.2.9 起页面分成两个模块（中间一条分割线）：
+ *   1. 「页面」——哪些页面展示动效（新建会话页面 / 聊天会话页面）
+ *   2. 「动效」——动效本身（标题、背景、输入框毛玻璃、背景强度）
+ * 总开关单独一行放在两个模块之前。
+ *
  * 只做三件事：把设置渲染成开关/滑块、把改动写回 store、在必要时说明降级状态。
  * 不依赖 DSH 的 Client 组件包（按插件实践要求自绘控件，只用主题 token 取色）。
  */
@@ -99,10 +104,11 @@ export function SettingsPage(props) {
     runDiagnose();
   }, []);
 
-  const surface = (page, key) => ({
-    checked: state.surfaces[page][key],
+  /** 模块「页面」里的行：控制该页是否展示动效。 */
+  const pageSwitch = (key) => ({
+    checked: state.pages[key],
     disabled: off,
-    onChange: (value) => set({ surfaces: { [page]: { [key]: value } } }),
+    onChange: (value) => set({ pages: { [key]: value } }),
   });
 
   const section = (title, children) =>
@@ -113,20 +119,16 @@ export function SettingsPage(props) {
       children,
     );
 
-  const pageGroup = (title, rows) =>
-    h(
-      "div",
-      { className: "mui-page-group" },
-      h("h4", { className: "mui-page-title" }, title),
-      rows,
-    );
+  /** 两个模块之间的分割线（纯样式，不参与交互）。 */
+  const divider = () => h("div", { className: "mui-divider", role: "separator" });
 
-  const heroTitle = surface("hero", "title");
-  const heroBackground = surface("hero", "background");
-  const heroGlass = surface("hero", "glass");
-  const chatBackground = surface("chat", "background");
-  const chatGlass = surface("chat", "glass");
-  const panelsHud = surface("panels", "hudGlass");
+  const heroPage = pageSwitch("hero");
+  const chatPage = pageSwitch("chat");
+  const glassEnabled = {
+    checked: state.glass.enabled,
+    disabled: off,
+    onChange: (value) => set({ glass: { enabled: value } }),
+  };
 
   return h(
     "div",
@@ -154,63 +156,32 @@ export function SettingsPage(props) {
       ? h("p", { className: "mui-note", "data-tone": "warn" }, t("reducedMotion"))
       : null,
 
-    // 页面维度
+    // 模块 1：页面
     section(
-      t("groupSurfaces"),
-      h(
-        React.Fragment,
-        null,
-        // 作用范围说明：这是一行不可交互的静态提示，不是开关。
-        h("p", { className: "mui-note" }, t("scopeNote")),
-        pageGroup(t("pageHero"), [
-          h(
-            Row,
-            { key: "hero-title", label: t("rowHeroTitle") },
-            h(Switch, { label: t("rowHeroTitle"), ...heroTitle }),
-          ),
-          h(
-            Row,
-            { key: "hero-bg", label: t("rowHeroBackground") },
-            h(Switch, { label: t("rowHeroBackground"), ...heroBackground }),
-          ),
-          h(
-            Row,
-            { key: "hero-glass", label: t("rowHeroGlass") },
-            h(Switch, { label: t("rowHeroGlass"), ...heroGlass }),
-          ),
-        ]),
-        pageGroup(t("pageChat"), [
-          h(
-            Row,
-            { key: "chat-bg", label: t("rowChatBackground") },
-            h(Switch, { label: t("rowChatBackground"), ...chatBackground }),
-          ),
-          h(
-            Row,
-            { key: "chat-glass", label: t("rowChatGlass") },
-            h(Switch, { label: t("rowChatGlass"), ...chatGlass }),
-          ),
-        ]),
-      ),
-    ),
-
-    // 其它区域：与页面无关的跨区域能力
-    section(
-      t("groupPanels"),
+      t("groupPages"),
       h(
         React.Fragment,
         null,
         h(
           Row,
-          { key: "panels-hud", label: t("rowHudGlass"), hint: t("rowHudGlassHint") },
-          h(Switch, { label: t("rowHudGlass"), ...panelsHud }),
+          { key: "page-hero", label: t("rowHeroPage"), hint: t("rowHeroPageHint") },
+          h(Switch, { label: t("rowHeroPage"), ...heroPage }),
         ),
+        h(
+          Row,
+          { key: "page-chat", label: t("rowChatPage"), hint: t("rowChatPageHint") },
+          h(Switch, { label: t("rowChatPage"), ...chatPage }),
+        ),
+        // 作用范围说明：这是一行不可交互的静态提示，不是开关。
+        h("p", { className: "mui-note" }, t("scopeNote")),
       ),
     ),
 
-    // 动效细节
+    divider(),
+
+    // 模块 2：动效本身
     section(
-      t("groupDetail"),
+      t("groupEffects"),
       h(
         React.Fragment,
         null,
@@ -254,15 +225,11 @@ export function SettingsPage(props) {
             onChange: (value) => set({ background: { interact: value } }),
           }),
         ),
-      ),
-    ),
-
-    // 参数
-    section(
-      t("groupParams"),
-      h(
-        React.Fragment,
-        null,
+        h(
+          Row,
+          { label: t("rowGlass"), hint: t("rowGlassHint") },
+          h(Switch, { label: t("rowGlass"), ...glassEnabled }),
+        ),
         h(
           Row,
           { label: t("rowIntensity"), hint: t("rowIntensityHint") },
@@ -275,20 +242,6 @@ export function SettingsPage(props) {
             display: `${Math.round(state.background.intensity * 100)}%`,
             disabled: off,
             onChange: (value) => set({ background: { intensity: value } }),
-          }),
-        ),
-        h(
-          Row,
-          { label: t("rowBlur"), hint: t("rowBlurHint") },
-          h(Range, {
-            label: t("rowBlur"),
-            value: state.glass.blur,
-            min: 0,
-            max: 32,
-            step: 1,
-            display: `${state.glass.blur}px`,
-            disabled: off,
-            onChange: (value) => set({ glass: { blur: value } }),
           }),
         ),
       ),

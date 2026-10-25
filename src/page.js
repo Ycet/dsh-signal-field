@@ -41,19 +41,16 @@ export function resolvePageKind(input) {
 /**
  * 决定「HUD 面板毛玻璃」这个跨区域能力是否生效。
  *
- * 规则：
- *   1. 只有新增会话页与聊天会话页在作用范围内，面板页一律不介入；
- *   2. 受自己的开关控制。
+ * 规则（v0.2.9 起）：HUD 面板不再有独立开关，它跟随「聊天会话页面」这个页面开关——
+ * 关掉聊天会话页的动效，面板也同步回到原生外观。
+ * 它不受「输入框毛玻璃效果」总开关控制（该开关只管输入框卡片）。
  *
- * 右侧边栏背景已于 v0.2.4 按用户要求移除（作用范围不再包含右栏），
- * 因此这里不再返回 rightbar，也不再需要右栏展开状态。
- *
- * @param {{ page?: string, hudGlass?: unknown }} input
+ * @param {{ page?: string, chatPage?: unknown }} input
  * @returns {{ hud: boolean }}
  */
 export function resolvePanelTargets(input) {
   const src = input && typeof input === "object" ? input : {};
   const inScope = src.page === PAGE_HERO || src.page === PAGE_CHAT;
   if (!inScope) return { hud: false };
-  return { hud: !!src.hudGlass };
+  return { hud: !!src.chatPage };
 }

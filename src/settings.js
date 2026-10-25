@@ -18,8 +18,8 @@ export const STORAGE_KEY = 'dsh-signal-field:v1';
  */
 export const LEGACY_STORAGE_KEY = 'dsh-motion-ui:v1';
 
-/** 当前设置结构版本。 */
-export const SCHEMA_VERSION = 1;
+/** 当前设置结构版本。v2 = v0.2.9 起的「页面开关 × 全局效果」结构。 */
+export const SCHEMA_VERSION = 2;
 
 /** 背景强度的取值范围（滑块的钳位与步长）。 */
 export const INTENSITY_RANGE = Object.freeze({ min: 0, max: 1, step: 0.05 });
@@ -28,22 +28,21 @@ export const INTENSITY_RANGE = Object.freeze({ min: 0, max: 1, step: 0.05 });
 export const BLUR_RANGE = Object.freeze({ min: 0, max: 32, step: 1 });
 
 /**
- * 默认设置：10 个独立开关全开、总开关开、参数取参考文档原值。
- * 作用范围只有两类页面（新增会话页与聊天会话页），插件管理页/自动化任务页不在范围内；
- * `surfaces.panels` 是与页面无关的跨区域能力（只剩 HUD 面板毛玻璃）。
+ * 默认设置（v0.2.9 结构）：
+ *   pages      —— 哪些页面展示动效（设置页模块「页面」）
+ *   title      —— 标题默认动效 / 鼠标交互（模块「动效」）
+ *   background —— 背景默认动效 / 鼠标交互 / 强度（强度默认 30%）
+ *   glass      —— 输入框毛玻璃总开关；blur 固定 14px，已不再提供滑块
+ * HUD 面板毛玻璃没有独立开关：它跟随「聊天会话页面」开关（详见 README 设置页章节）。
  */
 export function defaults() {
   return {
     version: SCHEMA_VERSION,
     enabled: true,
+    pages: { hero: true, chat: true },
     title: { idle: true, interact: true },
-    background: { idle: true, interact: true, intensity: 0.55 },
-    surfaces: {
-      hero: { title: true, background: true, glass: true },
-      chat: { background: true, glass: true },
-      panels: { hudGlass: true },
-    },
-    glass: { blur: 14 },
+    background: { idle: true, interact: true, intensity: 0.3 },
+    glass: { enabled: true, blur: 14 },
   };
 }
 
@@ -67,6 +66,30 @@ function group(value) {
 }
 
 /**
+ * 识别 v0.2.8 及更早的「按页 × 按效果」结构，并映射成新的「页面开关 × 全局效果」。
+ * 只认 `surfaces`：新结构（version 2 / 有 pages）一律返回 null，保证迁移只发生一次。
+ * @param {object} src 已确认是对象的输入
+ * @returns {null | { hero: boolean, chat: boolean, glass: boolean }}
+ */
+function migrateSurfaces(src) {
+  if (src.version === SCHEMA_VERSION) return null;
+  const surfaces = src.surfaces;
+  if (!surfaces || typeof surfaces !== 'object' || Array.isArray(surfaces)) return null;
+  const hero = group(surfaces.hero);
+  const chat = group(surfaces.chat);
+  // 旧结构里每页每项都是独立开关：任一效果开着就认为该页仍在展示动效。
+  const heroOn =
+    bool(hero.title, true) || bool(hero.background, true) || bool(hero.glass, true);
+  const chatOn = bool(chat.background, true) || bool(chat.glass, true);
+  // 旧结构有「两页各自的毛玻璃」：任一页开着就视为全局玻璃开启。
+  const glassOn = bool(hero.glass, true) || bool(chat.glass, true);
+  return { hero: heroOn, chat: chatOn, glass: glassOn };
+}
+
+/** v0.2.8 及更早的强度默认值；迁移时把「恰好是旧默认」的值换成新默认 30%。 */
+const LEGACY_DEFAULT_INTENSITY = 0.55;
+
+/**
  * 把任意输入归一化为一份合法设置。
  * 未知键丢弃、类型错误回默认、数值钳位，损坏的 JSON 或旧结构都不会让 UI 崩掉。
  * @param {unknown} input 已解析的设置对象（可为 null/undefined/垃圾值）。
@@ -75,16 +98,24 @@ function group(value) {
 export function normalize(input) {
   const base = defaults();
   const src = group(input);
+  const legacy = migrateSurfaces(src);
+  const pages = group(src.pages);
   const title = group(src.title);
   const background = group(src.background);
-  const surfaces = group(src.surfaces);
-  const hero = group(surfaces.hero);
-  const chat = group(surfaces.chat);
-  const panels = group(surfaces.panels);
   const glass = group(src.glass);
+
+  // 旧结构恰用旧默认强度时，跟着新默认一起变淡；手调过的值原样保留。
+  const rawIntensity = background.intensity;
+  const migratedIntensity =
+    legacy && rawIntensity === LEGACY_DEFAULT_INTENSITY ? base.background.intensity : rawIntensity;
+
   return {
     version: SCHEMA_VERSION,
     enabled: bool(src.enabled, base.enabled),
+    pages: {
+      hero: legacy ? legacy.hero : bool(pages.hero, base.pages.hero),
+      chat: legacy ? legacy.chat : bool(pages.chat, base.pages.chat),
+    },
     title: {
       idle: bool(title.idle, base.title.idle),
       interact: bool(title.interact, base.title.interact),
@@ -92,23 +123,12 @@ export function normalize(input) {
     background: {
       idle: bool(background.idle, base.background.idle),
       interact: bool(background.interact, base.background.interact),
-      intensity: num(background.intensity, INTENSITY_RANGE, base.background.intensity),
+      intensity: num(migratedIntensity, INTENSITY_RANGE, base.background.intensity),
     },
-    surfaces: {
-      hero: {
-        title: bool(hero.title, base.surfaces.hero.title),
-        background: bool(hero.background, base.surfaces.hero.background),
-        glass: bool(hero.glass, base.surfaces.hero.glass),
-      },
-      chat: {
-        background: bool(chat.background, base.surfaces.chat.background),
-        glass: bool(chat.glass, base.surfaces.chat.glass),
-      },
-      panels: {
-        hudGlass: bool(panels.hudGlass, base.surfaces.panels.hudGlass),
-      },
+    glass: {
+      enabled: legacy ? legacy.glass : bool(glass.enabled, base.glass.enabled),
+      blur: num(glass.blur, BLUR_RANGE, base.glass.blur),
     },
-    glass: { blur: num(glass.blur, BLUR_RANGE, base.glass.blur) },
   };
 }
 
@@ -130,18 +150,13 @@ function mergeGroup(base, partial, keys) {
 export function patch(state, partial) {
   const base = normalize(state);
   const src = group(partial);
-  const surfaces = group(src.surfaces);
   const next = {
     ...base,
     enabled: Object.prototype.hasOwnProperty.call(src, 'enabled') ? src.enabled : base.enabled,
+    pages: mergeGroup(base.pages, src.pages, ['hero', 'chat']),
     title: mergeGroup(base.title, src.title, ['idle', 'interact']),
     background: mergeGroup(base.background, src.background, ['idle', 'interact', 'intensity']),
-    surfaces: {
-      hero: mergeGroup(base.surfaces.hero, surfaces.hero, ['title', 'background', 'glass']),
-      chat: mergeGroup(base.surfaces.chat, surfaces.chat, ['background', 'glass']),
-      panels: mergeGroup(base.surfaces.panels, surfaces.panels, ['hudGlass']),
-    },
-    glass: mergeGroup(base.glass, src.glass, ['blur']),
+    glass: mergeGroup(base.glass, src.glass, ['enabled', 'blur']),
   };
   return normalize(next);
 }

@@ -42,15 +42,16 @@ test('resolvePageKind: 三个分类常量互不相同', () => {
 });
 
 test('resolvePanelTargets: 不在作用范围时 HUD 不生效', () => {
-  const targets = resolvePanelTargets({ page: PAGE_NONE, hudGlass: true });
+  const targets = resolvePanelTargets({ page: PAGE_NONE, chatPage: true });
   assert.deepEqual(targets, { hud: false });
 });
 
-test('resolvePanelTargets: 两页各自跟随自己的开关', () => {
-  assert.deepEqual(resolvePanelTargets({ page: PAGE_HERO, hudGlass: true }), { hud: true });
-  assert.deepEqual(resolvePanelTargets({ page: PAGE_CHAT, hudGlass: true }), { hud: true });
-  assert.deepEqual(resolvePanelTargets({ page: PAGE_HERO, hudGlass: false }), { hud: false });
-  assert.deepEqual(resolvePanelTargets({ page: PAGE_CHAT, hudGlass: false }), { hud: false });
+test('resolvePanelTargets: HUD 面板跟随「聊天会话页面」开关', () => {
+  // v0.2.9：HUD 面板没有独立开关，只看聊天页是否启用；与当前处在哪一页无关。
+  assert.deepEqual(resolvePanelTargets({ page: PAGE_HERO, chatPage: true }), { hud: true });
+  assert.deepEqual(resolvePanelTargets({ page: PAGE_CHAT, chatPage: true }), { hud: true });
+  assert.deepEqual(resolvePanelTargets({ page: PAGE_HERO, chatPage: false }), { hud: false });
+  assert.deepEqual(resolvePanelTargets({ page: PAGE_CHAT, chatPage: false }), { hud: false });
 });
 
 test('resolvePanelTargets: 右侧边栏背景已移除，不再返回 rightbar', () => {
@@ -58,7 +59,7 @@ test('resolvePanelTargets: 右侧边栏背景已移除，不再返回 rightbar',
   const targets = resolvePanelTargets({
     page: PAGE_CHAT,
     rightbarOpen: true,
-    hudGlass: true,
+    chatPage: true,
     rightbarBackground: true,
   });
   assert.equal('rightbar' in targets, false);
@@ -72,10 +73,10 @@ test('resolvePanelTargets: 垃圾输入不会抛错', () => {
   assert.deepEqual(resolvePanelTargets({ page: PAGE_CHAT }), { hud: false });
   // 开关按真值强制布尔（沿用原实现的 !! 语义）：假值关闭、真值开启
   for (const falsy of [undefined, null, false, 0, '']) {
-    assert.deepEqual(resolvePanelTargets({ page: PAGE_CHAT, hudGlass: falsy }), { hud: false });
+    assert.deepEqual(resolvePanelTargets({ page: PAGE_CHAT, chatPage: falsy }), { hud: false });
   }
   for (const truthy of [true, 1, 'yes']) {
-    assert.deepEqual(resolvePanelTargets({ page: PAGE_CHAT, hudGlass: truthy }), { hud: true });
+    assert.deepEqual(resolvePanelTargets({ page: PAGE_CHAT, chatPage: truthy }), { hud: true });
   }
-  assert.deepEqual(resolvePanelTargets({ page: PAGE_CHAT, hudGlass: true }), { hud: true });
+  assert.deepEqual(resolvePanelTargets({ page: PAGE_CHAT, chatPage: true }), { hud: true });
 });

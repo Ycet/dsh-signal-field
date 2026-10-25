@@ -9,36 +9,29 @@ window.__ModuleLoader__.load({
     var SIGNAL_FIELD_DICTS = {
       "zh": {
         "title": "UI 动画",
-        "lead": "动效、背景与毛玻璃的开关。改动即时生效，保存在本机浏览器存储中。",
+        "lead": "先选在哪些页面展示动效，再调各项动效本身。改动即时生效，保存在本机浏览器存储中。",
         "groupMaster": "总开关",
         "master": "启用全部动效",
         "masterHint": "关闭后不创建画布、不运行动画、不注入样式，界面恢复 DSH 原生外观。",
-        "groupSurfaces": "页面",
-        "groupDetail": "动效细节",
-        "groupParams": "参数",
-        "groupPanels": "其它区域",
-        "pageHero": "新增会话页",
-        "pageChat": "聊天会话页",
-        "scopeNote": "动效仅在新增会话页与聊天会话页生效；插件管理页、自动化任务页保持 DSH 原生外观。",
-        "rowHeroTitle": "标题文字",
-        "rowHeroBackground": "背景",
-        "rowHeroGlass": "输入框毛玻璃",
-        "rowChatBackground": "背景",
-        "rowChatGlass": "输入框毛玻璃",
-        "rowHudGlass": "HUD 面板毛玻璃",
-        "rowHudGlassHint": "dsh-awesome-hud 的悬浮面板改用与输入框同款毛玻璃，并复用同一个模糊滑块。",
-        "rowTitleIdle": "标题默认动效",
+        "groupPages": "页面",
+        "rowHeroPage": "新建会话页面",
+        "rowHeroPageHint": "关闭后新建会话页恢复 DSH 原生外观（标题、背景、输入框毛玻璃一并停用）。",
+        "rowChatPage": "聊天会话页面",
+        "rowChatPageHint": "关闭后聊天会话页恢复 DSH 原生外观，HUD 面板毛玻璃也一并关闭。",
+        "scopeNote": "动效仅在新建会话页与聊天会话页生效；插件管理页、自动化任务页保持 DSH 原生外观。",
+        "groupEffects": "动效",
+        "rowTitleIdle": "标题文字默认动效",
         "rowTitleIdleHint": "入场逐字揭示与扫光；关闭后标题静态显示。",
-        "rowTitleInteract": "标题鼠标交互",
+        "rowTitleInteract": "标题文字鼠标交互",
         "rowTitleInteractHint": "指针靠近时字形转为虚线轮廓，可拖动字块；关闭后不响应指针。",
         "rowBackgroundIdle": "背景默认动效",
         "rowBackgroundIdleHint": "噪声波自走流动；关闭后信号场静止。",
         "rowBackgroundInteract": "背景鼠标交互",
         "rowBackgroundInteractHint": "光标擦除（亮色）/ 点亮（暗色）与点击涟漪。",
+        "rowGlass": "输入框毛玻璃效果",
+        "rowGlassHint": "输入框卡片与背板的毛玻璃；模糊半径固定 14px。",
         "rowIntensity": "背景强度",
-        "rowIntensityHint": "只影响信号场的浓淡，不改变动画速度。",
-        "rowBlur": "毛玻璃模糊",
-        "rowBlurHint": "输入框背板的高斯模糊半径。",
+        "rowIntensityHint": "只影响信号场的浓淡，不改变动画速度；默认 30%。",
         "reducedMotion": "系统开启了「减少动效」，动画与鼠标交互已默认关闭；需要时可在此手动打开。",
         "coexist": "与 dsh-ascii-whales 同时开启时，本插件的输入框毛玻璃与信号场优先。",
         "reset": "恢复默认",
@@ -49,44 +42,37 @@ window.__ModuleLoader__.load({
         "diagRefresh": "刷新"
       },
       "en": {
-        "title": "UI Motion",
-        "lead": "Toggles for motion, backdrop and frosted glass. Changes apply immediately and are stored in this browser.",
-        "groupMaster": "Master",
-        "master": "Enable all motion",
-        "masterHint": "Off removes the canvas, stops animation and drops the injected styles, restoring the stock DSH look.",
-        "groupSurfaces": "Pages",
-        "groupDetail": "Motion detail",
-        "groupParams": "Parameters",
-        "groupPanels": "Other areas",
-        "pageHero": "New session",
-        "pageChat": "Chat session",
-        "scopeNote": "These effects only run on the new-session and chat pages; the plugin manager and the scheduled-task page keep the stock DSH look.",
-        "rowHeroTitle": "Headline",
-        "rowHeroBackground": "Backdrop",
-        "rowHeroGlass": "Composer frosted glass",
-        "rowChatBackground": "Backdrop",
-        "rowChatGlass": "Composer frosted glass",
-        "rowHudGlass": "HUD panel frosted glass",
-        "rowHudGlassHint": "Gives the dsh-awesome-hud floating panel the same frosted glass as the composer, sharing one blur slider.",
-        "rowTitleIdle": "Headline idle motion",
-        "rowTitleIdleHint": "Letter reveal and sweep on entry; off keeps the headline static.",
+        "title": "UI motion",
+        "lead": "Pick which pages show the effects, then tune the effects themselves. Changes apply instantly and are stored in this browser.",
+        "groupMaster": "Master switch",
+        "master": "Enable all effects",
+        "masterHint": "When off, no canvas, no animation loop and no injected styles: the UI returns to the stock DSH look.",
+        "groupPages": "Pages",
+        "rowHeroPage": "New session page",
+        "rowHeroPageHint": "When off, the new session page returns to the stock DSH look (headline, backdrop and composer glass all stop).",
+        "rowChatPage": "Chat session page",
+        "rowChatPageHint": "When off, the chat page returns to the stock DSH look, and the HUD panel glass turns off with it.",
+        "scopeNote": "Effects only apply to the new session page and the chat session page; the plugin manager and automation pages keep the stock DSH look.",
+        "groupEffects": "Effects",
+        "rowTitleIdle": "Headline default motion",
+        "rowTitleIdleHint": "Letter-by-letter reveal and sweep on entry; when off the headline is static.",
         "rowTitleInteract": "Headline pointer interaction",
-        "rowTitleInteractHint": "Glyphs turn into dashed outlines near the pointer and blocks can be dragged; off ignores the pointer.",
-        "rowBackgroundIdle": "Backdrop idle motion",
-        "rowBackgroundIdleHint": "The noise wave drifts on its own; off freezes the field.",
+        "rowTitleInteractHint": "Glyphs turn into dashed outlines near the pointer and can be dragged; when off it ignores the pointer.",
+        "rowBackgroundIdle": "Backdrop default motion",
+        "rowBackgroundIdleHint": "The noise wave drifts on its own; when off the signal field is static.",
         "rowBackgroundInteract": "Backdrop pointer interaction",
-        "rowBackgroundInteractHint": "Cursor erase (light) or reveal (dark) plus click ripples.",
+        "rowBackgroundInteractHint": "Cursor erase (light theme) / light-up (dark theme) and click ripples.",
+        "rowGlass": "Composer frosted glass",
+        "rowGlassHint": "Frosted glass on the composer card and its backing; the blur radius is fixed at 14px.",
         "rowIntensity": "Backdrop intensity",
-        "rowIntensityHint": "Changes how dense the field reads, not how fast it moves.",
-        "rowBlur": "Glass blur",
-        "rowBlurHint": "Gaussian blur radius behind the composer.",
-        "reducedMotion": "The system reduced-motion preference is on, so idle motion and pointer interaction start disabled; turn them on here if you want them.",
-        "coexist": "With dsh-ascii-whales enabled as well, this plugin's composer glass and signal field take precedence.",
-        "reset": "Restore defaults",
+        "rowIntensityHint": "Only changes how dense the signal field is, not its speed; 30% by default.",
+        "reducedMotion": "The system asks for reduced motion, so animation and pointer interaction are off by default; you can still switch them on here.",
+        "coexist": "When dsh-ascii-whales is also enabled, this plugin owns the composer glass and the signal field.",
+        "reset": "Reset to defaults",
         "resetDone": "Defaults restored",
-        "titleUnavailable": "This DSH version has no mount point for the new-session headline, so the headline effect is unavailable.",
+        "titleUnavailable": "This DSH build exposes no headline mount point on the new session page, so headline effects are unavailable.",
         "diag": "Diagnostics",
-        "diagHint": "Use this when the backdrop or headline does not show up: press Refresh and share the result.",
+        "diagHint": "Use this when the backdrop or headline does not show up: press Refresh and send me the text.",
         "diagRefresh": "Refresh"
       }
     };
@@ -111,8 +97,8 @@ window.__ModuleLoader__.load({
      */
     const LEGACY_STORAGE_KEY = 'dsh-motion-ui:v1';
 
-    /** 当前设置结构版本。 */
-    const SCHEMA_VERSION = 1;
+    /** 当前设置结构版本。v2 = v0.2.9 起的「页面开关 × 全局效果」结构。 */
+    const SCHEMA_VERSION = 2;
 
     /** 背景强度的取值范围（滑块的钳位与步长）。 */
     const INTENSITY_RANGE = Object.freeze({ min: 0, max: 1, step: 0.05 });
@@ -121,22 +107,21 @@ window.__ModuleLoader__.load({
     const BLUR_RANGE = Object.freeze({ min: 0, max: 32, step: 1 });
 
     /**
-     * 默认设置：10 个独立开关全开、总开关开、参数取参考文档原值。
-     * 作用范围只有两类页面（新增会话页与聊天会话页），插件管理页/自动化任务页不在范围内；
-     * `surfaces.panels` 是与页面无关的跨区域能力（只剩 HUD 面板毛玻璃）。
+     * 默认设置（v0.2.9 结构）：
+     *   pages      —— 哪些页面展示动效（设置页模块「页面」）
+     *   title      —— 标题默认动效 / 鼠标交互（模块「动效」）
+     *   background —— 背景默认动效 / 鼠标交互 / 强度（强度默认 30%）
+     *   glass      —— 输入框毛玻璃总开关；blur 固定 14px，已不再提供滑块
+     * HUD 面板毛玻璃没有独立开关：它跟随「聊天会话页面」开关（详见 README 设置页章节）。
      */
     function defaults() {
       return {
         version: SCHEMA_VERSION,
         enabled: true,
+        pages: { hero: true, chat: true },
         title: { idle: true, interact: true },
-        background: { idle: true, interact: true, intensity: 0.55 },
-        surfaces: {
-          hero: { title: true, background: true, glass: true },
-          chat: { background: true, glass: true },
-          panels: { hudGlass: true },
-        },
-        glass: { blur: 14 },
+        background: { idle: true, interact: true, intensity: 0.3 },
+        glass: { enabled: true, blur: 14 },
       };
     }
 
@@ -160,6 +145,30 @@ window.__ModuleLoader__.load({
     }
 
     /**
+     * 识别 v0.2.8 及更早的「按页 × 按效果」结构，并映射成新的「页面开关 × 全局效果」。
+     * 只认 `surfaces`：新结构（version 2 / 有 pages）一律返回 null，保证迁移只发生一次。
+     * @param {object} src 已确认是对象的输入
+     * @returns {null | { hero: boolean, chat: boolean, glass: boolean }}
+     */
+    function migrateSurfaces(src) {
+      if (src.version === SCHEMA_VERSION) return null;
+      const surfaces = src.surfaces;
+      if (!surfaces || typeof surfaces !== 'object' || Array.isArray(surfaces)) return null;
+      const hero = group(surfaces.hero);
+      const chat = group(surfaces.chat);
+      // 旧结构里每页每项都是独立开关：任一效果开着就认为该页仍在展示动效。
+      const heroOn =
+        bool(hero.title, true) || bool(hero.background, true) || bool(hero.glass, true);
+      const chatOn = bool(chat.background, true) || bool(chat.glass, true);
+      // 旧结构有「两页各自的毛玻璃」：任一页开着就视为全局玻璃开启。
+      const glassOn = bool(hero.glass, true) || bool(chat.glass, true);
+      return { hero: heroOn, chat: chatOn, glass: glassOn };
+    }
+
+    /** v0.2.8 及更早的强度默认值；迁移时把「恰好是旧默认」的值换成新默认 30%。 */
+    const LEGACY_DEFAULT_INTENSITY = 0.55;
+
+    /**
      * 把任意输入归一化为一份合法设置。
      * 未知键丢弃、类型错误回默认、数值钳位，损坏的 JSON 或旧结构都不会让 UI 崩掉。
      * @param {unknown} input 已解析的设置对象（可为 null/undefined/垃圾值）。
@@ -168,16 +177,24 @@ window.__ModuleLoader__.load({
     function normalize(input) {
       const base = defaults();
       const src = group(input);
+      const legacy = migrateSurfaces(src);
+      const pages = group(src.pages);
       const title = group(src.title);
       const background = group(src.background);
-      const surfaces = group(src.surfaces);
-      const hero = group(surfaces.hero);
-      const chat = group(surfaces.chat);
-      const panels = group(surfaces.panels);
       const glass = group(src.glass);
+
+      // 旧结构恰用旧默认强度时，跟着新默认一起变淡；手调过的值原样保留。
+      const rawIntensity = background.intensity;
+      const migratedIntensity =
+        legacy && rawIntensity === LEGACY_DEFAULT_INTENSITY ? base.background.intensity : rawIntensity;
+
       return {
         version: SCHEMA_VERSION,
         enabled: bool(src.enabled, base.enabled),
+        pages: {
+          hero: legacy ? legacy.hero : bool(pages.hero, base.pages.hero),
+          chat: legacy ? legacy.chat : bool(pages.chat, base.pages.chat),
+        },
         title: {
           idle: bool(title.idle, base.title.idle),
           interact: bool(title.interact, base.title.interact),
@@ -185,23 +202,12 @@ window.__ModuleLoader__.load({
         background: {
           idle: bool(background.idle, base.background.idle),
           interact: bool(background.interact, base.background.interact),
-          intensity: num(background.intensity, INTENSITY_RANGE, base.background.intensity),
+          intensity: num(migratedIntensity, INTENSITY_RANGE, base.background.intensity),
         },
-        surfaces: {
-          hero: {
-            title: bool(hero.title, base.surfaces.hero.title),
-            background: bool(hero.background, base.surfaces.hero.background),
-            glass: bool(hero.glass, base.surfaces.hero.glass),
-          },
-          chat: {
-            background: bool(chat.background, base.surfaces.chat.background),
-            glass: bool(chat.glass, base.surfaces.chat.glass),
-          },
-          panels: {
-            hudGlass: bool(panels.hudGlass, base.surfaces.panels.hudGlass),
-          },
+        glass: {
+          enabled: legacy ? legacy.glass : bool(glass.enabled, base.glass.enabled),
+          blur: num(glass.blur, BLUR_RANGE, base.glass.blur),
         },
-        glass: { blur: num(glass.blur, BLUR_RANGE, base.glass.blur) },
       };
     }
 
@@ -223,18 +229,13 @@ window.__ModuleLoader__.load({
     function patch(state, partial) {
       const base = normalize(state);
       const src = group(partial);
-      const surfaces = group(src.surfaces);
       const next = {
         ...base,
         enabled: Object.prototype.hasOwnProperty.call(src, 'enabled') ? src.enabled : base.enabled,
+        pages: mergeGroup(base.pages, src.pages, ['hero', 'chat']),
         title: mergeGroup(base.title, src.title, ['idle', 'interact']),
         background: mergeGroup(base.background, src.background, ['idle', 'interact', 'intensity']),
-        surfaces: {
-          hero: mergeGroup(base.surfaces.hero, surfaces.hero, ['title', 'background', 'glass']),
-          chat: mergeGroup(base.surfaces.chat, surfaces.chat, ['background', 'glass']),
-          panels: mergeGroup(base.surfaces.panels, surfaces.panels, ['hudGlass']),
-        },
-        glass: mergeGroup(base.glass, src.glass, ['blur']),
+        glass: mergeGroup(base.glass, src.glass, ['enabled', 'blur']),
       };
       return normalize(next);
     }
@@ -446,21 +447,18 @@ window.__ModuleLoader__.load({
     /**
      * 决定「HUD 面板毛玻璃」这个跨区域能力是否生效。
      *
-     * 规则：
-     *   1. 只有新增会话页与聊天会话页在作用范围内，面板页一律不介入；
-     *   2. 受自己的开关控制。
+     * 规则（v0.2.9 起）：HUD 面板不再有独立开关，它跟随「聊天会话页面」这个页面开关——
+     * 关掉聊天会话页的动效，面板也同步回到原生外观。
+     * 它不受「输入框毛玻璃效果」总开关控制（该开关只管输入框卡片）。
      *
-     * 右侧边栏背景已于 v0.2.4 按用户要求移除（作用范围不再包含右栏），
-     * 因此这里不再返回 rightbar，也不再需要右栏展开状态。
-     *
-     * @param {{ page?: string, hudGlass?: unknown }} input
+     * @param {{ page?: string, chatPage?: unknown }} input
      * @returns {{ hud: boolean }}
      */
     function resolvePanelTargets(input) {
       const src = input && typeof input === "object" ? input : {};
       const inScope = src.page === PAGE_HERO || src.page === PAGE_CHAT;
       if (!inScope) return { hud: false };
-      return { hud: !!src.hudGlass };
+      return { hud: !!src.chatPage };
     }
 
 
@@ -2287,9 +2285,11 @@ window.__ModuleLoader__.load({
       margin:0 0 4px;font-size:12px;line-height:18px;font-weight:600;letter-spacing:.02em;
       text-transform:none;color:var(--dsw-alias-label-secondary);
     }
-    .mui-page-group{display:flex;flex-direction:column;gap:2px;padding:8px 0 4px;border-top:1px solid color-mix(in srgb, var(--dsw-alias-label-primary) 7%, transparent)}
-    .mui-page-group:first-of-type{border-top:0;padding-top:2px}
-    .mui-page-title{margin:0 0 2px;font-size:13px;line-height:20px;font-weight:600;color:var(--dsw-alias-label-primary)}
+    /* 两个模块之间的分割线（v0.2.9）：视觉上沿用原 page-group 的 7% 细线，但留出更明显的间距。 */
+    .mui-divider{
+      height:1px;margin:-4px 0;border:0;
+      background:color-mix(in srgb, var(--dsw-alias-label-primary) 9%, transparent);
+    }
     .mui-row{display:flex;align-items:flex-start;gap:16px;padding:8px 0;min-width:0}
     .mui-row-text{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 auto}
     .mui-row-label{font-size:13px;line-height:20px;color:var(--dsw-alias-label-primary)}
@@ -2536,9 +2536,10 @@ window.__ModuleLoader__.load({
       }
 
       function fieldWanted(state) {
+        // v0.2.9：背景是否铺由「页面」开关决定；background.idle 只决定是否持续动画。
         if (!state.enabled) return false;
-        if (page === PAGE_HERO) return state.surfaces.hero.background;
-        if (page === PAGE_CHAT) return state.surfaces.chat.background;
+        if (page === PAGE_HERO) return state.pages.hero;
+        if (page === PAGE_CHAT) return state.pages.chat;
         return false;
       }
 
@@ -2809,7 +2810,7 @@ window.__ModuleLoader__.load({
         const wanted =
           state.enabled &&
           page !== PAGE_NONE &&
-          state.surfaces.panels.hudGlass &&
+          state.pages.chat &&
           !!panel;
         if (!wanted) {
           destroyHudBackdrop();
@@ -2880,7 +2881,8 @@ window.__ModuleLoader__.load({
       // ---- 标题 -------------------------------------------------------------
 
       function titleWanted(state) {
-        return state.enabled && page === PAGE_HERO && state.surfaces.hero.title;
+        // 标题只存在于新增会话页，因此它跟随「新建会话页面」开关。
+        return state.enabled && page === PAGE_HERO && state.pages.hero;
       }
 
       function removeTitle() {
@@ -3057,21 +3059,20 @@ window.__ModuleLoader__.load({
         // 这样 HUD 玻璃、右栏背景这类跨区域能力在背景关掉时仍然可单独生效。
         root.toggleAttribute("data-mui-scope", page !== PAGE_NONE);
         root.toggleAttribute("data-mui-dark", dark);
+        // 输入框毛玻璃：v0.2.9 起是一个全局开关，再由当前页面开关决定是否生效。
+        const glassOn = state.glass.enabled;
         root.toggleAttribute(
           "data-mui-glass-hero",
-          state.surfaces.hero.glass && page === PAGE_HERO,
+          glassOn && page === PAGE_HERO && state.pages.hero,
         );
         root.toggleAttribute(
           "data-mui-glass-chat",
-          state.surfaces.chat.glass && page === PAGE_CHAT,
+          glassOn && page === PAGE_CHAT && state.pages.chat,
         );
-        // 跨区域能力只剩 HUD 面板：作用范围与开关都由 resolvePanelTargets 判定。
-        // 右侧边栏的动效背景已于 v0.2.4 按用户要求移除，不再建层、不再写属性。
-        const targets = resolvePanelTargets({
-          page,
-          hudGlass: state.surfaces.panels.hudGlass,
-        });
+        // HUD 面板没有独立开关：跟随「聊天会话页面」（见 resolvePanelTargets 注释）。
+        const targets = resolvePanelTargets({ page, chatPage: state.pages.chat });
         root.toggleAttribute("data-mui-hud-glass", targets.hud);
+        // 模糊半径已固定 14px（v0.2.9 移除滑块），这里仍写变量以保持 CSS 单一来源。
         root.style.setProperty("--mui-blur", `${state.glass.blur}px`);
         // 降级底色也放在根上：WebGL2 不可用时 CSS 径向渐变要用到这两个变量。
         root.style.setProperty("--mui-field-bg", dark ? "#070a12" : "#e7e9f0");
@@ -3321,6 +3322,11 @@ window.__ModuleLoader__.load({
     /**
      * dsh-signal-field · 「设置 → UI 动画」页
      *
+     * v0.2.9 起页面分成两个模块（中间一条分割线）：
+     *   1. 「页面」——哪些页面展示动效（新建会话页面 / 聊天会话页面）
+     *   2. 「动效」——动效本身（标题、背景、输入框毛玻璃、背景强度）
+     * 总开关单独一行放在两个模块之前。
+     *
      * 只做三件事：把设置渲染成开关/滑块、把改动写回 store、在必要时说明降级状态。
      * 不依赖 DSH 的 Client 组件包（按插件实践要求自绘控件，只用主题 token 取色）。
      */
@@ -3417,10 +3423,11 @@ window.__ModuleLoader__.load({
         runDiagnose();
       }, []);
 
-      const surface = (page, key) => ({
-        checked: state.surfaces[page][key],
+      /** 模块「页面」里的行：控制该页是否展示动效。 */
+      const pageSwitch = (key) => ({
+        checked: state.pages[key],
         disabled: off,
-        onChange: (value) => set({ surfaces: { [page]: { [key]: value } } }),
+        onChange: (value) => set({ pages: { [key]: value } }),
       });
 
       const section = (title, children) =>
@@ -3431,20 +3438,16 @@ window.__ModuleLoader__.load({
           children,
         );
 
-      const pageGroup = (title, rows) =>
-        h(
-          "div",
-          { className: "mui-page-group" },
-          h("h4", { className: "mui-page-title" }, title),
-          rows,
-        );
+      /** 两个模块之间的分割线（纯样式，不参与交互）。 */
+      const divider = () => h("div", { className: "mui-divider", role: "separator" });
 
-      const heroTitle = surface("hero", "title");
-      const heroBackground = surface("hero", "background");
-      const heroGlass = surface("hero", "glass");
-      const chatBackground = surface("chat", "background");
-      const chatGlass = surface("chat", "glass");
-      const panelsHud = surface("panels", "hudGlass");
+      const heroPage = pageSwitch("hero");
+      const chatPage = pageSwitch("chat");
+      const glassEnabled = {
+        checked: state.glass.enabled,
+        disabled: off,
+        onChange: (value) => set({ glass: { enabled: value } }),
+      };
 
       return h(
         "div",
@@ -3472,63 +3475,32 @@ window.__ModuleLoader__.load({
           ? h("p", { className: "mui-note", "data-tone": "warn" }, t("reducedMotion"))
           : null,
 
-        // 页面维度
+        // 模块 1：页面
         section(
-          t("groupSurfaces"),
-          h(
-            React.Fragment,
-            null,
-            // 作用范围说明：这是一行不可交互的静态提示，不是开关。
-            h("p", { className: "mui-note" }, t("scopeNote")),
-            pageGroup(t("pageHero"), [
-              h(
-                Row,
-                { key: "hero-title", label: t("rowHeroTitle") },
-                h(Switch, { label: t("rowHeroTitle"), ...heroTitle }),
-              ),
-              h(
-                Row,
-                { key: "hero-bg", label: t("rowHeroBackground") },
-                h(Switch, { label: t("rowHeroBackground"), ...heroBackground }),
-              ),
-              h(
-                Row,
-                { key: "hero-glass", label: t("rowHeroGlass") },
-                h(Switch, { label: t("rowHeroGlass"), ...heroGlass }),
-              ),
-            ]),
-            pageGroup(t("pageChat"), [
-              h(
-                Row,
-                { key: "chat-bg", label: t("rowChatBackground") },
-                h(Switch, { label: t("rowChatBackground"), ...chatBackground }),
-              ),
-              h(
-                Row,
-                { key: "chat-glass", label: t("rowChatGlass") },
-                h(Switch, { label: t("rowChatGlass"), ...chatGlass }),
-              ),
-            ]),
-          ),
-        ),
-
-        // 其它区域：与页面无关的跨区域能力
-        section(
-          t("groupPanels"),
+          t("groupPages"),
           h(
             React.Fragment,
             null,
             h(
               Row,
-              { key: "panels-hud", label: t("rowHudGlass"), hint: t("rowHudGlassHint") },
-              h(Switch, { label: t("rowHudGlass"), ...panelsHud }),
+              { key: "page-hero", label: t("rowHeroPage"), hint: t("rowHeroPageHint") },
+              h(Switch, { label: t("rowHeroPage"), ...heroPage }),
             ),
+            h(
+              Row,
+              { key: "page-chat", label: t("rowChatPage"), hint: t("rowChatPageHint") },
+              h(Switch, { label: t("rowChatPage"), ...chatPage }),
+            ),
+            // 作用范围说明：这是一行不可交互的静态提示，不是开关。
+            h("p", { className: "mui-note" }, t("scopeNote")),
           ),
         ),
 
-        // 动效细节
+        divider(),
+
+        // 模块 2：动效本身
         section(
-          t("groupDetail"),
+          t("groupEffects"),
           h(
             React.Fragment,
             null,
@@ -3572,15 +3544,11 @@ window.__ModuleLoader__.load({
                 onChange: (value) => set({ background: { interact: value } }),
               }),
             ),
-          ),
-        ),
-
-        // 参数
-        section(
-          t("groupParams"),
-          h(
-            React.Fragment,
-            null,
+            h(
+              Row,
+              { label: t("rowGlass"), hint: t("rowGlassHint") },
+              h(Switch, { label: t("rowGlass"), ...glassEnabled }),
+            ),
             h(
               Row,
               { label: t("rowIntensity"), hint: t("rowIntensityHint") },
@@ -3593,20 +3561,6 @@ window.__ModuleLoader__.load({
                 display: `${Math.round(state.background.intensity * 100)}%`,
                 disabled: off,
                 onChange: (value) => set({ background: { intensity: value } }),
-              }),
-            ),
-            h(
-              Row,
-              { label: t("rowBlur"), hint: t("rowBlurHint") },
-              h(Range, {
-                label: t("rowBlur"),
-                value: state.glass.blur,
-                min: 0,
-                max: 32,
-                step: 1,
-                display: `${state.glass.blur}px`,
-                disabled: off,
-                onChange: (value) => set({ glass: { blur: value } }),
               }),
             ),
           ),
