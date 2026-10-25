@@ -1,0 +1,4 @@
+# dsh-signal-field 的 bundle 行：Host 侧仅占位，全部能力在 Client 侧实现。
+- insert:
+    - id: signal-field
+      name: dsh-signal-field
