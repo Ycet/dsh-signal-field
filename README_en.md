@@ -1,20 +1,26 @@
-# dsh-signal-field v0.2.9
+# dsh-signal-field v0.2.10
 
 [![中文](https://img.shields.io/badge/简体中文-red?style=for-the-badge)](README.md)
 [![EN](https://img.shields.io/badge/English-blue?style=for-the-badge)](README_en.md)
 
-![version](https://img.shields.io/badge/version-v0.2.9-blue?style=for-the-badge)
+![version](https://img.shields.io/badge/version-v0.2.10-blue?style=for-the-badge)
 ![license](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
 ![platform](https://img.shields.io/badge/platform-DSH%20Web%20%2F%20Desktop-informational?style=for-the-badge)
 
-An animated-UI plugin for DeepSeek Harness (DSH) on Web and desktop: it brings a dithered signal-field backdrop, a blueprint headline type effect and frosted-glass composer surfaces to the new-session page and chat sessions, and extends the same backdrop and glass to the HUD panel and the right sidebar — each toggleable under Settings → UI Motion.
-
-> The visual language comes from the FX engine of the reference document `AI相关每周资讯_2026-H2.html` (Dither signal field + TechText blueprint headline). This plugin ports and productizes the two engines that matter for this request.
+An animated-UI plugin for DeepSeek Harness (DSH) on Web and desktop: it brings a dithered signal-field backdrop, a blueprint headline type effect and frosted-glass composer surfaces to the new-session page and chat sessions, and extends the same backdrop and glass to the HUD panel — each toggleable under Settings → UI Motion.
 
 > [!NOTE]
 > The scope is exactly two kinds of page: the **new session** page and the **chat session** page. The plugin manager, the scheduled-task page and any other panel page keep the stock DSH look: since v0.1.1 the plugin creates no layer, writes no scope attribute and injects nothing there, and it destroys an existing layer and canvas when you navigate away.
 >
-> Since v0.2.0 it also covers three more areas: the chat page **composer strip**, the `dsh-awesome-hud` **HUD panel glass**, and the DSH **right sidebar backdrop**.
+> Since v0.2.0 it also covers the chat page **composer strip** and the `dsh-awesome-hud` **HUD panel glass** (the right sidebar backdrop was removed in v0.2.4).
+
+---
+
+## Demo
+
+<video src="docs/demo.mp4" controls muted loop playsinline width="760"></video>
+
+If the player above does not work here, download [`docs/demo.mp4`](docs/demo.mp4) directly (960×560, ~36 s, 20 MB).
 
 ---
 
@@ -25,16 +31,13 @@ An animated-UI plugin for DeepSeek Harness (DSH) on Web and desktop: it brings a
 | New session (`data-content-phase="hero"`) | ✓ | ✓ "DEEPSEEK HARNESS" | ✓ composer |
 | Chat session | ✓ (composer strip included) | — | ✓ composer |
 | HUD panel (`dsh-awesome-hud`, both pages) | ✓ shows through, blurred | — | ✓ panel |
-| Right sidebar (both pages, when open) | ✓ its own layer | — | — |
 
-- The field spans the content area but deliberately does **not** repaint the left navigation column: DSH keeps its own fill, so colour stacking with plugins such as `dsh-better-sidebar` stays predictable. The right sidebar intentionally shares the content backdrop since v0.2.0.
+- The field spans the content area but deliberately does **not** repaint the left navigation column: DSH keeps its own fill, so colour stacking with plugins such as `dsh-better-sidebar` stays predictable.
 - Light and dark palettes follow the DSH theme automatically: light `#e7e9f0 / #b6bfd8 / cursor erase`, dark `#070a12 / #3a4a7a / cursor reveal`.
 - Backdrop interaction: drifting noise wave + pointer-trail erase/reveal + click ripple.
 - Headline interaction: entry reveal, glyphs turn into dashed vector outlines near the pointer, with an optional selection frame, draggable letter blocks and drifting specks.
 - The headline shares the hero row with the whale mark, "探索未至之境" and the preview badge, and the whole row is centred; letter blocks can be dragged anywhere on the page without being clipped, and spring back on release.
-- The right sidebar and the content area each use their own canvas, so the noise pattern is not continuous across the seam (same palette, same switches, same interaction).
 - Both the composer and the HUD panel hang their blur on the host's `::before`, never on the host element itself: `backdrop-filter` turns that element into the containing block for its `position:fixed` descendants, so putting it on the host makes the popups inside that subtree resolve against the host and get clipped by its `overflow:hidden`. In v0.2.0 this trapped `dsh-awesome-hud`'s own git graph and other dialogs inside the 300px panel; v0.2.1 fixes it and pins the rule with automated assertions.
-- The right sidebar's field layer carries its own base colour (`--mui-surface-base`, snapshotted from `--dsw-alias-bg-base` on `body`, since v0.2.2). Pushing that token to transparent inside the column had left the field sitting on the shell's background, so the same field read cool-white in the content area and warm/darker in the sidebar.
 - Messages scrolling under the composer no longer land on the status row: since v0.2.5 the **composer seat grows its own `::before` backing** — a `backdrop-filter` blur plus a bottom-edge tint at `z-index:-1`, so it always paints *below* the card and the status-row text and can never blur any UI. The v0.2.2 colour band and the v0.2.3 `::after` blur both painted above the seat's children; v0.2.4 switched to a `mask` but put it on the scroll container, and the seat is a child of it — the whole seat faded out (the status-row text vanished), and the backdrop root created by the mask stopped the composer card from sampling the signal field, degrading the glass to a transparent card with visible noise. Both are fixed in v0.2.5.
 v0.2.7 shrinks that backing to **only the info line below the composer** (height measured at runtime as "card bottom → seat bottom" and exposed as `--mui-seat-band-h`): with the v0.2.5 full-seat layer, `backdrop-filter` averaged the fine dither into a smooth pale grey, so the whole composer strip looked like it had no animated backdrop at all and the card blurred an already-smoothed field. The rest of the seat is transparent again, so the backdrop shows all the way into the composer area.
 - The HUD panel floats over the right-hand side of the content area, where there was no signal field, so its glass could only blur flat white and looked opaque. Since v0.2.3 a matching field layer is placed behind the panel, and v0.2.5 fixes two things about it: the layer is now inserted into the panel's own layer (DSH's `shell.overlay`) immediately before the panel (it used to hang on `body` with `z-index:-1`, where the shell's opaque background covered it completely), and its box now runs to the bottom-right corner of the viewport instead of "panel rect + 24px" — the panel's height follows its content, so a short panel used to leave a plain white block underneath.
@@ -45,7 +48,7 @@ v0.2.6 fixes two remaining artefacts: the layer used to be laid out as "panel re
 
 ## Settings page
 
-Settings → UI Motion (a `settings.section` entry with id `signal-field`, order 58, right after `dsh-ascii-whales`). Since v0.2.9 the page has two modules separated by a divider:
+Settings → UI Motion (a `settings.section` entry with id `signal-field`, order 58). Since v0.2.9 the page has two modules separated by a divider:
 
 | Module | Rows |
 | --- | --- |
@@ -59,8 +62,7 @@ Settings → UI Motion (a `settings.section` entry with id `signal-field`, order
 - The blur radius is fixed at 14px (the old "Glass blur" slider was removed in v0.2.9) and shared by the composer and the HUD panel.
 - The headline only exists on the new session page, so the two headline rows are effectively hero-only.
 - A static note at the bottom of module 1 repeats that effects only run on the new session and chat pages; the plugin manager and automation pages keep the stock DSH look.
-- A "Diagnostics" block at the bottom renders anchors, layer sizes, computed styles and a page history automatically, so a page without effects can be diagnosed without devtools; `page=none` there means the current page is out of scope.
-- Stored in browser `localStorage` under `dsh-signal-field:v1` and restored after a restart; "Restore defaults" clears it. The pre-rename `dsh-motion-ui:v1` key is migrated once (see "Upgrading from dsh-motion-ui"), and the old per-page × per-effect structure is mapped semantically onto the new model (an old default intensity of 55% follows the new 30% default; hand-tuned values are kept).
+- Stored in browser `localStorage` under `dsh-signal-field:v1` and restored after a restart; "Restore defaults" clears it. The old per-page × per-effect structure is mapped semantically onto the new model (an old default intensity of 55% follows the new 30% default; hand-tuned values are kept).
 - Turning the master switch off destroys the canvas, stops animation and removes every injected scope attribute, restoring the stock DSH look.
 
 ---
@@ -91,29 +93,6 @@ plugin_manager remove_bundle  target=dsh-signal-field
 
 ---
 
-## Upgrading from dsh-motion-ui
-
-Since v0.2.8 this plugin is called **dsh-signal-field** (formerly `dsh-motion-ui`). Features, look and settings are unchanged; only the package name, plugin id and settings storage key were aligned with the new name.
-
-```text
-# 1. Remove the old bundle first - otherwise both copies load at once (two style sheets, two signal fields)
-plugin_manager remove_bundle  target=dsh-motion-ui
-
-# 2. Install the renamed bundle
-plugin_manager install_bundle  target=<absolute-path-to-plugin>/dsh-signal-field
-
-# 3. Refresh the page
-```
-
-Migration details:
-
-- On first start the settings under the old key `dsh-motion-ui:v1` are copied to `dsh-signal-field:v1` and the old key is deleted — **your 10 switches and 2 sliders are kept**;
-- If the new key already holds a value, it wins and only the leftover old key is cleaned up;
-- Corrupt data in the old key silently falls back to defaults and never blocks startup;
-- The plugin id changed from `motion-ui` to `signal-field`; if an agent preset or another cordis composition references the old id, update it once.
-
----
-
 ## Known limits and version coupling
 
 The plugin only reads the host and never mutates DSH state, but it does depend on a few DOM contracts. If the effects disappear after a DSH upgrade, check this table:
@@ -134,7 +113,6 @@ The plugin only reads the host and never mutates DSH state, but it does depend o
 
 `[data-conversation-content]` is the plugin's only page-detection source and therefore its single point of failure (since v0.1.1 it no longer reads `ctx.layout`).
 
-Relation to `dsh-ascii-whales`: both style `[data-composer-card]`. This plugin's selectors are more specific (`html[data-mui][data-mui-glass-*] [data-composer-card]::before`), so with both enabled **this plugin wins**, and the settings page says so.
 
 ---
 

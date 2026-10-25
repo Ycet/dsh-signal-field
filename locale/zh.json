@@ -14,7 +14,6 @@
     "rowHeroPageHint": "关闭后新建会话页恢复 DSH 原生外观（标题、背景、输入框毛玻璃一并停用）。",
     "rowChatPage": "聊天会话页面",
     "rowChatPageHint": "关闭后聊天会话页恢复 DSH 原生外观，HUD 面板毛玻璃也一并关闭。",
-    "scopeNote": "动效仅在新建会话页与聊天会话页生效；插件管理页、自动化任务页保持 DSH 原生外观。",
     "groupEffects": "动效",
     "rowTitleIdle": "标题文字默认动效",
     "rowTitleIdleHint": "入场逐字揭示与扫光；关闭后标题静态显示。",
@@ -29,12 +28,8 @@
     "rowIntensity": "背景强度",
     "rowIntensityHint": "只影响信号场的浓淡，不改变动画速度；默认 30%。",
     "reducedMotion": "系统开启了「减少动效」，动画与鼠标交互已默认关闭；需要时可在此手动打开。",
-    "coexist": "与 dsh-ascii-whales 同时开启时，本插件的输入框毛玻璃与信号场优先。",
     "reset": "恢复默认",
     "resetDone": "已恢复默认设置",
-    "titleUnavailable": "当前 DSH 版本未找到新增会话页标题挂载点，标题效果暂不可用。",
-    "diag": "自检信息",
-    "diagHint": "排查背景/标题不生效时用：点「刷新」后把内容发给我。",
-    "diagRefresh": "刷新"
+    "titleUnavailable": "当前 DSH 版本未找到新增会话页标题挂载点，标题效果暂不可用。"
   }
 }

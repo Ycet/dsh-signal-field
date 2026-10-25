@@ -134,8 +134,6 @@ test('build: 产物包含当前版本的作用域钩子', async () => {
 test('locale: 两侧都声明了作用范围，且描述不再宣传已移出的页面', async () => {
   const zh = JSON.parse(await readFile(join(ROOT, 'locale', 'zh.json'), 'utf8'));
   const en = JSON.parse(await readFile(join(ROOT, 'locale', 'en.json'), 'utf8'));
-  assert.ok(zh.runtime.scopeNote.includes('插件管理页'));
-  assert.ok(en.runtime.scopeNote.includes('plugin manager'));
   assert.equal(/插件管理|自动化任务/.test(zh.meta.description), false);
   assert.equal(/plugin manager|scheduled-task/i.test(en.meta.description), false);
 });

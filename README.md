@@ -1,20 +1,26 @@
-# dsh-signal-field v0.2.9
+# dsh-signal-field v0.2.10
 
 [![中文](https://img.shields.io/badge/简体中文-red?style=for-the-badge)](README.md)
 [![EN](https://img.shields.io/badge/English-blue?style=for-the-badge)](README_en.md)
 
-![version](https://img.shields.io/badge/version-v0.2.9-blue?style=for-the-badge)
+![version](https://img.shields.io/badge/version-v0.2.10-blue?style=for-the-badge)
 ![license](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
 ![platform](https://img.shields.io/badge/platform-DSH%20Web%20%2F%20Desktop-informational?style=for-the-badge)
 
-DSH（DeepSeek Harness）Web / 桌面端动效界面插件：把「抖动信号场」背景、「蓝图标题」文字动效与「毛玻璃输入框」接进新增会话页与聊天会话页，并把同一套背景与玻璃延伸到 HUD 面板与右侧边栏；全部效果都能在「设置 → UI 动画」逐项开关。
-
-> 视觉语言来自参考文档 `AI相关每周资讯_2026-H2.html` 的 FX 引擎（Dither 信号场 + TechText 蓝图标题）。本插件是它在 DSH 内的移植与工程化版本，只保留了与该需求相关的两个引擎。
+DSH（DeepSeek Harness）Web / 桌面端动效界面插件：把「抖动信号场」背景、「蓝图标题」文字动效与「毛玻璃输入框」接进新增会话页与聊天会话页，并把同一套背景与玻璃延伸到 HUD 面板；全部效果都能在「设置 → UI 动画」逐项开关。
 
 > [!NOTE]
 > 作用范围只有**新增会话页**与**聊天会话页**两类页面。插件管理页、自动化任务页以及其它面板页保持 DSH 原生外观：v0.1.1 起本插件在这两页上不创建图层、不写作用域属性、不注入样式，切走时会把已经存在的图层与画布一并销毁。
 >
-> v0.2.0 起再覆盖三块区域：聊天页的**输入框条带**、`dsh-awesome-hud` 的**HUD 面板毛玻璃**、DSH **右侧边栏背景**。
+> v0.2.0 起再覆盖聊天页的**输入框条带**与 `dsh-awesome-hud` 的**HUD 面板毛玻璃**（右侧边栏背景已于 v0.2.4 按要求移除）。
+
+---
+
+## 演示
+
+<video src="docs/demo.mp4" controls muted loop playsinline width="760"></video>
+
+无法在此处播放时，可直接下载 [`docs/demo.mp4`](docs/demo.mp4)（960×560，约 36 秒，20MB）。
 
 ---
 
@@ -25,16 +31,13 @@ DSH（DeepSeek Harness）Web / 桌面端动效界面插件：把「抖动信号�
 | 新增会话页（`data-content-phase="hero"`） | ✓ | ✓「DEEPSEEK HARNESS」 | ✓ 输入框 |
 | 聊天会话页 | ✓（含输入框条带） | — | ✓ 输入框 |
 | HUD 面板（`dsh-awesome-hud`，两页通用） | ✓ 透出并模糊 | — | ✓ 面板 |
-| 右侧边栏（两页通用，展开时） | ✓ 独立一层 | — | — |
 
-- 信号场铺满内容区，但**不覆盖**左侧导航栏（保留 DSH 原生填充），避免与 `dsh-better-sidebar` 等插件的配色叠加冲突；右侧边栏按 v0.2.0 需求改为与内容区同一套背景。
+- 信号场铺满内容区，但**不覆盖**左侧导航栏（保留 DSH 原生填充），避免与 `dsh-better-sidebar` 等插件的配色叠加冲突。
 - 亮/暗两套配色自动跟随 DSH 主题：亮色 `#e7e9f0 / #b6bfd8 / 光标擦除`，暗色 `#070a12 / #3a4a7a / 光标点亮`。
 - 背景交互：噪声波自走 + 指针拖尾擦除/点亮 + 点击涟漪。
 - 标题交互：入场揭示、指针靠近时字形转虚线矢量轮廓（可选选框、拖动字块、飞白微粒）。
 - 标题与「鲸鱼图标 + 探索未至之境 + 预览版」同处 hero 行并整体居中；字形可拖到页面任意位置而不会被画布裁切，松手回弹。
-- 右侧边栏与内容区各用一层画布，因此交界处的噪声图案不连续（同一配色、同一开关、同一交互）。
 - 输入框与 HUD 面板的模糊层都挂在宿主的 `::before` 上，而不是宿主元素本身：`backdrop-filter` 会为该元素建立 `position:fixed` 后代的包含块，写在宿主上会让它子树里的弹层以宿主为视口并被 `overflow:hidden` 裁掉。v0.2.0 的 HUD 面板曾因此把 `dsh-awesome-hud` 自己的 git graph 等弹窗关进了 300px 面板，v0.2.1 修正并加了自动化断言。
-- 右栏的信号场图层自带一层「与内容区同源」的底色（`--mui-surface-base`，取自 `body` 上的 `--dsw-alias-bg-base` 快照，v0.2.2 起）。此前右栏把该 token 下推成透明后，场是直接压在外壳底色上的，同一个场在内容区偏冷白、在右栏偏暖发暗。
 - 滚动到输入框下方的消息不再压到状态栏上：v0.2.5 起由**输入框座位自己的 `::before` 背衬**承担遮挡——`backdrop-filter` 模糊 + 底边压色，`z-index:-1` 永远位于卡片与状态栏文字之下，因此不可能糊到任何 UI。v0.2.2 的纯色带、v0.2.3 的 `::after` 模糊层都叠在子元素之上；v0.2.4 改用 `mask` 但挂在了滚动容器上，而座位正是它的子节点——整条座位被一起渐隐（状态栏文字消失），`mask` 建立的 backdrop root 还让输入框卡片采样不到背后的场，毛玻璃退化成能看见噪点的透明卡。v0.2.5 一并修正。
 v0.2.7 再把背衬缩小到**只盖「输入框下方那一行信息文字」**那一条（高度由 JS 实测「卡片底边 → 座位底边」得到，写成 `--mui-seat-band-h`）：v0.2.5 铺满整条座位时，`backdrop-filter` 会把抖动的细颗粒平均成一片平滑浅灰，整条输入框区域看起来都像「没有动效背景」，卡片采到的也是糊过的场；现在座位其余部分保持透明，动效背景一直透到输入框区域。
 - HUD 面板是浮在内容区右侧的悬浮层，那一带原本没有信号场，玻璃只能模糊到白、看起来像不透明；v0.2.3 起在它背后补一层同样的场，玻璃才有东西可透。v0.2.5 修正两层问题：补场改为插进面板所在的同一层（DSH 的 `shell.overlay`）并排在面板之前（原来挂在 `body` 上用 `z-index:-1`，被外壳底色整块盖住，等于不存在），且尺寸从「面板矩形 + 24px」改为一路铺到视口右下角——面板高度由内容撑出，内容短时它下方原本会露出一块纯白。
@@ -45,7 +48,7 @@ v0.2.6 再修两处观感问题：补场原来按「面板外扩 24px」铺，�
 
 ## 设置页
 
-「设置 → UI 动画」（`settings.section` 的 `signal-field`，位置 58，紧跟 `dsh-ascii-whales`）。v0.2.9 起页面分成两个模块，中间一条分割线：
+「设置 → UI 动画」（`settings.section` 的 `signal-field`，位置 58）。v0.2.9 起页面分成两个模块，中间一条分割线：
 
 | 模块 | 条目 |
 | --- | --- |
@@ -59,8 +62,7 @@ v0.2.6 再修两处观感问题：补场原来按「面板外扩 24px」铺，�
 - 模糊半径固定 14px（v0.2.9 移除了原「毛玻璃模糊」滑块），输入框与 HUD 面板共用。
 - 标题只存在于新增会话页，所以模块 2 的两项标题动效实际只在 hero 生效。
 - 模块 1 底部有一行静态说明：动效只在新建会话页与聊天会话页生效，插件管理页/自动化任务页保持 DSH 原生外观。
-- 页面底部另有「自检信息」：一打开就自动生成锚点、图层尺寸、计算样式与页面历史，用于在没有 devtools 的环境里定位「某个页面没有动效」的问题；其中 `page=none` 表示当前页不在作用范围。
-- 配置写入浏览器 `localStorage`（键 `dsh-signal-field:v1`），重开应用后保持；「恢复默认」可一键清零。更名前的 `dsh-motion-ui:v1` 会自动迁移一次（见上文「从 dsh-motion-ui 升级」），旧「按页 × 按效果」结构也会按语义映射到新模型（旧默认强度 55% 会跟随新默认变为 30%，手调过的值保留）。
+- 配置写入浏览器 `localStorage`（键 `dsh-signal-field:v1`），重开应用后保持；「恢复默认」可一键清零。旧版「按页 × 按效果」结构会按语义映射到新模型（旧默认强度 55% 会跟随新默认变为 30%，手调过的值保留）。
 - 关闭总开关后：画布被销毁、动画停止、注入的作用域属性全部移除，界面回到 DSH 原生外观。
 
 ---
@@ -90,29 +92,6 @@ plugin_manager remove_bundle  target=dsh-signal-field
 
 ---
 
-## 从 dsh-motion-ui 升级
-
-本插件 v0.2.8 起更名为 **dsh-signal-field**（原名 `dsh-motion-ui`），功能、外观与设置项完全不变，只是包名、插件 id 与设置存储键一起对齐了新名字。
-
-```text
-# 1. 先移除旧包，避免新旧两份同时启用（会出现两套样式与两个信号场实例）
-plugin_manager remove_bundle  target=dsh-motion-ui
-
-# 2. 安装新包（target 指向改名后的目录）
-plugin_manager install_bundle  target=<absolute-path-to-plugin>/dsh-signal-field
-
-# 3. 刷新页面
-```
-
-迁移细节：
-
-- 首次启动时会把旧键 `dsh-motion-ui:v1` 的配置搬到新键 `dsh-signal-field:v1`，然后删除旧键——**10 个开关与 2 个滑块都不需要重设**；
-- 若新键已有值，则以新键为准，只清理残留的旧键；
-- 旧键数据损坏时静默回默认值，不影响启动；
-- 插件 id 由 `motion-ui` 变为 `signal-field`，若你的 agent preset 或其它 cordis 组合里显式写过旧 id，需要同步改一次。
-
----
-
 ## 已知限制与版本耦合
 
 本插件刻意保持「只读宿主、不改宿主」，但仍依赖几个 DSH 的 DOM 契约。DSH 大版本升级后若动效消失，按下面的锚点表排查：
@@ -133,7 +112,6 @@ plugin_manager install_bundle  target=<absolute-path-to-plugin>/dsh-signal-field
 
 `[data-conversation-content]` 是本插件唯一的页面判定依据，也是当前的单点依赖（v0.1.1 起不再读取 `ctx.layout`）。
 
-与 `dsh-ascii-whales` 的关系：两者都会作用于 `[data-composer-card]`。本插件的玻璃选择器特异性更高（`html[data-mui][data-mui-glass-*] [data-composer-card]::before`），同时开启时**以本插件为准**，设置页有对应提示。
 
 ---
 

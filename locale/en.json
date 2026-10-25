@@ -14,7 +14,6 @@
     "rowHeroPageHint": "When off, the new session page returns to the stock DSH look (headline, backdrop and composer glass all stop).",
     "rowChatPage": "Chat session page",
     "rowChatPageHint": "When off, the chat page returns to the stock DSH look, and the HUD panel glass turns off with it.",
-    "scopeNote": "Effects only apply to the new session page and the chat session page; the plugin manager and automation pages keep the stock DSH look.",
     "groupEffects": "Effects",
     "rowTitleIdle": "Headline default motion",
     "rowTitleIdleHint": "Letter-by-letter reveal and sweep on entry; when off the headline is static.",
@@ -29,12 +28,8 @@
     "rowIntensity": "Backdrop intensity",
     "rowIntensityHint": "Only changes how dense the signal field is, not its speed; 30% by default.",
     "reducedMotion": "The system asks for reduced motion, so animation and pointer interaction are off by default; you can still switch them on here.",
-    "coexist": "When dsh-ascii-whales is also enabled, this plugin owns the composer glass and the signal field.",
     "reset": "Reset to defaults",
     "resetDone": "Defaults restored",
-    "titleUnavailable": "This DSH build exposes no headline mount point on the new session page, so headline effects are unavailable.",
-    "diag": "Diagnostics",
-    "diagHint": "Use this when the backdrop or headline does not show up: press Refresh and send me the text.",
-    "diagRefresh": "Refresh"
+    "titleUnavailable": "This DSH build exposes no headline mount point on the new session page, so headline effects are unavailable."
   }
 }

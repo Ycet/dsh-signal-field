@@ -111,10 +111,12 @@ test('设置页: 已下线的行不会复活', async () => {
   }
 });
 
-test('设置页: 渲染结果里包含作用范围说明与自检入口', async () => {
+test('设置页: 渲染结果不再包含作用范围说明、共存说明与自检入口', async () => {
   const { rows } = collect(await renderPage(newState()));
   assert.ok(rows.includes('rowIntensity'));
   const source = await readFile(join(ROOT, 'src', 'settings-page.js'), 'utf8');
-  assert.equal(source.includes('t("scopeNote")'), true, '缺少作用范围说明');
-  assert.equal(source.includes('t("diag")'), true, '缺少自检入口');
+  // v0.2.10：作用范围说明、共存说明与自检信息块都已从界面移除
+  for (const gone of ['t("scopeNote")', 't("coexist")', 't("diag")', 'mui-diag']) {
+    assert.equal(source.includes(gone), false, `界面不应再包含：${gone}`);
+  }
 });

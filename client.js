@@ -18,7 +18,6 @@ window.__ModuleLoader__.load({
         "rowHeroPageHint": "关闭后新建会话页恢复 DSH 原生外观（标题、背景、输入框毛玻璃一并停用）。",
         "rowChatPage": "聊天会话页面",
         "rowChatPageHint": "关闭后聊天会话页恢复 DSH 原生外观，HUD 面板毛玻璃也一并关闭。",
-        "scopeNote": "动效仅在新建会话页与聊天会话页生效；插件管理页、自动化任务页保持 DSH 原生外观。",
         "groupEffects": "动效",
         "rowTitleIdle": "标题文字默认动效",
         "rowTitleIdleHint": "入场逐字揭示与扫光；关闭后标题静态显示。",
@@ -33,13 +32,9 @@ window.__ModuleLoader__.load({
         "rowIntensity": "背景强度",
         "rowIntensityHint": "只影响信号场的浓淡，不改变动画速度；默认 30%。",
         "reducedMotion": "系统开启了「减少动效」，动画与鼠标交互已默认关闭；需要时可在此手动打开。",
-        "coexist": "与 dsh-ascii-whales 同时开启时，本插件的输入框毛玻璃与信号场优先。",
         "reset": "恢复默认",
         "resetDone": "已恢复默认设置",
-        "titleUnavailable": "当前 DSH 版本未找到新增会话页标题挂载点，标题效果暂不可用。",
-        "diag": "自检信息",
-        "diagHint": "排查背景/标题不生效时用：点「刷新」后把内容发给我。",
-        "diagRefresh": "刷新"
+        "titleUnavailable": "当前 DSH 版本未找到新增会话页标题挂载点，标题效果暂不可用。"
       },
       "en": {
         "title": "UI motion",
@@ -52,7 +47,6 @@ window.__ModuleLoader__.load({
         "rowHeroPageHint": "When off, the new session page returns to the stock DSH look (headline, backdrop and composer glass all stop).",
         "rowChatPage": "Chat session page",
         "rowChatPageHint": "When off, the chat page returns to the stock DSH look, and the HUD panel glass turns off with it.",
-        "scopeNote": "Effects only apply to the new session page and the chat session page; the plugin manager and automation pages keep the stock DSH look.",
         "groupEffects": "Effects",
         "rowTitleIdle": "Headline default motion",
         "rowTitleIdleHint": "Letter-by-letter reveal and sweep on entry; when off the headline is static.",
@@ -67,13 +61,9 @@ window.__ModuleLoader__.load({
         "rowIntensity": "Backdrop intensity",
         "rowIntensityHint": "Only changes how dense the signal field is, not its speed; 30% by default.",
         "reducedMotion": "The system asks for reduced motion, so animation and pointer interaction are off by default; you can still switch them on here.",
-        "coexist": "When dsh-ascii-whales is also enabled, this plugin owns the composer glass and the signal field.",
         "reset": "Reset to defaults",
         "resetDone": "Defaults restored",
-        "titleUnavailable": "This DSH build exposes no headline mount point on the new session page, so headline effects are unavailable.",
-        "diag": "Diagnostics",
-        "diagHint": "Use this when the backdrop or headline does not show up: press Refresh and send me the text.",
-        "diagRefresh": "Refresh"
+        "titleUnavailable": "This DSH build exposes no headline mount point on the new session page, so headline effects are unavailable."
       }
     };
     // ---- src/settings.js ----
@@ -2338,18 +2328,6 @@ window.__ModuleLoader__.load({
     .mui-button:hover{background:color-mix(in srgb, var(--dsw-alias-label-primary) 7%, transparent)}
     .mui-button:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
     .mui-toast{font-size:12px;line-height:18px;color:var(--dsw-alias-state-success-primary)}
-    .mui-diag{display:flex;flex-direction:column;gap:8px;padding-top:4px;border-top:1px solid color-mix(in srgb, var(--dsw-alias-label-primary) 7%, transparent)}
-    .mui-diag-summary{cursor:pointer;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);list-style:none}
-    .mui-diag-summary::-webkit-details-marker{display:none}
-    .mui-diag-summary::before{content:"›";display:inline-block;width:12px;transition:transform .15s var(--ds-ease-in-out, ease)}
-    .mui-diag[open] .mui-diag-summary::before{transform:rotate(90deg)}
-    .mui-diag-body{
-      margin:0;padding:8px 10px;border-radius:8px;overflow:auto;max-height:260px;
-      font-family:var(--dsh-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace);
-      font-size:11px;line-height:17px;white-space:pre-wrap;overflow-wrap:anywhere;
-      color:var(--dsw-alias-label-secondary);
-      background:color-mix(in srgb, var(--dsw-alias-label-primary) 5%, transparent);
-    }
     @media (prefers-reduced-motion: reduce){
       [data-mui-field],[data-mui-field] > canvas,.mui-switch,.mui-switch::after,.mui-button{transition:none}
     }
@@ -3405,23 +3383,9 @@ window.__ModuleLoader__.load({
       const state = useStore(store);
       const runtime = useStore(status);
       const [toast, setToast] = React.useState("");
-      const [diag, setDiag] = React.useState(null);
       const off = !state.enabled;
 
       const set = (partial) => store.update(partial);
-
-      /** 跑一次自检并把文本结果放进页面。 */
-      const runDiagnose = () => {
-        try {
-          setDiag(props.diagnose ? String(props.diagnose()) : "no-diagnose");
-        } catch (error) {
-          setDiag(`error: ${(error && error.message) || error}`);
-        }
-      };
-      // 设置页一打开就把自检信息填好：这个环境没有 devtools，不让用户再点一次按钮。
-      React.useEffect(() => {
-        runDiagnose();
-      }, []);
 
       /** 模块「页面」里的行：控制该页是否展示动效。 */
       const pageSwitch = (key) => ({
@@ -3491,8 +3455,6 @@ window.__ModuleLoader__.load({
               { key: "page-chat", label: t("rowChatPage"), hint: t("rowChatPageHint") },
               h(Switch, { label: t("rowChatPage"), ...chatPage }),
             ),
-            // 作用范围说明：这是一行不可交互的静态提示，不是开关。
-            h("p", { className: "mui-note" }, t("scopeNote")),
           ),
         ),
 
@@ -3566,25 +3528,6 @@ window.__ModuleLoader__.load({
           ),
         ),
 
-        h("p", { className: "mui-note" }, t("coexist")),
-
-        // 自检：只在点开时执行，便于没有 devtools 的环境定位锚点问题
-        h(
-          "details",
-          { className: "mui-diag", open: true },
-          h("summary", { className: "mui-diag-summary" }, t("diag")),
-          h("p", { className: "mui-row-hint" }, t("diagHint")),
-          h(
-            "div",
-            { className: "mui-footer" },
-            h(
-              "button",
-              { type: "button", className: "mui-button", onClick: runDiagnose },
-              t("diagRefresh"),
-            ),
-          ),
-          diag ? h("pre", { className: "mui-diag-body" }, diag) : null,
-        ),
 
         h(
           "div",

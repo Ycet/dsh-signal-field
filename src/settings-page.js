@@ -86,23 +86,9 @@ export function SettingsPage(props) {
   const state = useStore(store);
   const runtime = useStore(status);
   const [toast, setToast] = React.useState("");
-  const [diag, setDiag] = React.useState(null);
   const off = !state.enabled;
 
   const set = (partial) => store.update(partial);
-
-  /** 跑一次自检并把文本结果放进页面。 */
-  const runDiagnose = () => {
-    try {
-      setDiag(props.diagnose ? String(props.diagnose()) : "no-diagnose");
-    } catch (error) {
-      setDiag(`error: ${(error && error.message) || error}`);
-    }
-  };
-  // 设置页一打开就把自检信息填好：这个环境没有 devtools，不让用户再点一次按钮。
-  React.useEffect(() => {
-    runDiagnose();
-  }, []);
 
   /** 模块「页面」里的行：控制该页是否展示动效。 */
   const pageSwitch = (key) => ({
@@ -172,8 +158,6 @@ export function SettingsPage(props) {
           { key: "page-chat", label: t("rowChatPage"), hint: t("rowChatPageHint") },
           h(Switch, { label: t("rowChatPage"), ...chatPage }),
         ),
-        // 作用范围说明：这是一行不可交互的静态提示，不是开关。
-        h("p", { className: "mui-note" }, t("scopeNote")),
       ),
     ),
 
@@ -247,25 +231,6 @@ export function SettingsPage(props) {
       ),
     ),
 
-    h("p", { className: "mui-note" }, t("coexist")),
-
-    // 自检：只在点开时执行，便于没有 devtools 的环境定位锚点问题
-    h(
-      "details",
-      { className: "mui-diag", open: true },
-      h("summary", { className: "mui-diag-summary" }, t("diag")),
-      h("p", { className: "mui-row-hint" }, t("diagHint")),
-      h(
-        "div",
-        { className: "mui-footer" },
-        h(
-          "button",
-          { type: "button", className: "mui-button", onClick: runDiagnose },
-          t("diagRefresh"),
-        ),
-      ),
-      diag ? h("pre", { className: "mui-diag-body" }, diag) : null,
-    ),
 
     h(
       "div",

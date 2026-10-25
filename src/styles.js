@@ -252,18 +252,6 @@ html[data-mui-scope][data-mui-hud-glass][data-mui-dark] .hud-panel::before{
 .mui-button:hover{background:color-mix(in srgb, var(--dsw-alias-label-primary) 7%, transparent)}
 .mui-button:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
 .mui-toast{font-size:12px;line-height:18px;color:var(--dsw-alias-state-success-primary)}
-.mui-diag{display:flex;flex-direction:column;gap:8px;padding-top:4px;border-top:1px solid color-mix(in srgb, var(--dsw-alias-label-primary) 7%, transparent)}
-.mui-diag-summary{cursor:pointer;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);list-style:none}
-.mui-diag-summary::-webkit-details-marker{display:none}
-.mui-diag-summary::before{content:"›";display:inline-block;width:12px;transition:transform .15s var(--ds-ease-in-out, ease)}
-.mui-diag[open] .mui-diag-summary::before{transform:rotate(90deg)}
-.mui-diag-body{
-  margin:0;padding:8px 10px;border-radius:8px;overflow:auto;max-height:260px;
-  font-family:var(--dsh-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace);
-  font-size:11px;line-height:17px;white-space:pre-wrap;overflow-wrap:anywhere;
-  color:var(--dsw-alias-label-secondary);
-  background:color-mix(in srgb, var(--dsw-alias-label-primary) 5%, transparent);
-}
 @media (prefers-reduced-motion: reduce){
   [data-mui-field],[data-mui-field] > canvas,.mui-switch,.mui-switch::after,.mui-button{transition:none}
 }
