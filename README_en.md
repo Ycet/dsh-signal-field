@@ -18,9 +18,9 @@ An animated-UI plugin for DeepSeek Harness (DSH) on Web and desktop: it brings a
 
 ## Demo
 
-<video src="docs/demo.mp4" controls muted loop playsinline width="760"></video>
+![Demo: dithered signal-field backdrop, blueprint headline and frosted-glass composer](docs/demo.gif)
 
-If the player above does not work here, download [`docs/demo.mp4`](docs/demo.mp4) directly (960×560, ~36 s, 20 MB).
+(720×423, ~30 s, 25 MB; downscaled from the original recording — if the animation does not start, open [`docs/demo.gif`](docs/demo.gif) directly.)
 
 ---
 

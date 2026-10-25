@@ -18,9 +18,9 @@ DSH（DeepSeek Harness）Web / 桌面端动效界面插件：把「抖动信号�
 
 ## 演示
 
-<video src="docs/demo.mp4" controls muted loop playsinline width="760"></video>
+![界面动效演示：抖动信号场背景、蓝图标题与毛玻璃输入框](docs/demo.gif)
 
-无法在此处播放时，可直接下载 [`docs/demo.mp4`](docs/demo.mp4)（960×560，约 36 秒，20MB）。
+（720×423，约 30 秒，25MB；由原始录屏压缩而来，如未自动播放，可直接打开 [`docs/demo.gif`](docs/demo.gif)。）
 
 ---
 
