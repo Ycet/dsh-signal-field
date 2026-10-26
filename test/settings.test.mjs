@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   BLUR_RANGE,
+  FPS_RANGE,
   INTENSITY_RANGE,
   STORAGE_KEY,
   createStatus,
@@ -20,7 +21,7 @@ test('defaults: 两个页面 + 六个效果项，强度默认 30%', () => {
   assert.equal(state.enabled, true);
   assert.deepEqual(state.pages, { hero: true, chat: true });
   assert.deepEqual(state.title, { idle: true, interact: true });
-  assert.deepEqual(state.background, { idle: true, interact: true, intensity: 0.3 });
+  assert.deepEqual(state.background, { idle: true, interact: true, intensity: 0.3, fps: 30 });
   assert.deepEqual(state.glass, { enabled: true, blur: 14 });
   // 设置页模块 1 两行 + 模块 2 五项开关（强度是滑块，不计数）
   const switches = [
@@ -132,6 +133,49 @@ test('normalize: 数值钳位与步长吸附', () => {
   assert.equal(normalize({ glass: { blur: -1 } }).glass.blur, BLUR_RANGE.min);
   assert.equal(normalize({ glass: { blur: 13.6 } }).glass.blur, 14);
   assert.equal(normalize({ glass: { blur: 'wide' } }).glass.blur, 14);
+});
+
+test('v0.2.11: 帧率上限默认 30，范围 15–60 步长 5', () => {
+  assert.deepEqual({ ...FPS_RANGE }, { min: 15, max: 60, step: 5 });
+  assert.equal(defaults().background.fps, 30);
+});
+
+test('normalize: 帧率上限钳位、吸附与非法值回落', () => {
+  assert.equal(normalize({ background: { fps: FPS_RANGE.max + 100 } }).background.fps, FPS_RANGE.max);
+  assert.equal(normalize({ background: { fps: -1 } }).background.fps, FPS_RANGE.min);
+  assert.equal(normalize({ background: { fps: 33 } }).background.fps, 35);
+  assert.equal(normalize({ background: { fps: 29 } }).background.fps, 30);
+  // 非数值一律回落到默认 30，不能变成 NaN 或 0（0 会让引擎锁死不出帧）
+  for (const bad of ['40', null, undefined, NaN, Infinity, {}, []]) {
+    assert.equal(normalize({ background: { fps: bad } }).background.fps, 30, `非法值 ${String(bad)}`);
+  }
+});
+
+test('patch: 只改 fps，背景其余项不变', () => {
+  const base = defaults();
+  const next = patch(base, { background: { fps: 60 } });
+  assert.equal(next.background.fps, 60);
+  assert.equal(next.background.idle, true);
+  assert.equal(next.background.interact, true);
+  assert.equal(next.background.intensity, 0.3);
+  // 不传 fps 时保持原值，不被默认值悄悄覆盖
+  assert.equal(patch(next, { background: { intensity: 0.8 } }).background.fps, 60);
+});
+
+test('兼容: 没有 fps 的旧存档（v2 结构）读出默认 30，不触发迁移', () => {
+  const legacy = {
+    version: 2,
+    enabled: true,
+    pages: { hero: true, chat: true },
+    title: { idle: true, interact: true },
+    background: { idle: true, interact: true, intensity: 0.55 },
+    glass: { enabled: true, blur: 14 },
+  };
+  const state = normalize(legacy);
+  assert.equal(state.version, 2);
+  assert.equal(state.background.fps, 30);
+  // 手调过的强度必须原样保留，不能被「旧默认值改写」逻辑误伤
+  assert.equal(state.background.intensity, 0.55);
 });
 
 test('normalize: 每次返回新对象，不复用默认值引用', () => {

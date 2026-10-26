@@ -27,6 +27,8 @@
     "rowGlassHint": "Frosted glass on the composer card and its backing; the blur radius is fixed at 14px.",
     "rowIntensity": "Backdrop intensity",
     "rowIntensityHint": "Only changes how dense the signal field is, not its speed; 30% by default.",
+    "rowFps": "Redraw frame-rate cap",
+    "rowFpsHint": "Caps how often the signal field redraws; lower saves more power. It drops to 8 fps while the window is unfocused and returns to the display rate during pointer interaction.",
     "reducedMotion": "The system asks for reduced motion, so animation and pointer interaction are off by default; you can still switch them on here.",
     "reset": "Reset to defaults",
     "resetDone": "Defaults restored",

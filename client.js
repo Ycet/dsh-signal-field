@@ -31,6 +31,8 @@ window.__ModuleLoader__.load({
         "rowGlassHint": "输入框卡片与背板的毛玻璃；模糊半径固定 14px。",
         "rowIntensity": "背景强度",
         "rowIntensityHint": "只影响信号场的浓淡，不改变动画速度；默认 30%。",
+        "rowFps": "重绘帧率上限",
+        "rowFpsHint": "限制信号场的重绘频率，越低越省电；窗口失焦时自动降到 8 fps，指针交互时临时回到屏幕帧率。",
         "reducedMotion": "系统开启了「减少动效」，动画与鼠标交互已默认关闭；需要时可在此手动打开。",
         "reset": "恢复默认",
         "resetDone": "已恢复默认设置",
@@ -60,6 +62,8 @@ window.__ModuleLoader__.load({
         "rowGlassHint": "Frosted glass on the composer card and its backing; the blur radius is fixed at 14px.",
         "rowIntensity": "Backdrop intensity",
         "rowIntensityHint": "Only changes how dense the signal field is, not its speed; 30% by default.",
+        "rowFps": "Redraw frame-rate cap",
+        "rowFpsHint": "Caps how often the signal field redraws; lower saves more power. It drops to 8 fps while the window is unfocused and returns to the display rate during pointer interaction.",
         "reducedMotion": "The system asks for reduced motion, so animation and pointer interaction are off by default; you can still switch them on here.",
         "reset": "Reset to defaults",
         "resetDone": "Defaults restored",
@@ -97,12 +101,25 @@ window.__ModuleLoader__.load({
     const BLUR_RANGE = Object.freeze({ min: 0, max: 32, step: 1 });
 
     /**
-     * 默认设置（v0.2.9 结构）：
+     * 信号场重绘帧率上限的取值范围（fps）。
+     *
+     * 波形本身很慢（waveSpeed 0.065），30fps 与 60fps 肉眼差别很小，
+     * 所以默认取 30：60Hz 屏直接省一半重绘，120Hz 屏省到 1/4。
+     * 下限 15 是「仍能看出是流动的」的下界，再低就会像卡帧而不是省电。
+     */
+    const FPS_RANGE = Object.freeze({ min: 15, max: 60, step: 5 });
+
+    /**
+     * 默认设置（v0.2.9 结构 + v0.2.11 的 background.fps）：
      *   pages      —— 哪些页面展示动效（设置页模块「页面」）
      *   title      —— 标题默认动效 / 鼠标交互（模块「动效」）
-     *   background —— 背景默认动效 / 鼠标交互 / 强度（强度默认 30%）
+     *   background —— 背景默认动效 / 鼠标交互 / 强度（默认 30%）/ 帧率上限（默认 30fps）
      *   glass      —— 输入框毛玻璃总开关；blur 固定 14px，已不再提供滑块
      * HUD 面板毛玻璃没有独立开关：它跟随「聊天会话页面」开关（详见 README 设置页章节）。
+     *
+     * v0.2.11 只给 background 加了 fps 一个键，因此**不升 SCHEMA_VERSION**：
+     * normalize() 对缺失键填默认值、对未知键直接丢弃，
+     * 旧存档（没有 fps）读出来就是 30，旧版本读到新存档只是丢掉 fps，两个方向都不会坏。
      */
     function defaults() {
       return {
@@ -110,7 +127,7 @@ window.__ModuleLoader__.load({
         enabled: true,
         pages: { hero: true, chat: true },
         title: { idle: true, interact: true },
-        background: { idle: true, interact: true, intensity: 0.3 },
+        background: { idle: true, interact: true, intensity: 0.3, fps: 30 },
         glass: { enabled: true, blur: 14 },
       };
     }
@@ -193,6 +210,7 @@ window.__ModuleLoader__.load({
           idle: bool(background.idle, base.background.idle),
           interact: bool(background.interact, base.background.interact),
           intensity: num(migratedIntensity, INTENSITY_RANGE, base.background.intensity),
+          fps: num(background.fps, FPS_RANGE, base.background.fps),
         },
         glass: {
           enabled: legacy ? legacy.glass : bool(glass.enabled, base.glass.enabled),
@@ -224,7 +242,7 @@ window.__ModuleLoader__.load({
         enabled: Object.prototype.hasOwnProperty.call(src, 'enabled') ? src.enabled : base.enabled,
         pages: mergeGroup(base.pages, src.pages, ['hero', 'chat']),
         title: mergeGroup(base.title, src.title, ['idle', 'interact']),
-        background: mergeGroup(base.background, src.background, ['idle', 'interact', 'intensity']),
+        background: mergeGroup(base.background, src.background, ['idle', 'interact', 'intensity', 'fps']),
         glass: mergeGroup(base.glass, src.glass, ['enabled', 'blur']),
       };
       return normalize(next);
@@ -728,6 +746,47 @@ window.__ModuleLoader__.load({
 
     const fieldClamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
+    /** 失焦时的重绘上限（fps）：保持「仍能看到缓慢流动」，而不是冻成一张静图。 */
+    const BLUR_FPS_CAP = 8;
+
+    /** 指针交互结束后继续满帧的时长（ms）：划线与涟漪期间手感优先。 */
+    const BOOST_WINDOW_MS = 1200;
+
+    /**
+     * 帧预算的宽容量（ms）。
+     *
+     * rAF 的时间戳会抖（33.3ms 的预算有时 32.9ms 就到），
+     * 不留余量的话稳定落在边界上会每隔一帧掉一次，实际帧率腰斩。
+     */
+    const PACE_TOLERANCE_MS = 1.5;
+
+    /**
+     * 判定「这一帧要不要真正绘制」（纯函数，便于 node --test 直接验证）。
+     *
+     * 只决定绘制与否，不负责推进物理：跳掉的帧不能推进时间基准，
+     * 否则动画速度会跟着限帧一起变，看起来像是变慢了而不是变省电了。
+     *
+     * @param {{ now?: number, lastRenderAt?: number, fps?: number, blurred?: boolean, boosting?: boolean }} input
+     * @returns {{ render: boolean, effectiveFps: number }} effectiveFps 为 0 表示不限帧。
+     */
+    function framePaceDecision(input) {
+      const src = input || {};
+      const now = Number.isFinite(src.now) ? src.now : 0;
+      const lastRenderAt = Number.isFinite(src.lastRenderAt) ? src.lastRenderAt : 0;
+      const rawFps = Number.isFinite(src.fps) ? src.fps : 30;
+      const cap = fieldClamp(rawFps, FPS_RANGE.min, FPS_RANGE.max);
+
+      // 交互期间放开限帧：轨迹要跟手，而这段时间本来就只有一两秒。
+      if (src.boosting) return { render: true, effectiveFps: 0 };
+
+      const effectiveFps = src.blurred ? Math.min(BLUR_FPS_CAP, cap) : cap;
+      // 没有绘制基准（首帧、刚从停止/暂停恢复）时必须先画一帧，否则首屏会空等一个预算周期。
+      if (!lastRenderAt) return { render: true, effectiveFps };
+
+      const budget = 1000 / effectiveFps;
+      return { render: now - lastRenderAt >= budget - PACE_TOLERANCE_MS, effectiveFps };
+    }
+
     /** sRGB 十六进制 → 线性 RGB（着色器里按线性空间混色）。 */
     function hexToLinearRgb(hex) {
       let text = String(hex || "").replace("#", "").trim();
@@ -887,6 +946,7 @@ window.__ModuleLoader__.load({
         contrast: 0.86,
         brightness: 0.05,
         dpr: 1,
+        fps: 30,
       };
 
       const view = { width: 1, height: 1, ratio: 1, cell: 1, cellCss: 1, cols: 1, rows: 1 };
@@ -903,6 +963,44 @@ window.__ModuleLoader__.load({
       let ready = false;
       let alive = true;
       let lost = false;
+
+      // ---- v0.2.11：帧预算 / 失焦 / 交互加速 / 运行统计 ----------------------
+      /** 上一次**真正绘制**的时间戳。跳帧不更新它，否则预算判定会自激。 */
+      let lastRenderAt = 0;
+      /** 指针交互期间的满帧窗口截止时间（performance.now 时间轴）。 */
+      let boostUntil = 0;
+      /** 窗口失焦：降到 BLUR_FPS_CAP，回焦立刻回满。 */
+      let blurred = false;
+      /** 运行统计：只存在内存里，经 diagnose() 读出去，不落盘、不上送。 */
+      const stat = {
+        windowStart: 0,
+        windowRenders: 0,
+        windowRenderMs: 0,
+        fps: 0,
+        avgRenderMs: 0,
+        renders: 0,
+        skips: 0,
+        frames: 0,
+        effectiveFps: 0,
+      };
+
+      /**
+       * 每秒滚动一次统计窗口：给出「最近一秒的实际绘制帧率」与平均单帧渲染耗时。
+       * 跳帧也计入调用（只统计渲染侧的帧率，这样限帧效果直接可见）。
+       */
+      function rollStatWindow(now) {
+        if (!stat.windowStart) {
+          stat.windowStart = now;
+          return;
+        }
+        const elapsed = now - stat.windowStart;
+        if (elapsed < 1000) return;
+        stat.fps = Math.round((stat.windowRenders * 1000) / elapsed);
+        stat.avgRenderMs = stat.windowRenders > 0 ? stat.windowRenderMs / stat.windowRenders : 0;
+        stat.windowStart = now;
+        stat.windowRenders = 0;
+        stat.windowRenderMs = 0;
+      }
 
       function applyOptions(next) {
         const src = next || {};
@@ -929,6 +1027,10 @@ window.__ModuleLoader__.load({
           );
         }
         if (typeof src.dpr === "number") settings.dpr = Math.min(2, Math.max(1, src.dpr));
+        // v0.2.11：重绘帧率上限。非法值保持现值，避免设置层出问题时把画面锁死。
+        if (typeof src.fps === "number" && Number.isFinite(src.fps)) {
+          settings.fps = fieldClamp(Math.round(src.fps), FPS_RANGE.min, FPS_RANGE.max);
+        }
       }
 
       applyOptions({ ...initial, dpr: (window.devicePixelRatio || 1) });
@@ -1023,11 +1125,53 @@ window.__ModuleLoader__.load({
         frameHandle = 0;
         if (!alive || lost) return;
         if (!visible || document.hidden) return;
+
+        // 系统「减少动效」：每次唤醒只画一帧静态底，不续帧、也不套帧预算（保持 v0.2.10 行为）。
+        if (reduceMotion) {
+          last = 0;
+          lastRenderAt = 0;
+          render();
+          return;
+        }
+
+        // 先判定这条 rAF 链还该不该活着。顺序很关键：**先排下一帧，再决定跳不跳**。
+        // 反过来写的话，被预算跳掉的那一帧会把链路断掉，画面就永久停在它上面了。
+        const busy =
+          !settings.disableAnimation ||
+          state.reveal < 1 ||
+          ripples.length > 0 ||
+          state.presence > 0.002 ||
+          trailPoints.some((point) => point.weight > 0.01);
+        if (!busy) {
+          last = 0;
+          lastRenderAt = 0;
+          return;
+        }
+        frameHandle = requestAnimationFrame(frame);
+
+        // 帧预算：到期才真正绘制，被跳过的帧只花一次 rAF 回调（无绘制、无布局）。
+        const pace = framePaceDecision({
+          now,
+          lastRenderAt,
+          fps: settings.fps,
+          blurred,
+          boosting: boostUntil > now,
+        });
+        stat.effectiveFps = pace.effectiveFps;
+        stat.frames += 1;
+        if (!pace.render) {
+          // 跳过绘制时不推进物理、不更新 last：动画速度才不会跟着限帧一起变快或变慢。
+          stat.skips += 1;
+          rollStatWindow(now);
+          return;
+        }
+
         const dt = last ? fieldClamp((now - last) / 1000, 0.0005, 0.05) : 1 / 60;
         last = now;
-        if (!settings.disableAnimation && !reduceMotion) state.time += dt;
+        lastRenderAt = now;
+        if (!settings.disableAnimation) state.time += dt;
 
-        const engaged = settings.enableMouseInteraction && pointer.inside && !reduceMotion;
+        const engaged = settings.enableMouseInteraction && pointer.inside;
         state.presence += ((engaged ? 1 : 0) - state.presence) * (1 - Math.exp(-dt / (engaged ? 0.12 : 0.35)));
         if (pointer.set && settings.enableMouseInteraction) {
           const uv = toUv(pointer.x, pointer.y);
@@ -1061,18 +1205,16 @@ window.__ModuleLoader__.load({
           if (ripples[index].age >= RIPPLE_SECONDS) ripples.splice(index, 1);
         }
 
-        if (!settings.intro || reduceMotion) state.reveal = 1;
+        if (!settings.intro) state.reveal = 1;
         else if (state.reveal < 1) state.reveal = Math.min(1, state.reveal + dt / INTRO_SECONDS);
 
+        const startedAt = performance.now();
         render();
-        const busy =
-          !settings.disableAnimation ||
-          state.reveal < 1 ||
-          ripples.length > 0 ||
-          state.presence > 0.002 ||
-          trailPoints.some((point) => point.weight > 0.01);
-        if (busy && !reduceMotion) frameHandle = requestAnimationFrame(frame);
-        else last = 0;
+        // 统计量只在内存里累加，经 stats 读给 diagnose()，不落盘、不上送。
+        stat.windowRenderMs += performance.now() - startedAt;
+        stat.windowRenders += 1;
+        stat.renders += 1;
+        rollStatWindow(now);
       }
 
       function wake() {
@@ -1117,11 +1259,14 @@ window.__ModuleLoader__.load({
       function onPointerMove(event) {
         if (!settings.enableMouseInteraction) return;
         locate(event);
+        // 交互期间临时放开限帧：轨迹要跟手，这段窗口结束会自动滑回滑块值。
+        boostUntil = performance.now() + BOOST_WINDOW_MS;
         wake();
       }
       function onPointerDown(event) {
         if (!settings.enableMouseInteraction) return;
         locate(event);
+        boostUntil = performance.now() + BOOST_WINDOW_MS;
         if (!pointer.inside || !settings.clickRipple || reduceMotion) return;
         const uv = toUv(pointer.x, pointer.y);
         ripples.push({ x: uv[0], y: uv[1], age: 0 });
@@ -1136,6 +1281,22 @@ window.__ModuleLoader__.load({
       }
       function onVisibility() {
         last = 0;
+        wake();
+      }
+      /**
+       * 窗口失焦（切到别的 app）时把重绘降到 BLUR_FPS_CAP。
+       *
+       * 这里选择「降频」而不是「暂停」：分屏一边干活一边看着 DSH 时，
+       * 背景仍然在缓慢流动，不会突然变成一张死图；而真正不看的时候省掉的正是绝大部分帧。
+       */
+      function onWindowBlur() {
+        blurred = true;
+      }
+      /** 回焦立刻回满：清掉时间基准，避免拿失焦期间累积的大 dt 猛跳一下。 */
+      function onWindowFocus() {
+        blurred = false;
+        last = 0;
+        lastRenderAt = 0;
         wake();
       }
       function onContextLost(event) {
@@ -1163,6 +1324,8 @@ window.__ModuleLoader__.load({
       window.addEventListener("pointercancel", onPointerUp, { passive: true });
       document.documentElement.addEventListener("pointerleave", onPointerLeave);
       document.addEventListener("visibilitychange", onVisibility);
+      window.addEventListener("blur", onWindowBlur);
+      window.addEventListener("focus", onWindowFocus);
       canvas.addEventListener("webglcontextlost", onContextLost);
       resize();
 
@@ -1188,6 +1351,8 @@ window.__ModuleLoader__.load({
           window.removeEventListener("pointercancel", onPointerUp);
           document.documentElement.removeEventListener("pointerleave", onPointerLeave);
           document.removeEventListener("visibilitychange", onVisibility);
+          window.removeEventListener("blur", onWindowBlur);
+          window.removeEventListener("focus", onWindowFocus);
           canvas.removeEventListener("webglcontextlost", onContextLost);
           trailPoints = [];
           ripples = [];
@@ -1205,6 +1370,21 @@ window.__ModuleLoader__.load({
         },
         get canvas() {
           return canvas;
+        },
+        /**
+         * 运行统计：只在内存里，供 diagnose() 读出去做验收，界面上不展示、也不上送。
+         * 停止绘制时 fps 报 0 而不是残留的旧数字——此时根本没有在画，报旧值会误导排查。
+         */
+        get stats() {
+          return {
+            fps: frameHandle ? stat.fps : 0,
+            avgRenderMs: Math.round(stat.avgRenderMs * 100) / 100,
+            renders: stat.renders,
+            skips: stat.skips,
+            effectiveFps: stat.effectiveFps,
+            cap: settings.fps,
+            blurred,
+          };
         },
       };
     }
@@ -2390,6 +2570,39 @@ window.__ModuleLoader__.load({
     }
 
     /**
+     * 流式输出期间的同步合并窗口（ms）。
+     *
+     * 会话在流式输出时 `body` 的 childList 每帧都在变，而 sync() 里有 5~8 次布局读
+     * （会话面/座位/卡片/面板的 getBoundingClientRect）。这些几何在流式期间几乎不会变，
+     * 所以把这条通道合并到 ~8 次/秒，布局读开销降一个数量级。
+     */
+    const SYNC_RELAXED_MS = 120;
+
+    /**
+     * 判断这次同步该不该现在就跑（纯函数，供 node --test 直接验证）。
+     *
+     * 两条通道：
+     *   - urgent：页面切换 / 主题 / 设置变更 / resize / 可见性。这些必须立刻同步，
+     *     否则图层会「晚一拍才出现」，用户能看出来。
+     *   - relaxed：只服务流式输出的高频 childList 噪声，一个窗口内跑一次就够。
+     *
+     * @param {{ urgent?: boolean, now?: number, lastSyncAt?: number, window?: number }} input
+     * @returns {{ run: boolean, waitMs: number }} waitMs > 0 表示还需等待多少毫秒。
+     */
+    function resolveSyncCoalesce(input) {
+      const src = input || {};
+      if (src.urgent) return { run: true, waitMs: 0 };
+      const now = Number.isFinite(src.now) ? src.now : 0;
+      const lastSyncAt = Number.isFinite(src.lastSyncAt) ? src.lastSyncAt : 0;
+      const window = Number.isFinite(src.window) && src.window >= 0 ? src.window : SYNC_RELAXED_MS;
+      // 从未同步过（首屏）：立刻跑，否则首屏图层要空等一个窗口才出现。
+      if (!lastSyncAt) return { run: true, waitMs: 0 };
+      const elapsed = now - lastSyncAt;
+      if (elapsed >= window) return { run: true, waitMs: 0 };
+      return { run: false, waitMs: window - elapsed };
+    }
+
+    /**
      * @param {{ store: object, status: object, documentRef: Document }} options
      */
     function createStage(options) {
@@ -2430,17 +2643,49 @@ window.__ModuleLoader__.load({
       let disposed = false;
       let scheduled = false;
       let storeOff = null;
+      /** 这次排队是否含 urgent 触发（页面/主题/设置/resize/可见性）。 */
+      let pendingUrgent = false;
+      /** 上一次真正执行 sync() 的时间戳（performance.now 时间轴），供合并窗口判定。 */
+      let lastSyncAt = 0;
       const observers = [];
       const listeners = [];
 
-      /** 合并同一帧内的多次触发，避免 MutationObserver 风暴。 */
-      function schedule() {
-        if (scheduled || disposed) return;
+      /**
+       * 请求一次同步。urgent=true 走「下一帧立刻同步」，否则走 ~120ms 合并窗口。
+       *
+       * v0.2.11：不再无条件每帧同步。流式输出时 childList 每帧都在变，
+       * 而几何几乎不变，之前的做法等于每帧白做一轮布局读 + 一轮 CSS 变量写入。
+       * 这里仍然**不引定时器**：窗口没到时继续排下一帧 rAF 再判，
+       * 卸载时只要看 disposed 就能停，destroy() 的清理语义与旧版完全一致。
+       */
+      function schedule(urgent) {
+        if (disposed) return;
+        if (urgent) pendingUrgent = true;
+        if (scheduled) return;
         scheduled = true;
-        requestAnimationFrame(() => {
+        requestAnimationFrame(tick);
+      }
+
+      function tick() {
+        if (disposed) {
           scheduled = false;
-          if (!disposed) sync();
+          pendingUrgent = false;
+          return;
+        }
+        const decision = resolveSyncCoalesce({
+          urgent: pendingUrgent,
+          now: performance.now(),
+          lastSyncAt,
+          window: SYNC_RELAXED_MS,
         });
+        if (!decision.run) {
+          requestAnimationFrame(tick);
+          return;
+        }
+        scheduled = false;
+        pendingUrgent = false;
+        lastSyncAt = performance.now();
+        sync();
       }
 
       function on(target, type, handler, config) {
@@ -2454,6 +2699,32 @@ window.__ModuleLoader__.load({
         observers.push(observer);
         return observer;
       }
+
+      // ---- 写前判重（v0.2.11）------------------------------------------------
+      //
+      // 之前每次 sync() 都会无条件重写根 CSS 变量与 data-mui* 属性。
+      // 值没变时这些写入仍会让浏览器做一次样式失效/属性变更记录，
+      // 在流式输出那种「每秒几十次 sync」的场景里是纯浪费。
+
+      /** 根 CSS 变量的上次写入值。 */
+      const lastVar = new Map();
+
+      /** 只在值真的变了才写 CSS 变量。 */
+      function setVar(root, name, value) {
+        if (lastVar.get(name) === value) return;
+        lastVar.set(name, value);
+        root.style.setProperty(name, value);
+      }
+
+      /** 只在布尔状态真的变了才写属性。 */
+      function setFlag(node, name, on) {
+        const next = !!on;
+        if (node.hasAttribute(name) === next) return;
+        node.toggleAttribute(name, next);
+      }
+
+      /** HUD 补场盒子的上次位置签名：几何没变就不重写 4 个 style。 */
+      let hudBoxSignature = "";
 
       // ---- 锚点解析 ---------------------------------------------------------
 
@@ -2532,7 +2803,9 @@ window.__ModuleLoader__.load({
         if (surfaceEl && surfaceEl !== surface) surfaceEl.removeAttribute("data-mui-surface");
         surfaceEl = surface;
         surface.setAttribute("data-mui-surface", "");
-        const surfaceNote = `${surface.tagName.toLowerCase()}.${String(surface.className || "").split(/\s+/)[0]} ${Math.round(surface.getBoundingClientRect().width)}x${Math.round(surface.getBoundingClientRect().height)}`;
+        // 只量一次：之前为了拼一行日志调了两次 getBoundingClientRect()，等于多一次布局读。
+        const surfaceBox = surface.getBoundingClientRect();
+        const surfaceNote = `${surface.tagName.toLowerCase()}.${String(surface.className || "").split(/\s+/)[0]} ${Math.round(surfaceBox.width)}x${Math.round(surfaceBox.height)}`;
         if (surfaceNote !== lastSurfaceNote) {
           lastSurfaceNote = surfaceNote;
           record(`surface=${surfaceNote}`);
@@ -2561,6 +2834,7 @@ window.__ModuleLoader__.load({
             intensity: state.background.intensity,
             idle: state.background.idle,
             interact: state.background.interact,
+            fps: state.background.fps,
             reduceMotion: status.getSnapshot().reducedMotion,
             onFallback: (reason) => {
               engineState = `fallback:${reason}`;
@@ -2576,6 +2850,7 @@ window.__ModuleLoader__.load({
             intensity: state.background.intensity,
             idle: state.background.idle,
             interact: state.background.interact,
+            fps: state.background.fps,
           });
         }
         layerEl.setAttribute("data-on", "");
@@ -2602,6 +2877,8 @@ window.__ModuleLoader__.load({
         root.style.removeProperty("--mui-field-bg");
         root.style.removeProperty("--mui-field-wave");
         root.style.removeProperty("--mui-seat-band-h");
+        // 清空写前判重缓存：下次进入作用范围时必须重新写一遍，不能被缓存挡住。
+        lastVar.clear();
       }
 
       /** 拆掉信号场现场：销毁引擎、移除图层节点、清掉宿主标记与根属性。 */
@@ -2739,7 +3016,8 @@ window.__ModuleLoader__.load({
         if (!hudBackdropEl) return;
         const rect = panelRectOf(panel);
         if (!rect) {
-          hudBackdropEl.removeAttribute("data-on");
+          setFlag(hudBackdropEl, "data-on", false);
+          hudBoxSignature = "";
           if (hudField) hudField.update({ idle: false, interact: false });
           return;
         }
@@ -2770,16 +3048,23 @@ window.__ModuleLoader__.load({
 
         // 面板完全落在内容区里（这一竖条已被内容区自己的场盖住）：不需要补场。
         if (width < 2 || height < 2) {
-          hudBackdropEl.removeAttribute("data-on");
+          setFlag(hudBackdropEl, "data-on", false);
+          hudBoxSignature = "";
           if (hudField) hudField.update({ idle: false, interact: false });
           return;
         }
 
-        hudBackdropEl.style.left = `${Math.round(left)}px`;
-        hudBackdropEl.style.top = `${Math.round(top)}px`;
-        hudBackdropEl.style.width = `${Math.round(width)}px`;
-        hudBackdropEl.style.height = `${Math.round(height)}px`;
-        hudBackdropEl.setAttribute("data-on", "");
+        // 几何没变就不重写这 4 个 style：ResizeObserver 与同步都会频繁调到这里，
+        // 而面板尺寸在绝大多数同步里是同一个值。
+        const boxSignature = `${Math.round(left)}|${Math.round(top)}|${Math.round(width)}|${Math.round(height)}`;
+        if (boxSignature !== hudBoxSignature) {
+          hudBoxSignature = boxSignature;
+          hudBackdropEl.style.left = `${Math.round(left)}px`;
+          hudBackdropEl.style.top = `${Math.round(top)}px`;
+          hudBackdropEl.style.width = `${Math.round(width)}px`;
+          hudBackdropEl.style.height = `${Math.round(height)}px`;
+        }
+        setFlag(hudBackdropEl, "data-on", true);
       }
 
       /** HUD 面板补场：面板在、且开着 HUD 玻璃时才有意义。 */
@@ -2811,6 +3096,7 @@ window.__ModuleLoader__.load({
             intensity: state.background.intensity,
             idle: state.background.idle,
             interact: false,
+            fps: state.background.fps,
             reduceMotion: status.getSnapshot().reducedMotion,
             onFallback: (reason) => {
               hudNote = `fallback:${reason}`;
@@ -2824,6 +3110,7 @@ window.__ModuleLoader__.load({
             intensity: state.background.intensity,
             idle: state.background.idle,
             interact: false,
+            fps: state.background.fps,
           });
         }
         placeHudBackdrop(panel);
@@ -2854,6 +3141,7 @@ window.__ModuleLoader__.load({
         }
         hudPanelWatched = null;
         hudNote = "-";
+        hudBoxSignature = "";
       }
 
       // ---- 标题 -------------------------------------------------------------
@@ -3032,29 +3320,23 @@ window.__ModuleLoader__.load({
           return;
         }
         const root = doc.documentElement;
-        root.setAttribute("data-mui", "");
+        setFlag(root, "data-mui", true);
         // 作用范围标记：只要当前页在范围内就存在，与「信号场是否开启」解耦，
         // 这样 HUD 玻璃、右栏背景这类跨区域能力在背景关掉时仍然可单独生效。
-        root.toggleAttribute("data-mui-scope", page !== PAGE_NONE);
-        root.toggleAttribute("data-mui-dark", dark);
+        setFlag(root, "data-mui-scope", page !== PAGE_NONE);
+        setFlag(root, "data-mui-dark", dark);
         // 输入框毛玻璃：v0.2.9 起是一个全局开关，再由当前页面开关决定是否生效。
         const glassOn = state.glass.enabled;
-        root.toggleAttribute(
-          "data-mui-glass-hero",
-          glassOn && page === PAGE_HERO && state.pages.hero,
-        );
-        root.toggleAttribute(
-          "data-mui-glass-chat",
-          glassOn && page === PAGE_CHAT && state.pages.chat,
-        );
+        setFlag(root, "data-mui-glass-hero", glassOn && page === PAGE_HERO && state.pages.hero);
+        setFlag(root, "data-mui-glass-chat", glassOn && page === PAGE_CHAT && state.pages.chat);
         // HUD 面板没有独立开关：跟随「聊天会话页面」（见 resolvePanelTargets 注释）。
         const targets = resolvePanelTargets({ page, chatPage: state.pages.chat });
-        root.toggleAttribute("data-mui-hud-glass", targets.hud);
+        setFlag(root, "data-mui-hud-glass", targets.hud);
         // 模糊半径已固定 14px（v0.2.9 移除滑块），这里仍写变量以保持 CSS 单一来源。
-        root.style.setProperty("--mui-blur", `${state.glass.blur}px`);
+        setVar(root, "--mui-blur", `${state.glass.blur}px`);
         // 降级底色也放在根上：WebGL2 不可用时 CSS 径向渐变要用到这两个变量。
-        root.style.setProperty("--mui-field-bg", dark ? "#070a12" : "#e7e9f0");
-        root.style.setProperty("--mui-field-wave", dark ? "#3a4a7a" : "#b6bfd8");
+        setVar(root, "--mui-field-bg", dark ? "#070a12" : "#e7e9f0");
+        setVar(root, "--mui-field-wave", dark ? "#3a4a7a" : "#b6bfd8");
       }
 
       // ---- 自检 -------------------------------------------------------------
@@ -3180,6 +3462,17 @@ window.__ModuleLoader__.load({
           for (const block of captures) lines.push(block);
         }
 
+        // --- v0.2.11 运行统计（本插件目前唯一的量化验收回路）---
+        // 没有浏览器控制能力时，只能靠这段数字判断限帧与失焦降频是否真的生效。
+        lines.push("--- performance ---");
+        const statLine = (label, stats) => {
+          if (!stats) return `${label}: -`;
+          const effective = stats.effectiveFps === 0 ? "uncapped(boost)" : `${stats.effectiveFps}fps`;
+          return `${label}: fps=${stats.fps} avgRenderMs=${stats.avgRenderMs} renders=${stats.renders} skips=${stats.skips} effective=${effective} cap=${stats.cap} blurred=${stats.blurred ? "yes" : "no"}`;
+        };
+        lines.push(statLine("field", field ? field.stats : null));
+        lines.push(statLine("hudField", hudField ? hudField.stats : null));
+
         if (history.length > 0) {
           lines.push("--- history (newest last) ---");
           for (const entry of history.slice(-14)) lines.push(entry);
@@ -3257,16 +3550,25 @@ window.__ModuleLoader__.load({
         status.set({ reducedMotion: reduced });
 
         // 设置变化
-        storeOff = store.subscribe(() => schedule());
+        storeOff = store.subscribe(() => schedule(true));
 
-        // 主题切换（body 上的 attrs）
-        observe(doc.body, { attributes: true, attributeFilter: ["data-ds-dark-theme", "style", "class"] }, schedule);
+        // 主题切换（body 上的 attrs）：主题一变毛玻璃与配色就要跟着变，走立刻同步。
+        observe(doc.body, { attributes: true, attributeFilter: ["data-ds-dark-theme", "style", "class"] }, () =>
+          schedule(true),
+        );
 
-        // 根节点：数据阶段属性 / 会话区增删（页面切换的唯一信号）
-        observe(doc.body, { childList: true, subtree: true }, schedule);
+        // 根节点：数据阶段属性 / 会话区增删（页面切换的唯一信号）。
+        //
+        // 这一条不能无脑走 relaxed：页面切换本身也是通过 childList 表现出来的
+        // （会话内容面被增删、hero/chat 阶段变化）。若按 120ms 合并，切页时图层会晚一拍才出现，
+        // 肉眼是能看出来的。所以先做一次极便宜的判定（单个 querySelector，
+        // 远小于 sync() 里 5~8 次布局读）：页面真的变了走 urgent，只是流式输出在加节点就走 relaxed。
+        observe(doc.body, { childList: true, subtree: true }, () => {
+          schedule(resolvePage() !== page);
+        });
 
-        on(window, "resize", schedule);
-        on(document, "visibilitychange", schedule);
+        on(window, "resize", () => schedule(true));
+        on(document, "visibilitychange", () => schedule(true));
 
         sync();
         // 首屏 React 可能还没挂完：多补几帧，直到会话内容面出现（出现即说明进入了作用范围）。
@@ -3302,7 +3604,7 @@ window.__ModuleLoader__.load({
      *
      * v0.2.9 起页面分成两个模块（中间一条分割线）：
      *   1. 「页面」——哪些页面展示动效（新建会话页面 / 聊天会话页面）
-     *   2. 「动效」——动效本身（标题、背景、输入框毛玻璃、背景强度）
+     *   2. 「动效」——动效本身（标题、背景、输入框毛玻璃、背景强度、重绘帧率上限）
      * 总开关单独一行放在两个模块之前。
      *
      * 只做三件事：把设置渲染成开关/滑块、把改动写回 store、在必要时说明降级状态。
@@ -3523,6 +3825,22 @@ window.__ModuleLoader__.load({
                 display: `${Math.round(state.background.intensity * 100)}%`,
                 disabled: off,
                 onChange: (value) => set({ background: { intensity: value } }),
+              }),
+            ),
+            // v0.2.11：重绘帧率上限。范围与步长镜像 settings.js 的 FPS_RANGE，
+            // 这里写常量而不是 import，是因为设置页测试会剥掉 import 行后再渲染组件。
+            h(
+              Row,
+              { label: t("rowFps"), hint: t("rowFpsHint") },
+              h(Range, {
+                label: t("rowFps"),
+                value: state.background.fps,
+                min: 15,
+                max: 60,
+                step: 5,
+                display: `${state.background.fps} fps`,
+                disabled: off,
+                onChange: (value) => set({ background: { fps: value } }),
               }),
             ),
           ),

@@ -44,6 +44,39 @@ function clamp(value, min, max) {
 }
 
 /**
+ * 流式输出期间的同步合并窗口（ms）。
+ *
+ * 会话在流式输出时 `body` 的 childList 每帧都在变，而 sync() 里有 5~8 次布局读
+ * （会话面/座位/卡片/面板的 getBoundingClientRect）。这些几何在流式期间几乎不会变，
+ * 所以把这条通道合并到 ~8 次/秒，布局读开销降一个数量级。
+ */
+const SYNC_RELAXED_MS = 120;
+
+/**
+ * 判断这次同步该不该现在就跑（纯函数，供 node --test 直接验证）。
+ *
+ * 两条通道：
+ *   - urgent：页面切换 / 主题 / 设置变更 / resize / 可见性。这些必须立刻同步，
+ *     否则图层会「晚一拍才出现」，用户能看出来。
+ *   - relaxed：只服务流式输出的高频 childList 噪声，一个窗口内跑一次就够。
+ *
+ * @param {{ urgent?: boolean, now?: number, lastSyncAt?: number, window?: number }} input
+ * @returns {{ run: boolean, waitMs: number }} waitMs > 0 表示还需等待多少毫秒。
+ */
+export function resolveSyncCoalesce(input) {
+  const src = input || {};
+  if (src.urgent) return { run: true, waitMs: 0 };
+  const now = Number.isFinite(src.now) ? src.now : 0;
+  const lastSyncAt = Number.isFinite(src.lastSyncAt) ? src.lastSyncAt : 0;
+  const window = Number.isFinite(src.window) && src.window >= 0 ? src.window : SYNC_RELAXED_MS;
+  // 从未同步过（首屏）：立刻跑，否则首屏图层要空等一个窗口才出现。
+  if (!lastSyncAt) return { run: true, waitMs: 0 };
+  const elapsed = now - lastSyncAt;
+  if (elapsed >= window) return { run: true, waitMs: 0 };
+  return { run: false, waitMs: window - elapsed };
+}
+
+/**
  * @param {{ store: object, status: object, documentRef: Document }} options
  */
 export function createStage(options) {
@@ -84,17 +117,49 @@ export function createStage(options) {
   let disposed = false;
   let scheduled = false;
   let storeOff = null;
+  /** 这次排队是否含 urgent 触发（页面/主题/设置/resize/可见性）。 */
+  let pendingUrgent = false;
+  /** 上一次真正执行 sync() 的时间戳（performance.now 时间轴），供合并窗口判定。 */
+  let lastSyncAt = 0;
   const observers = [];
   const listeners = [];
 
-  /** 合并同一帧内的多次触发，避免 MutationObserver 风暴。 */
-  function schedule() {
-    if (scheduled || disposed) return;
+  /**
+   * 请求一次同步。urgent=true 走「下一帧立刻同步」，否则走 ~120ms 合并窗口。
+   *
+   * v0.2.11：不再无条件每帧同步。流式输出时 childList 每帧都在变，
+   * 而几何几乎不变，之前的做法等于每帧白做一轮布局读 + 一轮 CSS 变量写入。
+   * 这里仍然**不引定时器**：窗口没到时继续排下一帧 rAF 再判，
+   * 卸载时只要看 disposed 就能停，destroy() 的清理语义与旧版完全一致。
+   */
+  function schedule(urgent) {
+    if (disposed) return;
+    if (urgent) pendingUrgent = true;
+    if (scheduled) return;
     scheduled = true;
-    requestAnimationFrame(() => {
+    requestAnimationFrame(tick);
+  }
+
+  function tick() {
+    if (disposed) {
       scheduled = false;
-      if (!disposed) sync();
+      pendingUrgent = false;
+      return;
+    }
+    const decision = resolveSyncCoalesce({
+      urgent: pendingUrgent,
+      now: performance.now(),
+      lastSyncAt,
+      window: SYNC_RELAXED_MS,
     });
+    if (!decision.run) {
+      requestAnimationFrame(tick);
+      return;
+    }
+    scheduled = false;
+    pendingUrgent = false;
+    lastSyncAt = performance.now();
+    sync();
   }
 
   function on(target, type, handler, config) {
@@ -108,6 +173,32 @@ export function createStage(options) {
     observers.push(observer);
     return observer;
   }
+
+  // ---- 写前判重（v0.2.11）------------------------------------------------
+  //
+  // 之前每次 sync() 都会无条件重写根 CSS 变量与 data-mui* 属性。
+  // 值没变时这些写入仍会让浏览器做一次样式失效/属性变更记录，
+  // 在流式输出那种「每秒几十次 sync」的场景里是纯浪费。
+
+  /** 根 CSS 变量的上次写入值。 */
+  const lastVar = new Map();
+
+  /** 只在值真的变了才写 CSS 变量。 */
+  function setVar(root, name, value) {
+    if (lastVar.get(name) === value) return;
+    lastVar.set(name, value);
+    root.style.setProperty(name, value);
+  }
+
+  /** 只在布尔状态真的变了才写属性。 */
+  function setFlag(node, name, on) {
+    const next = !!on;
+    if (node.hasAttribute(name) === next) return;
+    node.toggleAttribute(name, next);
+  }
+
+  /** HUD 补场盒子的上次位置签名：几何没变就不重写 4 个 style。 */
+  let hudBoxSignature = "";
 
   // ---- 锚点解析 ---------------------------------------------------------
 
@@ -186,7 +277,9 @@ export function createStage(options) {
     if (surfaceEl && surfaceEl !== surface) surfaceEl.removeAttribute("data-mui-surface");
     surfaceEl = surface;
     surface.setAttribute("data-mui-surface", "");
-    const surfaceNote = `${surface.tagName.toLowerCase()}.${String(surface.className || "").split(/\s+/)[0]} ${Math.round(surface.getBoundingClientRect().width)}x${Math.round(surface.getBoundingClientRect().height)}`;
+    // 只量一次：之前为了拼一行日志调了两次 getBoundingClientRect()，等于多一次布局读。
+    const surfaceBox = surface.getBoundingClientRect();
+    const surfaceNote = `${surface.tagName.toLowerCase()}.${String(surface.className || "").split(/\s+/)[0]} ${Math.round(surfaceBox.width)}x${Math.round(surfaceBox.height)}`;
     if (surfaceNote !== lastSurfaceNote) {
       lastSurfaceNote = surfaceNote;
       record(`surface=${surfaceNote}`);
@@ -215,6 +308,7 @@ export function createStage(options) {
         intensity: state.background.intensity,
         idle: state.background.idle,
         interact: state.background.interact,
+        fps: state.background.fps,
         reduceMotion: status.getSnapshot().reducedMotion,
         onFallback: (reason) => {
           engineState = `fallback:${reason}`;
@@ -230,6 +324,7 @@ export function createStage(options) {
         intensity: state.background.intensity,
         idle: state.background.idle,
         interact: state.background.interact,
+        fps: state.background.fps,
       });
     }
     layerEl.setAttribute("data-on", "");
@@ -256,6 +351,8 @@ export function createStage(options) {
     root.style.removeProperty("--mui-field-bg");
     root.style.removeProperty("--mui-field-wave");
     root.style.removeProperty("--mui-seat-band-h");
+    // 清空写前判重缓存：下次进入作用范围时必须重新写一遍，不能被缓存挡住。
+    lastVar.clear();
   }
 
   /** 拆掉信号场现场：销毁引擎、移除图层节点、清掉宿主标记与根属性。 */
@@ -393,7 +490,8 @@ export function createStage(options) {
     if (!hudBackdropEl) return;
     const rect = panelRectOf(panel);
     if (!rect) {
-      hudBackdropEl.removeAttribute("data-on");
+      setFlag(hudBackdropEl, "data-on", false);
+      hudBoxSignature = "";
       if (hudField) hudField.update({ idle: false, interact: false });
       return;
     }
@@ -424,16 +522,23 @@ export function createStage(options) {
 
     // 面板完全落在内容区里（这一竖条已被内容区自己的场盖住）：不需要补场。
     if (width < 2 || height < 2) {
-      hudBackdropEl.removeAttribute("data-on");
+      setFlag(hudBackdropEl, "data-on", false);
+      hudBoxSignature = "";
       if (hudField) hudField.update({ idle: false, interact: false });
       return;
     }
 
-    hudBackdropEl.style.left = `${Math.round(left)}px`;
-    hudBackdropEl.style.top = `${Math.round(top)}px`;
-    hudBackdropEl.style.width = `${Math.round(width)}px`;
-    hudBackdropEl.style.height = `${Math.round(height)}px`;
-    hudBackdropEl.setAttribute("data-on", "");
+    // 几何没变就不重写这 4 个 style：ResizeObserver 与同步都会频繁调到这里，
+    // 而面板尺寸在绝大多数同步里是同一个值。
+    const boxSignature = `${Math.round(left)}|${Math.round(top)}|${Math.round(width)}|${Math.round(height)}`;
+    if (boxSignature !== hudBoxSignature) {
+      hudBoxSignature = boxSignature;
+      hudBackdropEl.style.left = `${Math.round(left)}px`;
+      hudBackdropEl.style.top = `${Math.round(top)}px`;
+      hudBackdropEl.style.width = `${Math.round(width)}px`;
+      hudBackdropEl.style.height = `${Math.round(height)}px`;
+    }
+    setFlag(hudBackdropEl, "data-on", true);
   }
 
   /** HUD 面板补场：面板在、且开着 HUD 玻璃时才有意义。 */
@@ -465,6 +570,7 @@ export function createStage(options) {
         intensity: state.background.intensity,
         idle: state.background.idle,
         interact: false,
+        fps: state.background.fps,
         reduceMotion: status.getSnapshot().reducedMotion,
         onFallback: (reason) => {
           hudNote = `fallback:${reason}`;
@@ -478,6 +584,7 @@ export function createStage(options) {
         intensity: state.background.intensity,
         idle: state.background.idle,
         interact: false,
+        fps: state.background.fps,
       });
     }
     placeHudBackdrop(panel);
@@ -508,6 +615,7 @@ export function createStage(options) {
     }
     hudPanelWatched = null;
     hudNote = "-";
+    hudBoxSignature = "";
   }
 
   // ---- 标题 -------------------------------------------------------------
@@ -686,29 +794,23 @@ export function createStage(options) {
       return;
     }
     const root = doc.documentElement;
-    root.setAttribute("data-mui", "");
+    setFlag(root, "data-mui", true);
     // 作用范围标记：只要当前页在范围内就存在，与「信号场是否开启」解耦，
     // 这样 HUD 玻璃、右栏背景这类跨区域能力在背景关掉时仍然可单独生效。
-    root.toggleAttribute("data-mui-scope", page !== PAGE_NONE);
-    root.toggleAttribute("data-mui-dark", dark);
+    setFlag(root, "data-mui-scope", page !== PAGE_NONE);
+    setFlag(root, "data-mui-dark", dark);
     // 输入框毛玻璃：v0.2.9 起是一个全局开关，再由当前页面开关决定是否生效。
     const glassOn = state.glass.enabled;
-    root.toggleAttribute(
-      "data-mui-glass-hero",
-      glassOn && page === PAGE_HERO && state.pages.hero,
-    );
-    root.toggleAttribute(
-      "data-mui-glass-chat",
-      glassOn && page === PAGE_CHAT && state.pages.chat,
-    );
+    setFlag(root, "data-mui-glass-hero", glassOn && page === PAGE_HERO && state.pages.hero);
+    setFlag(root, "data-mui-glass-chat", glassOn && page === PAGE_CHAT && state.pages.chat);
     // HUD 面板没有独立开关：跟随「聊天会话页面」（见 resolvePanelTargets 注释）。
     const targets = resolvePanelTargets({ page, chatPage: state.pages.chat });
-    root.toggleAttribute("data-mui-hud-glass", targets.hud);
+    setFlag(root, "data-mui-hud-glass", targets.hud);
     // 模糊半径已固定 14px（v0.2.9 移除滑块），这里仍写变量以保持 CSS 单一来源。
-    root.style.setProperty("--mui-blur", `${state.glass.blur}px`);
+    setVar(root, "--mui-blur", `${state.glass.blur}px`);
     // 降级底色也放在根上：WebGL2 不可用时 CSS 径向渐变要用到这两个变量。
-    root.style.setProperty("--mui-field-bg", dark ? "#070a12" : "#e7e9f0");
-    root.style.setProperty("--mui-field-wave", dark ? "#3a4a7a" : "#b6bfd8");
+    setVar(root, "--mui-field-bg", dark ? "#070a12" : "#e7e9f0");
+    setVar(root, "--mui-field-wave", dark ? "#3a4a7a" : "#b6bfd8");
   }
 
   // ---- 自检 -------------------------------------------------------------
@@ -834,6 +936,17 @@ export function createStage(options) {
       for (const block of captures) lines.push(block);
     }
 
+    // --- v0.2.11 运行统计（本插件目前唯一的量化验收回路）---
+    // 没有浏览器控制能力时，只能靠这段数字判断限帧与失焦降频是否真的生效。
+    lines.push("--- performance ---");
+    const statLine = (label, stats) => {
+      if (!stats) return `${label}: -`;
+      const effective = stats.effectiveFps === 0 ? "uncapped(boost)" : `${stats.effectiveFps}fps`;
+      return `${label}: fps=${stats.fps} avgRenderMs=${stats.avgRenderMs} renders=${stats.renders} skips=${stats.skips} effective=${effective} cap=${stats.cap} blurred=${stats.blurred ? "yes" : "no"}`;
+    };
+    lines.push(statLine("field", field ? field.stats : null));
+    lines.push(statLine("hudField", hudField ? hudField.stats : null));
+
     if (history.length > 0) {
       lines.push("--- history (newest last) ---");
       for (const entry of history.slice(-14)) lines.push(entry);
@@ -911,16 +1024,25 @@ export function createStage(options) {
     status.set({ reducedMotion: reduced });
 
     // 设置变化
-    storeOff = store.subscribe(() => schedule());
+    storeOff = store.subscribe(() => schedule(true));
 
-    // 主题切换（body 上的 attrs）
-    observe(doc.body, { attributes: true, attributeFilter: ["data-ds-dark-theme", "style", "class"] }, schedule);
+    // 主题切换（body 上的 attrs）：主题一变毛玻璃与配色就要跟着变，走立刻同步。
+    observe(doc.body, { attributes: true, attributeFilter: ["data-ds-dark-theme", "style", "class"] }, () =>
+      schedule(true),
+    );
 
-    // 根节点：数据阶段属性 / 会话区增删（页面切换的唯一信号）
-    observe(doc.body, { childList: true, subtree: true }, schedule);
+    // 根节点：数据阶段属性 / 会话区增删（页面切换的唯一信号）。
+    //
+    // 这一条不能无脑走 relaxed：页面切换本身也是通过 childList 表现出来的
+    // （会话内容面被增删、hero/chat 阶段变化）。若按 120ms 合并，切页时图层会晚一拍才出现，
+    // 肉眼是能看出来的。所以先做一次极便宜的判定（单个 querySelector，
+    // 远小于 sync() 里 5~8 次布局读）：页面真的变了走 urgent，只是流式输出在加节点就走 relaxed。
+    observe(doc.body, { childList: true, subtree: true }, () => {
+      schedule(resolvePage() !== page);
+    });
 
-    on(window, "resize", schedule);
-    on(document, "visibilitychange", schedule);
+    on(window, "resize", () => schedule(true));
+    on(document, "visibilitychange", () => schedule(true));
 
     sync();
     // 首屏 React 可能还没挂完：多补几帧，直到会话内容面出现（出现即说明进入了作用范围）。

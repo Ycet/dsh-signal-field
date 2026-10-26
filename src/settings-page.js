@@ -5,7 +5,7 @@ import React from "react";
  *
  * v0.2.9 起页面分成两个模块（中间一条分割线）：
  *   1. 「页面」——哪些页面展示动效（新建会话页面 / 聊天会话页面）
- *   2. 「动效」——动效本身（标题、背景、输入框毛玻璃、背景强度）
+ *   2. 「动效」——动效本身（标题、背景、输入框毛玻璃、背景强度、重绘帧率上限）
  * 总开关单独一行放在两个模块之前。
  *
  * 只做三件事：把设置渲染成开关/滑块、把改动写回 store、在必要时说明降级状态。
@@ -226,6 +226,22 @@ export function SettingsPage(props) {
             display: `${Math.round(state.background.intensity * 100)}%`,
             disabled: off,
             onChange: (value) => set({ background: { intensity: value } }),
+          }),
+        ),
+        // v0.2.11：重绘帧率上限。范围与步长镜像 settings.js 的 FPS_RANGE，
+        // 这里写常量而不是 import，是因为设置页测试会剥掉 import 行后再渲染组件。
+        h(
+          Row,
+          { label: t("rowFps"), hint: t("rowFpsHint") },
+          h(Range, {
+            label: t("rowFps"),
+            value: state.background.fps,
+            min: 15,
+            max: 60,
+            step: 5,
+            display: `${state.background.fps} fps`,
+            disabled: off,
+            onChange: (value) => set({ background: { fps: value } }),
           }),
         ),
       ),

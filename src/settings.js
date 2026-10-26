@@ -28,12 +28,25 @@ export const INTENSITY_RANGE = Object.freeze({ min: 0, max: 1, step: 0.05 });
 export const BLUR_RANGE = Object.freeze({ min: 0, max: 32, step: 1 });
 
 /**
- * 默认设置（v0.2.9 结构）：
+ * 信号场重绘帧率上限的取值范围（fps）。
+ *
+ * 波形本身很慢（waveSpeed 0.065），30fps 与 60fps 肉眼差别很小，
+ * 所以默认取 30：60Hz 屏直接省一半重绘，120Hz 屏省到 1/4。
+ * 下限 15 是「仍能看出是流动的」的下界，再低就会像卡帧而不是省电。
+ */
+export const FPS_RANGE = Object.freeze({ min: 15, max: 60, step: 5 });
+
+/**
+ * 默认设置（v0.2.9 结构 + v0.2.11 的 background.fps）：
  *   pages      —— 哪些页面展示动效（设置页模块「页面」）
  *   title      —— 标题默认动效 / 鼠标交互（模块「动效」）
- *   background —— 背景默认动效 / 鼠标交互 / 强度（强度默认 30%）
+ *   background —— 背景默认动效 / 鼠标交互 / 强度（默认 30%）/ 帧率上限（默认 30fps）
  *   glass      —— 输入框毛玻璃总开关；blur 固定 14px，已不再提供滑块
  * HUD 面板毛玻璃没有独立开关：它跟随「聊天会话页面」开关（详见 README 设置页章节）。
+ *
+ * v0.2.11 只给 background 加了 fps 一个键，因此**不升 SCHEMA_VERSION**：
+ * normalize() 对缺失键填默认值、对未知键直接丢弃，
+ * 旧存档（没有 fps）读出来就是 30，旧版本读到新存档只是丢掉 fps，两个方向都不会坏。
  */
 export function defaults() {
   return {
@@ -41,7 +54,7 @@ export function defaults() {
     enabled: true,
     pages: { hero: true, chat: true },
     title: { idle: true, interact: true },
-    background: { idle: true, interact: true, intensity: 0.3 },
+    background: { idle: true, interact: true, intensity: 0.3, fps: 30 },
     glass: { enabled: true, blur: 14 },
   };
 }
@@ -124,6 +137,7 @@ export function normalize(input) {
       idle: bool(background.idle, base.background.idle),
       interact: bool(background.interact, base.background.interact),
       intensity: num(migratedIntensity, INTENSITY_RANGE, base.background.intensity),
+      fps: num(background.fps, FPS_RANGE, base.background.fps),
     },
     glass: {
       enabled: legacy ? legacy.glass : bool(glass.enabled, base.glass.enabled),
@@ -155,7 +169,7 @@ export function patch(state, partial) {
     enabled: Object.prototype.hasOwnProperty.call(src, 'enabled') ? src.enabled : base.enabled,
     pages: mergeGroup(base.pages, src.pages, ['hero', 'chat']),
     title: mergeGroup(base.title, src.title, ['idle', 'interact']),
-    background: mergeGroup(base.background, src.background, ['idle', 'interact', 'intensity']),
+    background: mergeGroup(base.background, src.background, ['idle', 'interact', 'intensity', 'fps']),
     glass: mergeGroup(base.glass, src.glass, ['enabled', 'blur']),
   };
   return normalize(next);
