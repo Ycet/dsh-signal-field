@@ -20,8 +20,14 @@ test('defaults: 两个页面 + 六个效果项，强度默认 30%', () => {
   assert.equal(state.version, 2);
   assert.equal(state.enabled, true);
   assert.deepEqual(state.pages, { hero: true, chat: true });
-  assert.deepEqual(state.title, { idle: true, interact: true });
-  assert.deepEqual(state.background, { idle: true, interact: true, intensity: 0.3, fps: 30 });
+  assert.deepEqual(state.title, { idle: true, interact: true, speed: 1 });
+  assert.deepEqual(state.background, {
+    idle: true,
+    interact: true,
+    intensity: 0.3,
+    fps: 30,
+    speed: 1,
+  });
   assert.deepEqual(state.glass, { enabled: true, blur: 14 });
   // 设置页模块 1 两行 + 模块 2 五项开关（强度是滑块，不计数）
   const switches = [

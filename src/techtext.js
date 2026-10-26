@@ -11,10 +11,24 @@
  *   4. 容器尺寸为 0 时跳过绘制，避免隐藏页面上空转。
  */
 
+import { scaleTau, speedValue } from "./settings.js";
+
 const TECH_LABEL_FONT = "10px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
 const TECH_FALLOFF_STEPS = 8;
 const TECH_SPRING = 320;
 const TECH_DAMPING = 22;
+
+/**
+ * 三个会被「标题动画速度」缩放的时间常数（秒，1× 时的原值）。
+ *
+ * techApproach 的语义是 tau 越小逼近越快，所以速度倍率变大时这些值要**除以**倍率。
+ * 只缩放这三个：揭示镜头响应、悬停转虚线、选框淡入——都属于「揭示 / 悬停反馈」。
+ * 指针跟随（0.05 / 0.22）与拖拽（0.03 / 0.02 / 0.08）刻意不缩放，
+ * 否则「跟手」与「松手回弹」会随速度变钝，手感会比原来差。
+ */
+const TAU_PRESENCE = 0.16;
+const TAU_OUTLINE = 0.09;
+const TAU_FRAME = 0.1;
 
 /** 指数趋近（与原实现同款，与帧率无关）。 */
 function techApproach(current, target, dt, seconds) {
@@ -134,6 +148,8 @@ export function createTechText(container, text, opts) {
     draggable: !opts || opts.draggable !== false,
     sweep: !opts || opts.sweep !== false,
     speed: (opts && opts.speed) || 0.9,
+    // v0.3.0：用户可调的速度倍率（1 = 不缩放）。speed 是内在基准，speedFactor 是用户倍率。
+    speedFactor: 1,
   };
   const reduceMotion = !!(opts && opts.reduceMotion);
 
@@ -143,7 +159,9 @@ export function createTechText(container, text, opts) {
   const scratch = document.createElement("canvas");
   const scratchCtx = scratch.getContext("2d");
   if (!ctx || !scratchCtx) {
-    return { refresh() {}, destroy() { canvas.remove(); }, redraw() {} };
+    // Canvas2D 不可用时的降级桩：接口必须和正常返回**完全一致**，
+    // 否则调用方（stage 的 syncTitle）会在 setSpeed 上抛错。
+    return { refresh() {}, setSpeed() {}, destroy() { canvas.remove(); }, redraw() {} };
   }
 
   let width = 1;
@@ -169,6 +187,15 @@ export function createTechText(container, text, opts) {
   let presence = 0;
   let clock = 0;
   let pulse = 0;
+  /**
+   * 扫光跑马灯的相位累加器（v0.3.0）。
+   *
+   * 原来头部位置直接算作 `pulse * 0.42 * speed`，一旦把速度做成可调，
+   * 拖动滑块的瞬间 `pulse × 新倍率` 会整体跳位（扫光点突然瞬移）。
+   * 改成独立累加后位置连续：只影响「接下来跑多快」，不影响「现在在哪」。
+   * 1× 时它与旧的 `pulse × speed` 完全等价。
+   */
+  let runnerPhase = 0;
   let placed = false;
   let dragging = -1;
   const pointer = { x: 0, y: 0, inside: false };
@@ -458,7 +485,7 @@ export function createTechText(container, text, opts) {
     }
 
     for (let runner = 0; runner < 2; runner += 1) {
-      const head = (pulse * 0.42 * source.speed + runner * 0.5) * perimeter;
+      const head = (runnerPhase * 0.42 + runner * 0.5) * perimeter;
       for (let index = 0; index < 4; index += 1) {
         const point = perimeterPoint(head - index * 6, w, h);
         const size = index === 0 ? 3 : 2;
@@ -542,7 +569,9 @@ export function createTechText(container, text, opts) {
     const view = ensureLayout(source);
 
     const sweeping = source.sweep && !reduceMotion && !pointer.inside && dragging < 0;
-    if (sweeping) clock += dt * source.speed;
+    if (sweeping) clock += dt * source.speed * source.speedFactor;
+    // 扫光相位与「是否在自动扫」无关地持续累加，倍率变化时位置才不会跳。
+    runnerPhase += dt * source.speed * source.speedFactor;
     pulse += dt;
     let targetX = pointer.x;
     let targetY = pointer.y;
@@ -561,7 +590,12 @@ export function createTechText(container, text, opts) {
       lens.y = techApproach(lens.y, targetY, dt, lag);
     }
     placed = active;
-    presence = techApproach(presence, source.reveal === "area" && active && dragging < 0 ? 1 : 0, dt, 0.16);
+    presence = techApproach(
+      presence,
+      source.reveal === "area" && active && dragging < 0 ? 1 : 0,
+      dt,
+      scaleTau(TAU_PRESENCE, source.speedFactor),
+    );
 
     let moving = false;
     glyphs.forEach((glyph, index) => {
@@ -609,11 +643,16 @@ export function createTechText(container, text, opts) {
       frameBox.y2 = techApproach(frameBox.y2, by2, dt, glide);
       frameBox.index = focus;
     }
-    frameBox.alpha = techApproach(frameBox.alpha, focus >= 0 && source.selection ? 1 : 0, dt, 0.1);
+    frameBox.alpha = techApproach(
+      frameBox.alpha,
+      focus >= 0 && source.selection ? 1 : 0,
+      dt,
+      scaleTau(TAU_FRAME, source.speedFactor),
+    );
 
     glyphs.forEach((glyph, index) => {
       const target = source.reveal === "letter" && index === focus && index !== dragging ? 1 : 0;
-      glyph.outline = techApproach(glyph.outline, target, dt, 0.09);
+      glyph.outline = techApproach(glyph.outline, target, dt, scaleTau(TAU_OUTLINE, source.speedFactor));
       if (Math.abs(glyph.outline - target) > 0.002) moving = true;
       else glyph.outline = target;
     });
@@ -845,6 +884,17 @@ export function createTechText(container, text, opts) {
       layoutKey = "";
       resize();
       drawStatic();
+    },
+    /**
+     * 只改「标题动画速度」倍率（v0.3.0）。
+     *
+     * 刻意**不复用 refresh()**：那条路径会走 resize() + drawStatic()，等于重新烘焙字形贴图，
+     * 拖动滑块时标题会闪一下、甚至看起来像重新挂载。这里只改一个数并唤醒循环，
+     * 所以扫光/揭示/悬停会平滑地变快或变慢，位置也不跳。
+     */
+    setSpeed(value) {
+      settings.speedFactor = speedValue(value);
+      wake();
     },
     /** 静态重绘（无障碍/隐藏状态下用）。 */
     redraw: drawStatic,

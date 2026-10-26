@@ -37,24 +37,65 @@ export const BLUR_RANGE = Object.freeze({ min: 0, max: 32, step: 1 });
 export const FPS_RANGE = Object.freeze({ min: 15, max: 60, step: 5 });
 
 /**
- * 默认设置（v0.2.9 结构 + v0.2.11 的 background.fps）：
+ * 动画速度倍率的取值范围（v0.3.0）。
+ *
+ * 标题速度与背景速度共用同一区间：1× 恰好等于「不做任何缩放」时的观感，
+ * 所以默认 1 是零回归的中点。下限 0.25× 仍能看出在动（不会像冻屏），
+ * 上限 2× 已经明显偏快，再高会让抖动颗粒与涟漪看起来发飘。
+ */
+export const SPEED_RANGE = Object.freeze({ min: 0.25, max: 2, step: 0.25 });
+
+/**
+ * 归一化一个速度倍率：非有限值一律回落 1×，其余钳到 SPEED_RANGE。
+ *
+ * 与 num() 的区别：这里**不做步长吸附**，因为运行时也要用它把外部传进来的
+ * 任意数字收紧成安全值（applyOptions / setSpeed 都依赖它），吸附交给设置层做。
+ */
+export function speedValue(input) {
+  const raw = typeof input === 'number' && Number.isFinite(input) ? input : 1;
+  return Math.min(SPEED_RANGE.max, Math.max(SPEED_RANGE.min, raw));
+}
+
+/**
+ * 按倍率缩放一个**时间常数**（秒）。
+ *
+ * 注意方向：engine 里的 `techApproach(cur, target, dt, tau)` 中 tau 越小逼近越快，
+ * 所以「速度倍率变大」必须让 tau **变小**，即 base / 倍率。
+ * 这里写反是本轮最可能的 bug，speed.test.mjs 用单调性断言把它钉住。
+ */
+export function scaleTau(base, speed) {
+  const value = typeof base === 'number' && Number.isFinite(base) ? base : 0;
+  return value / speedValue(speed);
+}
+
+/**
+ * 按倍率缩放一次**相位/年龄推进量**（dt 之类）。
+ * 与 scaleTau 相反，这里是正比：倍率变大，同样时间内推进得更多。
+ */
+export function scaleStep(amount, speed) {
+  const value = typeof amount === 'number' && Number.isFinite(amount) ? amount : 0;
+  return value * speedValue(speed);
+}
+
+/**
+ * 默认设置（v0.2.9 结构 + v0.2.11 的 background.fps + v0.3.0 的两个 speed）：
  *   pages      —— 哪些页面展示动效（设置页模块「页面」）
- *   title      —— 标题默认动效 / 鼠标交互（模块「动效」）
- *   background —— 背景默认动效 / 鼠标交互 / 强度（默认 30%）/ 帧率上限（默认 30fps）
+ *   title      —— 标题默认动效 / 鼠标交互 / 动画速度（默认 1×）
+ *   background —— 背景默认动效 / 鼠标交互 / 强度（默认 30%）/ 帧率上限（默认 30fps）/ 速度（默认 1×）
  *   glass      —— 输入框毛玻璃总开关；blur 固定 14px，已不再提供滑块
  * HUD 面板毛玻璃没有独立开关：它跟随「聊天会话页面」开关（详见 README 设置页章节）。
  *
- * v0.2.11 只给 background 加了 fps 一个键，因此**不升 SCHEMA_VERSION**：
+ * 逐版只往已有分组里**加键**，因此一直**不升 SCHEMA_VERSION**：
  * normalize() 对缺失键填默认值、对未知键直接丢弃，
- * 旧存档（没有 fps）读出来就是 30，旧版本读到新存档只是丢掉 fps，两个方向都不会坏。
+ * 旧存档读出来就是新默认，旧版本读到新存档只是丢掉不认识的键，两个方向都不会坏。
  */
 export function defaults() {
   return {
     version: SCHEMA_VERSION,
     enabled: true,
     pages: { hero: true, chat: true },
-    title: { idle: true, interact: true },
-    background: { idle: true, interact: true, intensity: 0.3, fps: 30 },
+    title: { idle: true, interact: true, speed: 1 },
+    background: { idle: true, interact: true, intensity: 0.3, fps: 30, speed: 1 },
     glass: { enabled: true, blur: 14 },
   };
 }
@@ -132,12 +173,14 @@ export function normalize(input) {
     title: {
       idle: bool(title.idle, base.title.idle),
       interact: bool(title.interact, base.title.interact),
+      speed: num(title.speed, SPEED_RANGE, base.title.speed),
     },
     background: {
       idle: bool(background.idle, base.background.idle),
       interact: bool(background.interact, base.background.interact),
       intensity: num(migratedIntensity, INTENSITY_RANGE, base.background.intensity),
       fps: num(background.fps, FPS_RANGE, base.background.fps),
+      speed: num(background.speed, SPEED_RANGE, base.background.speed),
     },
     glass: {
       enabled: legacy ? legacy.glass : bool(glass.enabled, base.glass.enabled),
@@ -168,8 +211,14 @@ export function patch(state, partial) {
     ...base,
     enabled: Object.prototype.hasOwnProperty.call(src, 'enabled') ? src.enabled : base.enabled,
     pages: mergeGroup(base.pages, src.pages, ['hero', 'chat']),
-    title: mergeGroup(base.title, src.title, ['idle', 'interact']),
-    background: mergeGroup(base.background, src.background, ['idle', 'interact', 'intensity', 'fps']),
+    title: mergeGroup(base.title, src.title, ['idle', 'interact', 'speed']),
+    background: mergeGroup(base.background, src.background, [
+      'idle',
+      'interact',
+      'intensity',
+      'fps',
+      'speed',
+    ]),
     glass: mergeGroup(base.glass, src.glass, ['enabled', 'blur']),
   };
   return normalize(next);

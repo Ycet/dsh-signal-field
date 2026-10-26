@@ -89,7 +89,7 @@ test('设置页: 两个模块之间恰好一条分割线', async () => {
   assert.equal(dividers[0].role, 'separator');
 });
 
-test('设置页: 行顺序符合需求（页面两行 + 动效七项）', async () => {
+test('设置页: 行顺序符合需求（页面两行 + 动效九项）', async () => {
   const { rows } = collect(await renderPage(newState()));
   assert.deepEqual(rows, [
     'master',
@@ -97,11 +97,15 @@ test('设置页: 行顺序符合需求（页面两行 + 动效七项）', async 
     'rowChatPage',
     'rowTitleIdle',
     'rowTitleInteract',
+    // v0.3.0：标题动画速度紧跟标题交互行
+    'rowTitleSpeed',
     'rowBackgroundIdle',
     'rowBackgroundInteract',
     'rowGlass',
     'rowIntensity',
-    // v0.2.11 新增：重绘帧率上限（插在「动效」模块最末，既有行顺序不变）
+    // v0.3.0：背景动画速度插在强度与帧率之间
+    'rowBackgroundSpeed',
+    // v0.2.11 新增：重绘帧率上限
     'rowFps',
   ]);
 });

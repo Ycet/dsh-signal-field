@@ -1,9 +1,9 @@
-# dsh-signal-field v0.2.11
+# dsh-signal-field v0.3.0
 
 [![中文](https://img.shields.io/badge/简体中文-red?style=for-the-badge)](README.md)
 [![EN](https://img.shields.io/badge/English-blue?style=for-the-badge)](README_en.md)
 
-![version](https://img.shields.io/badge/version-v0.2.11-blue?style=for-the-badge)
+![version](https://img.shields.io/badge/version-v0.3.0-blue?style=for-the-badge)
 ![license](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
 ![platform](https://img.shields.io/badge/platform-DSH%20Web%20%2F%20Desktop-informational?style=for-the-badge)
 
@@ -60,13 +60,15 @@ Settings → UI Motion (a `settings.section` entry with id `signal-field`, order
 | --- | --- |
 | Master (above both modules) | Enable all effects |
 | **Pages** | New session page / Chat session page (each with a one-line hint) |
-| **Effects** | Headline default motion / Headline pointer interaction / Backdrop default motion / Backdrop pointer interaction / Composer frosted glass / Backdrop intensity (slider, **30%** by default) / Redraw frame-rate cap (slider, **30 fps** by default) |
+| **Effects** | Headline default motion / Headline pointer interaction / Headline animation speed (slider, **1×** by default) / Backdrop default motion / Backdrop pointer interaction / Composer frosted glass / Backdrop intensity (slider, **30%** by default) / Backdrop animation speed (slider, **1×** by default) / Redraw frame-rate cap (slider, **30 fps** by default) |
 
-- **1 master switch + 7 switches + 2 sliders**: module 1 chooses which pages show the effects, module 2 tunes the effects themselves.
+- **1 master switch + 7 switches + 4 sliders**: module 1 chooses which pages show the effects, module 2 tunes the effects themselves.
 - Turning a page off disables everything on that page (signal field, blueprint headline, composer glass) and returns it to the stock DSH look; with "New session page" off the headline is not mounted at all.
 - **The HUD panel has no switch of its own**: it follows the "Chat session page" switch, so turning the chat page off also reverts the panel; it is *not* controlled by "Composer frosted glass" (that switch only governs the composer card).
 - The blur radius is fixed at 14px (the old "Glass blur" slider was removed in v0.2.9) and shared by the composer and the HUD panel.
 - **Redraw frame-rate cap** (new in v0.2.11; 15–60 fps, step 5, **30** by default) limits how many times per second the signal field redraws in order to save power. It is **independent of image quality**: grain size, glass strength, colours and canvas size are unchanged — only the draw rate moves. While the window is unfocused (another app in front) it drops to 8 fps and returns to the configured value the moment the window regains focus; while the pointer moves or clicks on the field it is temporarily uncapped for about 1.2 s so trails never show steps. Default 30 fps halves redraws on a 60 Hz display and quarters them on a 120 Hz one.
+- **Headline animation speed** (new in v0.3.0; 0.25×–2×, step 0.25, **1×** by default) sets how fast the sweep runner, the reveal lens and the hover-to-outline transition run; **1× is the original feel**. It applies live while dragging: the headline never flickers, never replays, and its glyph textures are never re-baked. Pointer following and drag spring-back deliberately ignore it, otherwise the feel would degrade as you slow it down.
+- **Backdrop animation speed** (new in v0.3.0; 0.25×–2×, step 0.25, **1×** by default) is a single multiplier for the whole backdrop: wave drift, ripple wobble and ripple spread all scale together, and **ripples live correspondingly shorter** (1.6s ÷ factor) — that follows from using one unified multiplier. The HUD panel's backing field follows the same factor. It is fully independent of the redraw cap: high speed with a low cap looks steppy, and that trade-off is yours to make.
 - The headline only exists on the new session page, so the two headline rows are effectively hero-only.
 - A static note at the bottom of module 1 repeats that effects only run on the new session and chat pages; the plugin manager and automation pages keep the stock DSH look.
 - Stored in browser `localStorage` under `dsh-signal-field:v1` and restored after a restart; "Restore defaults" clears it. The old per-page × per-effect structure is mapped semantically onto the new model (an old default intensity of 55% follows the new 30% default; hand-tuned values are kept).
@@ -138,3 +140,4 @@ The plugin only reads the host and never mutates DSH state, but it does depend o
 11. With the master switch off: no `data-mui*` attribute remains on `document.documentElement`, and `<style data-plugin="dsh-signal-field:styles">` is gone.
 12. Settings structure (v0.2.9): only the "Pages" and "Effects" modules plus one divider; turning "Chat session page" off returns the chat page to the stock look and the HUD panel loses its glass too; backdrop intensity shows 30% by default.
 13. Power regression (v0.2.11): at the default "30 fps" cap the picture should be visually indistinguishable from 60 fps; focus another app and come back — the backdrop resumes seamlessly with no jump and no freeze; flick the pointer quickly across the field and the trail still tracks the cursor (the cap is lifted during interaction). The `--- performance ---` block at the end of the self-check text reports measured `fps` / `avgRenderMs` / `renders` / `skips` for direct comparison.
+14. Speed regression (v0.3.0): at the default 1× on both sliders the look must match v0.2.11 exactly. Dragging "Headline animation speed" should speed the sweep up and down smoothly **without the runner jumping position**, and the headline must **not flicker or replay**; dragging "Backdrop animation speed" should move wave, ripple wobble and ripple spread together, with the HUD backing field following. Crank the backdrop speed to 2× while capping redraws at 15 fps — choppiness is acceptable, tearing or a frozen picture is not. The `speeds: title=…x background=…x` line in the self-check text must match the slider values.

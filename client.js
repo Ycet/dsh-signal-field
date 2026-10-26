@@ -23,6 +23,8 @@ window.__ModuleLoader__.load({
         "rowTitleIdleHint": "入场逐字揭示与扫光；关闭后标题静态显示。",
         "rowTitleInteract": "标题文字鼠标交互",
         "rowTitleInteractHint": "指针靠近时字形转为虚线轮廓，可拖动字块；关闭后不响应指针。",
+        "rowTitleSpeed": "标题动画速度",
+        "rowTitleSpeedHint": "扫光跑马灯、揭示镜头与悬停转虚线的快慢；1× 即当前观感。拖动即时生效，不会重播。",
         "rowBackgroundIdle": "背景默认动效",
         "rowBackgroundIdleHint": "噪声波自走流动；关闭后信号场静止。",
         "rowBackgroundInteract": "背景鼠标交互",
@@ -31,6 +33,8 @@ window.__ModuleLoader__.load({
         "rowGlassHint": "输入框卡片与背板的毛玻璃；模糊半径固定 14px。",
         "rowIntensity": "背景强度",
         "rowIntensityHint": "只影响信号场的浓淡，不改变动画速度；默认 30%。",
+        "rowBackgroundSpeed": "背景动画速度",
+        "rowBackgroundSpeedHint": "整片背景的流动快慢：波形、涟漪摆动与扩散一起变，涟漪存续也随之缩短；1× 即当前观感。与重绘帧率独立，高速度配低帧率会显得一顿一顿。",
         "rowFps": "重绘帧率上限",
         "rowFpsHint": "限制信号场的重绘频率，越低越省电；窗口失焦时自动降到 8 fps，指针交互时临时回到屏幕帧率。",
         "reducedMotion": "系统开启了「减少动效」，动画与鼠标交互已默认关闭；需要时可在此手动打开。",
@@ -54,6 +58,8 @@ window.__ModuleLoader__.load({
         "rowTitleIdleHint": "Letter-by-letter reveal and sweep on entry; when off the headline is static.",
         "rowTitleInteract": "Headline pointer interaction",
         "rowTitleInteractHint": "Glyphs turn into dashed outlines near the pointer and can be dragged; when off it ignores the pointer.",
+        "rowTitleSpeed": "Headline animation speed",
+        "rowTitleSpeedHint": "How fast the sweep runner, reveal lens and hover-to-outline transitions run; 1× is the current feel. Applies live while dragging, with no replay.",
         "rowBackgroundIdle": "Backdrop default motion",
         "rowBackgroundIdleHint": "The noise wave drifts on its own; when off the signal field is static.",
         "rowBackgroundInteract": "Backdrop pointer interaction",
@@ -62,6 +68,8 @@ window.__ModuleLoader__.load({
         "rowGlassHint": "Frosted glass on the composer card and its backing; the blur radius is fixed at 14px.",
         "rowIntensity": "Backdrop intensity",
         "rowIntensityHint": "Only changes how dense the signal field is, not its speed; 30% by default.",
+        "rowBackgroundSpeed": "Backdrop animation speed",
+        "rowBackgroundSpeedHint": "Flow speed of the whole backdrop: wave drift, ripple wobble and ripple spread all scale together, and ripples live correspondingly shorter; 1× is the current feel. Independent of the redraw cap — high speed with a low cap looks steppy.",
         "rowFps": "Redraw frame-rate cap",
         "rowFpsHint": "Caps how often the signal field redraws; lower saves more power. It drops to 8 fps while the window is unfocused and returns to the display rate during pointer interaction.",
         "reducedMotion": "The system asks for reduced motion, so animation and pointer interaction are off by default; you can still switch them on here.",
@@ -110,24 +118,65 @@ window.__ModuleLoader__.load({
     const FPS_RANGE = Object.freeze({ min: 15, max: 60, step: 5 });
 
     /**
-     * 默认设置（v0.2.9 结构 + v0.2.11 的 background.fps）：
+     * 动画速度倍率的取值范围（v0.3.0）。
+     *
+     * 标题速度与背景速度共用同一区间：1× 恰好等于「不做任何缩放」时的观感，
+     * 所以默认 1 是零回归的中点。下限 0.25× 仍能看出在动（不会像冻屏），
+     * 上限 2× 已经明显偏快，再高会让抖动颗粒与涟漪看起来发飘。
+     */
+    const SPEED_RANGE = Object.freeze({ min: 0.25, max: 2, step: 0.25 });
+
+    /**
+     * 归一化一个速度倍率：非有限值一律回落 1×，其余钳到 SPEED_RANGE。
+     *
+     * 与 num() 的区别：这里**不做步长吸附**，因为运行时也要用它把外部传进来的
+     * 任意数字收紧成安全值（applyOptions / setSpeed 都依赖它），吸附交给设置层做。
+     */
+    function speedValue(input) {
+      const raw = typeof input === 'number' && Number.isFinite(input) ? input : 1;
+      return Math.min(SPEED_RANGE.max, Math.max(SPEED_RANGE.min, raw));
+    }
+
+    /**
+     * 按倍率缩放一个**时间常数**（秒）。
+     *
+     * 注意方向：engine 里的 `techApproach(cur, target, dt, tau)` 中 tau 越小逼近越快，
+     * 所以「速度倍率变大」必须让 tau **变小**，即 base / 倍率。
+     * 这里写反是本轮最可能的 bug，speed.test.mjs 用单调性断言把它钉住。
+     */
+    function scaleTau(base, speed) {
+      const value = typeof base === 'number' && Number.isFinite(base) ? base : 0;
+      return value / speedValue(speed);
+    }
+
+    /**
+     * 按倍率缩放一次**相位/年龄推进量**（dt 之类）。
+     * 与 scaleTau 相反，这里是正比：倍率变大，同样时间内推进得更多。
+     */
+    function scaleStep(amount, speed) {
+      const value = typeof amount === 'number' && Number.isFinite(amount) ? amount : 0;
+      return value * speedValue(speed);
+    }
+
+    /**
+     * 默认设置（v0.2.9 结构 + v0.2.11 的 background.fps + v0.3.0 的两个 speed）：
      *   pages      —— 哪些页面展示动效（设置页模块「页面」）
-     *   title      —— 标题默认动效 / 鼠标交互（模块「动效」）
-     *   background —— 背景默认动效 / 鼠标交互 / 强度（默认 30%）/ 帧率上限（默认 30fps）
+     *   title      —— 标题默认动效 / 鼠标交互 / 动画速度（默认 1×）
+     *   background —— 背景默认动效 / 鼠标交互 / 强度（默认 30%）/ 帧率上限（默认 30fps）/ 速度（默认 1×）
      *   glass      —— 输入框毛玻璃总开关；blur 固定 14px，已不再提供滑块
      * HUD 面板毛玻璃没有独立开关：它跟随「聊天会话页面」开关（详见 README 设置页章节）。
      *
-     * v0.2.11 只给 background 加了 fps 一个键，因此**不升 SCHEMA_VERSION**：
+     * 逐版只往已有分组里**加键**，因此一直**不升 SCHEMA_VERSION**：
      * normalize() 对缺失键填默认值、对未知键直接丢弃，
-     * 旧存档（没有 fps）读出来就是 30，旧版本读到新存档只是丢掉 fps，两个方向都不会坏。
+     * 旧存档读出来就是新默认，旧版本读到新存档只是丢掉不认识的键，两个方向都不会坏。
      */
     function defaults() {
       return {
         version: SCHEMA_VERSION,
         enabled: true,
         pages: { hero: true, chat: true },
-        title: { idle: true, interact: true },
-        background: { idle: true, interact: true, intensity: 0.3, fps: 30 },
+        title: { idle: true, interact: true, speed: 1 },
+        background: { idle: true, interact: true, intensity: 0.3, fps: 30, speed: 1 },
         glass: { enabled: true, blur: 14 },
       };
     }
@@ -205,12 +254,14 @@ window.__ModuleLoader__.load({
         title: {
           idle: bool(title.idle, base.title.idle),
           interact: bool(title.interact, base.title.interact),
+          speed: num(title.speed, SPEED_RANGE, base.title.speed),
         },
         background: {
           idle: bool(background.idle, base.background.idle),
           interact: bool(background.interact, base.background.interact),
           intensity: num(migratedIntensity, INTENSITY_RANGE, base.background.intensity),
           fps: num(background.fps, FPS_RANGE, base.background.fps),
+          speed: num(background.speed, SPEED_RANGE, base.background.speed),
         },
         glass: {
           enabled: legacy ? legacy.glass : bool(glass.enabled, base.glass.enabled),
@@ -241,8 +292,14 @@ window.__ModuleLoader__.load({
         ...base,
         enabled: Object.prototype.hasOwnProperty.call(src, 'enabled') ? src.enabled : base.enabled,
         pages: mergeGroup(base.pages, src.pages, ['hero', 'chat']),
-        title: mergeGroup(base.title, src.title, ['idle', 'interact']),
-        background: mergeGroup(base.background, src.background, ['idle', 'interact', 'intensity', 'fps']),
+        title: mergeGroup(base.title, src.title, ['idle', 'interact', 'speed']),
+        background: mergeGroup(base.background, src.background, [
+          'idle',
+          'interact',
+          'intensity',
+          'fps',
+          'speed',
+        ]),
         glass: mergeGroup(base.glass, src.glass, ['enabled', 'blur']),
       };
       return normalize(next);
@@ -947,6 +1004,8 @@ window.__ModuleLoader__.load({
         brightness: 0.05,
         dpr: 1,
         fps: 30,
+        // v0.3.0：整片背景的时钟倍率（1 = 不缩放）。
+        speed: 1,
       };
 
       const view = { width: 1, height: 1, ratio: 1, cell: 1, cellCss: 1, cols: 1, rows: 1 };
@@ -1030,6 +1089,10 @@ window.__ModuleLoader__.load({
         // v0.2.11：重绘帧率上限。非法值保持现值，避免设置层出问题时把画面锁死。
         if (typeof src.fps === "number" && Number.isFinite(src.fps)) {
           settings.fps = fieldClamp(Math.round(src.fps), FPS_RANGE.min, FPS_RANGE.max);
+        }
+        // v0.3.0：背景动画速度倍率。非法值保持现值，避免把画面锁死或锁成一帧静止。
+        if (typeof src.speed === "number" && Number.isFinite(src.speed)) {
+          settings.speed = speedValue(src.speed);
         }
       }
 
@@ -1169,7 +1232,10 @@ window.__ModuleLoader__.load({
         const dt = last ? fieldClamp((now - last) / 1000, 0.0005, 0.05) : 1 / 60;
         last = now;
         lastRenderAt = now;
-        if (!settings.disableAnimation) state.time += dt;
+        // v0.3.0：整体时钟走速。波形（uTime × uWaveSpeed）与着色器里涟漪摆动的
+        // `uTime * 7.0` 都由 state.time 驱动，所以乘在这里等于让整片背景一起变快/变慢。
+        // 拖尾衰减、指针跟随、入场揭示刻意仍用原始 dt，不受速度影响。
+        if (!settings.disableAnimation) state.time += scaleStep(dt, settings.speed);
 
         const engaged = settings.enableMouseInteraction && pointer.inside;
         state.presence += ((engaged ? 1 : 0) - state.presence) * (1 - Math.exp(-dt / (engaged ? 0.12 : 0.35)));
@@ -1201,7 +1267,9 @@ window.__ModuleLoader__.load({
         }
 
         for (let index = ripples.length - 1; index >= 0; index -= 1) {
-          ripples[index].age += dt;
+          // 涟漪年龄同样按倍率推进：扩散变快、存续也同比缩短（1.6s ÷ 倍率）。
+          // 这是「整片背景统一倍率」的必然结果，属于预期行为（见 README）。
+          ripples[index].age += scaleStep(dt, settings.speed);
           if (ripples[index].age >= RIPPLE_SECONDS) ripples.splice(index, 1);
         }
 
@@ -1404,10 +1472,23 @@ window.__ModuleLoader__.load({
      *   4. 容器尺寸为 0 时跳过绘制，避免隐藏页面上空转。
      */
 
+
     const TECH_LABEL_FONT = "10px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
     const TECH_FALLOFF_STEPS = 8;
     const TECH_SPRING = 320;
     const TECH_DAMPING = 22;
+
+    /**
+     * 三个会被「标题动画速度」缩放的时间常数（秒，1× 时的原值）。
+     *
+     * techApproach 的语义是 tau 越小逼近越快，所以速度倍率变大时这些值要**除以**倍率。
+     * 只缩放这三个：揭示镜头响应、悬停转虚线、选框淡入——都属于「揭示 / 悬停反馈」。
+     * 指针跟随（0.05 / 0.22）与拖拽（0.03 / 0.02 / 0.08）刻意不缩放，
+     * 否则「跟手」与「松手回弹」会随速度变钝，手感会比原来差。
+     */
+    const TAU_PRESENCE = 0.16;
+    const TAU_OUTLINE = 0.09;
+    const TAU_FRAME = 0.1;
 
     /** 指数趋近（与原实现同款，与帧率无关）。 */
     function techApproach(current, target, dt, seconds) {
@@ -1527,6 +1608,8 @@ window.__ModuleLoader__.load({
         draggable: !opts || opts.draggable !== false,
         sweep: !opts || opts.sweep !== false,
         speed: (opts && opts.speed) || 0.9,
+        // v0.3.0：用户可调的速度倍率（1 = 不缩放）。speed 是内在基准，speedFactor 是用户倍率。
+        speedFactor: 1,
       };
       const reduceMotion = !!(opts && opts.reduceMotion);
 
@@ -1536,7 +1619,9 @@ window.__ModuleLoader__.load({
       const scratch = document.createElement("canvas");
       const scratchCtx = scratch.getContext("2d");
       if (!ctx || !scratchCtx) {
-        return { refresh() {}, destroy() { canvas.remove(); }, redraw() {} };
+        // Canvas2D 不可用时的降级桩：接口必须和正常返回**完全一致**，
+        // 否则调用方（stage 的 syncTitle）会在 setSpeed 上抛错。
+        return { refresh() {}, setSpeed() {}, destroy() { canvas.remove(); }, redraw() {} };
       }
 
       let width = 1;
@@ -1562,6 +1647,15 @@ window.__ModuleLoader__.load({
       let presence = 0;
       let clock = 0;
       let pulse = 0;
+      /**
+       * 扫光跑马灯的相位累加器（v0.3.0）。
+       *
+       * 原来头部位置直接算作 `pulse * 0.42 * speed`，一旦把速度做成可调，
+       * 拖动滑块的瞬间 `pulse × 新倍率` 会整体跳位（扫光点突然瞬移）。
+       * 改成独立累加后位置连续：只影响「接下来跑多快」，不影响「现在在哪」。
+       * 1× 时它与旧的 `pulse × speed` 完全等价。
+       */
+      let runnerPhase = 0;
       let placed = false;
       let dragging = -1;
       const pointer = { x: 0, y: 0, inside: false };
@@ -1851,7 +1945,7 @@ window.__ModuleLoader__.load({
         }
 
         for (let runner = 0; runner < 2; runner += 1) {
-          const head = (pulse * 0.42 * source.speed + runner * 0.5) * perimeter;
+          const head = (runnerPhase * 0.42 + runner * 0.5) * perimeter;
           for (let index = 0; index < 4; index += 1) {
             const point = perimeterPoint(head - index * 6, w, h);
             const size = index === 0 ? 3 : 2;
@@ -1935,7 +2029,9 @@ window.__ModuleLoader__.load({
         const view = ensureLayout(source);
 
         const sweeping = source.sweep && !reduceMotion && !pointer.inside && dragging < 0;
-        if (sweeping) clock += dt * source.speed;
+        if (sweeping) clock += dt * source.speed * source.speedFactor;
+        // 扫光相位与「是否在自动扫」无关地持续累加，倍率变化时位置才不会跳。
+        runnerPhase += dt * source.speed * source.speedFactor;
         pulse += dt;
         let targetX = pointer.x;
         let targetY = pointer.y;
@@ -1954,7 +2050,12 @@ window.__ModuleLoader__.load({
           lens.y = techApproach(lens.y, targetY, dt, lag);
         }
         placed = active;
-        presence = techApproach(presence, source.reveal === "area" && active && dragging < 0 ? 1 : 0, dt, 0.16);
+        presence = techApproach(
+          presence,
+          source.reveal === "area" && active && dragging < 0 ? 1 : 0,
+          dt,
+          scaleTau(TAU_PRESENCE, source.speedFactor),
+        );
 
         let moving = false;
         glyphs.forEach((glyph, index) => {
@@ -2002,11 +2103,16 @@ window.__ModuleLoader__.load({
           frameBox.y2 = techApproach(frameBox.y2, by2, dt, glide);
           frameBox.index = focus;
         }
-        frameBox.alpha = techApproach(frameBox.alpha, focus >= 0 && source.selection ? 1 : 0, dt, 0.1);
+        frameBox.alpha = techApproach(
+          frameBox.alpha,
+          focus >= 0 && source.selection ? 1 : 0,
+          dt,
+          scaleTau(TAU_FRAME, source.speedFactor),
+        );
 
         glyphs.forEach((glyph, index) => {
           const target = source.reveal === "letter" && index === focus && index !== dragging ? 1 : 0;
-          glyph.outline = techApproach(glyph.outline, target, dt, 0.09);
+          glyph.outline = techApproach(glyph.outline, target, dt, scaleTau(TAU_OUTLINE, source.speedFactor));
           if (Math.abs(glyph.outline - target) > 0.002) moving = true;
           else glyph.outline = target;
         });
@@ -2238,6 +2344,17 @@ window.__ModuleLoader__.load({
           layoutKey = "";
           resize();
           drawStatic();
+        },
+        /**
+         * 只改「标题动画速度」倍率（v0.3.0）。
+         *
+         * 刻意**不复用 refresh()**：那条路径会走 resize() + drawStatic()，等于重新烘焙字形贴图，
+         * 拖动滑块时标题会闪一下、甚至看起来像重新挂载。这里只改一个数并唤醒循环，
+         * 所以扫光/揭示/悬停会平滑地变快或变慢，位置也不跳。
+         */
+        setSpeed(value) {
+          settings.speedFactor = speedValue(value);
+          wake();
         },
         /** 静态重绘（无障碍/隐藏状态下用）。 */
         redraw: drawStatic,
@@ -2617,6 +2734,8 @@ window.__ModuleLoader__.load({
       let titleParent = null;
       let titleHost = null;
       let titleSignature = "";
+      /** 上一次推给标题引擎的速度倍率（v0.3.0）：用 0 作为「尚未推送」的哨兵值。 */
+      let titleSpeed = 0;
       let engineState = "none";
       let surfaceEl = null;
       /** HUD 面板背后的补场：面板浮在内容区右侧，那里没有信号场，玻璃只能模糊到一片白。 */
@@ -2835,6 +2954,7 @@ window.__ModuleLoader__.load({
             idle: state.background.idle,
             interact: state.background.interact,
             fps: state.background.fps,
+            speed: state.background.speed,
             reduceMotion: status.getSnapshot().reducedMotion,
             onFallback: (reason) => {
               engineState = `fallback:${reason}`;
@@ -2851,6 +2971,7 @@ window.__ModuleLoader__.load({
             idle: state.background.idle,
             interact: state.background.interact,
             fps: state.background.fps,
+            speed: state.background.speed,
           });
         }
         layerEl.setAttribute("data-on", "");
@@ -3097,6 +3218,8 @@ window.__ModuleLoader__.load({
             idle: state.background.idle,
             interact: false,
             fps: state.background.fps,
+            // HUD 补场与内容区共用同一个背景速度：两者是同一片背景的两段，不同速会在接缝处露馅。
+            speed: state.background.speed,
             reduceMotion: status.getSnapshot().reducedMotion,
             onFallback: (reason) => {
               hudNote = `fallback:${reason}`;
@@ -3111,6 +3234,7 @@ window.__ModuleLoader__.load({
             idle: state.background.idle,
             interact: false,
             fps: state.background.fps,
+            speed: state.background.speed,
           });
         }
         placeHudBackdrop(panel);
@@ -3163,6 +3287,8 @@ window.__ModuleLoader__.load({
         titleParent = null;
         titleHost = null;
         titleSignature = "";
+        // 归零哨兵：重新挂载后必须再推一次速度，否则会沿用上一轮的旧倍率。
+        titleSpeed = 0;
       }
 
       /**
@@ -3271,7 +3397,9 @@ window.__ModuleLoader__.load({
           lineStyle: "dashed",
           reveal: "letter",
           specks: 14,
+          // speed 是引擎内在基准（0.9），speedFactor 才是用户可调的倍率（v0.3.0）。
           speed: 0.9,
+          speedFactor: state.title.speed,
           selection: state.title.interact,
           labels: state.title.interact,
           draggable: state.title.interact,
@@ -3300,6 +3428,12 @@ window.__ModuleLoader__.load({
         const dark = doc.body.hasAttribute("data-ds-dark-theme");
         doc.documentElement.toggleAttribute("data-mui-title-static", !state.title.interact);
         if (!title) return;
+        // v0.3.0：速度走独立的轻量入口，**不进签名**。
+        // 一旦进签名，拖滑块每一格都会触发 refresh → 重烘字形贴图 → 标题闪烁。
+        if (state.title.speed !== titleSpeed) {
+          titleSpeed = state.title.speed;
+          title.setSpeed(state.title.speed);
+        }
         const signature = `${state.title.idle}|${state.title.interact}|${dark}`;
         if (signature === titleSignature) return;
         titleSignature = signature;
@@ -3472,6 +3606,12 @@ window.__ModuleLoader__.load({
         };
         lines.push(statLine("field", field ? field.stats : null));
         lines.push(statLine("hudField", hudField ? hudField.stats : null));
+        // v0.3.0：把两个实际生效的速度倍率也打出来，便于确认滑块值真的到达了引擎
+        // （设置层与引擎层之间有任何一处漏传，这里会立刻暴露成 1×）。
+        const speeds = store.getSnapshot();
+        lines.push(
+          `speeds: title=${speeds.title.speed}x background=${speeds.background.speed}x hud=follow`,
+        );
 
         if (history.length > 0) {
           lines.push("--- history (newest last) ---");
@@ -3604,7 +3744,7 @@ window.__ModuleLoader__.load({
      *
      * v0.2.9 起页面分成两个模块（中间一条分割线）：
      *   1. 「页面」——哪些页面展示动效（新建会话页面 / 聊天会话页面）
-     *   2. 「动效」——动效本身（标题、背景、输入框毛玻璃、背景强度、重绘帧率上限）
+     *   2. 「动效」——动效本身（标题、标题动画速度、背景、背景强度、背景动画速度、毛玻璃、重绘帧率上限）
      * 总开关单独一行放在两个模块之前。
      *
      * 只做三件事：把设置渲染成开关/滑块、把改动写回 store、在必要时说明降级状态。
@@ -3788,6 +3928,22 @@ window.__ModuleLoader__.load({
                 onChange: (value) => set({ title: { interact: value } }),
               }),
             ),
+            // v0.3.0：标题动画速度。范围与步长镜像 settings.js 的 SPEED_RANGE；
+            // 这里写常量而不是 import，是因为设置页测试会剥掉 import 行后再渲染组件。
+            h(
+              Row,
+              { label: t("rowTitleSpeed"), hint: t("rowTitleSpeedHint") },
+              h(Range, {
+                label: t("rowTitleSpeed"),
+                value: state.title.speed,
+                min: 0.25,
+                max: 2,
+                step: 0.25,
+                display: `${state.title.speed}×`,
+                disabled: off,
+                onChange: (value) => set({ title: { speed: value } }),
+              }),
+            ),
             h(
               Row,
               { label: t("rowBackgroundIdle"), hint: t("rowBackgroundIdleHint") },
@@ -3825,6 +3981,21 @@ window.__ModuleLoader__.load({
                 display: `${Math.round(state.background.intensity * 100)}%`,
                 disabled: off,
                 onChange: (value) => set({ background: { intensity: value } }),
+              }),
+            ),
+            // v0.3.0：背景动画速度（整片背景的时钟倍率，含涟漪）。与帧率上限完全独立。
+            h(
+              Row,
+              { label: t("rowBackgroundSpeed"), hint: t("rowBackgroundSpeedHint") },
+              h(Range, {
+                label: t("rowBackgroundSpeed"),
+                value: state.background.speed,
+                min: 0.25,
+                max: 2,
+                step: 0.25,
+                display: `${state.background.speed}×`,
+                disabled: off,
+                onChange: (value) => set({ background: { speed: value } }),
               }),
             ),
             // v0.2.11：重绘帧率上限。范围与步长镜像 settings.js 的 FPS_RANGE，

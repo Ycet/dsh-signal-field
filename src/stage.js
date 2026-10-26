@@ -91,6 +91,8 @@ export function createStage(options) {
   let titleParent = null;
   let titleHost = null;
   let titleSignature = "";
+  /** 上一次推给标题引擎的速度倍率（v0.3.0）：用 0 作为「尚未推送」的哨兵值。 */
+  let titleSpeed = 0;
   let engineState = "none";
   let surfaceEl = null;
   /** HUD 面板背后的补场：面板浮在内容区右侧，那里没有信号场，玻璃只能模糊到一片白。 */
@@ -309,6 +311,7 @@ export function createStage(options) {
         idle: state.background.idle,
         interact: state.background.interact,
         fps: state.background.fps,
+        speed: state.background.speed,
         reduceMotion: status.getSnapshot().reducedMotion,
         onFallback: (reason) => {
           engineState = `fallback:${reason}`;
@@ -325,6 +328,7 @@ export function createStage(options) {
         idle: state.background.idle,
         interact: state.background.interact,
         fps: state.background.fps,
+        speed: state.background.speed,
       });
     }
     layerEl.setAttribute("data-on", "");
@@ -571,6 +575,8 @@ export function createStage(options) {
         idle: state.background.idle,
         interact: false,
         fps: state.background.fps,
+        // HUD 补场与内容区共用同一个背景速度：两者是同一片背景的两段，不同速会在接缝处露馅。
+        speed: state.background.speed,
         reduceMotion: status.getSnapshot().reducedMotion,
         onFallback: (reason) => {
           hudNote = `fallback:${reason}`;
@@ -585,6 +591,7 @@ export function createStage(options) {
         idle: state.background.idle,
         interact: false,
         fps: state.background.fps,
+        speed: state.background.speed,
       });
     }
     placeHudBackdrop(panel);
@@ -637,6 +644,8 @@ export function createStage(options) {
     titleParent = null;
     titleHost = null;
     titleSignature = "";
+    // 归零哨兵：重新挂载后必须再推一次速度，否则会沿用上一轮的旧倍率。
+    titleSpeed = 0;
   }
 
   /**
@@ -745,7 +754,9 @@ export function createStage(options) {
       lineStyle: "dashed",
       reveal: "letter",
       specks: 14,
+      // speed 是引擎内在基准（0.9），speedFactor 才是用户可调的倍率（v0.3.0）。
       speed: 0.9,
+      speedFactor: state.title.speed,
       selection: state.title.interact,
       labels: state.title.interact,
       draggable: state.title.interact,
@@ -774,6 +785,12 @@ export function createStage(options) {
     const dark = doc.body.hasAttribute("data-ds-dark-theme");
     doc.documentElement.toggleAttribute("data-mui-title-static", !state.title.interact);
     if (!title) return;
+    // v0.3.0：速度走独立的轻量入口，**不进签名**。
+    // 一旦进签名，拖滑块每一格都会触发 refresh → 重烘字形贴图 → 标题闪烁。
+    if (state.title.speed !== titleSpeed) {
+      titleSpeed = state.title.speed;
+      title.setSpeed(state.title.speed);
+    }
     const signature = `${state.title.idle}|${state.title.interact}|${dark}`;
     if (signature === titleSignature) return;
     titleSignature = signature;
@@ -946,6 +963,12 @@ export function createStage(options) {
     };
     lines.push(statLine("field", field ? field.stats : null));
     lines.push(statLine("hudField", hudField ? hudField.stats : null));
+    // v0.3.0：把两个实际生效的速度倍率也打出来，便于确认滑块值真的到达了引擎
+    // （设置层与引擎层之间有任何一处漏传，这里会立刻暴露成 1×）。
+    const speeds = store.getSnapshot();
+    lines.push(
+      `speeds: title=${speeds.title.speed}x background=${speeds.background.speed}x hud=follow`,
+    );
 
     if (history.length > 0) {
       lines.push("--- history (newest last) ---");

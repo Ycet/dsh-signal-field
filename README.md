@@ -1,9 +1,9 @@
-# dsh-signal-field v0.2.11
+# dsh-signal-field v0.3.0
 
 [![中文](https://img.shields.io/badge/简体中文-red?style=for-the-badge)](README.md)
 [![EN](https://img.shields.io/badge/English-blue?style=for-the-badge)](README_en.md)
 
-![version](https://img.shields.io/badge/version-v0.2.11-blue?style=for-the-badge)
+![version](https://img.shields.io/badge/version-v0.3.0-blue?style=for-the-badge)
 ![license](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
 ![platform](https://img.shields.io/badge/platform-DSH%20Web%20%2F%20Desktop-informational?style=for-the-badge)
 
@@ -60,13 +60,15 @@ v0.2.6 再修两处观感问题：补场原来按「面板外扩 24px」铺，�
 | --- | --- |
 | 总开关（模块之上） | 启用全部动效 |
 | **页面** | 新建会话页面 / 聊天会话页面（各带一句说明） |
-| **动效** | 标题文字默认动效 / 标题文字鼠标交互 / 背景默认动效 / 背景鼠标交互 / 输入框毛玻璃效果 / 背景强度（滑块，默认 **30%**） / 重绘帧率上限（滑块，默认 **30 fps**） |
+| **动效** | 标题文字默认动效 / 标题文字鼠标交互 / 标题动画速度（滑块，默认 **1×**） / 背景默认动效 / 背景鼠标交互 / 输入框毛玻璃效果 / 背景强度（滑块，默认 **30%**） / 背景动画速度（滑块，默认 **1×**） / 重绘帧率上限（滑块，默认 **30 fps**） |
 
-- 共 **1 个总开关 + 7 个开关 + 2 个滑块**：模块 1 控制「哪些页面展示动效」，模块 2 控制「动效本身」。
+- 共 **1 个总开关 + 7 个开关 + 4 个滑块**：模块 1 控制「哪些页面展示动效」，模块 2 控制「动效本身」。
 - 关掉某一页的开关 = 该页所有效果一起停用（信号场、蓝图标题、输入框毛玻璃），页面回到 DSH 原生外观；「新建会话页面」关闭时标题也不再挂载。
 - **HUD 面板毛玻璃没有独立开关**：它跟随「聊天会话页面」开关，关闭聊天页时面板同步回到原生外观；它不受「输入框毛玻璃效果」控制（那个开关只管输入框卡片）。
 - 模糊半径固定 14px（v0.2.9 移除了原「毛玻璃模糊」滑块），输入框与 HUD 面板共用。
 - **重绘帧率上限**（v0.2.11 新增，15–60 fps，步长 5，默认 **30**）：限制信号场每秒重绘几次来省电，**与画面质感无关**——抖动颗粒的粗细、毛玻璃强度、配色与画布尺寸都不变，变的只是「每秒画几次」。窗口失焦（切到别的应用）时自动降到 8 fps，回到窗口立刻回满；指针在信号场上移动或点击时临时取消限帧约 1.2 秒，避免轨迹出现台阶感。60 Hz 屏默认省掉一半重绘，120 Hz 屏省到 1/4。
+- **标题动画速度**（v0.3.0 新增，0.25×–2×，步长 0.25，默认 **1×**）：控制扫光跑马灯、揭示镜头与「悬停转虚线」三个过渡的快慢，**1× 即原有观感**。拖动滑块即时生效，标题不会闪烁、不会重播、也不会重新烘焙字形贴图。指针跟随与拖拽回弹刻意不受它影响，否则手感会随速度变钝。
+- **背景动画速度**（v0.3.0 新增，0.25×–2×，步长 0.25，默认 **1×**）：整片背景的统一倍率——波形漂移、涟漪摆动、涟漪扩散一起变快变慢，**涟漪的存续时间也随之按倍率缩短**（1.6s ÷ 倍率），这是「统一倍率」的必然结果。HUD 面板背后的补场跟随同一倍率。它与「重绘帧率上限」完全独立：高速度配低帧率会显得一顿一顿，需要你自己权衡。
 - 标题只存在于新增会话页，所以模块 2 的两项标题动效实际只在 hero 生效。
 - 模块 1 底部有一行静态说明：动效只在新建会话页与聊天会话页生效，插件管理页/自动化任务页保持 DSH 原生外观。
 - 配置写入浏览器 `localStorage`（键 `dsh-signal-field:v1`），重开应用后保持；「恢复默认」可一键清零。旧版「按页 × 按效果」结构会按语义映射到新模型（旧默认强度 55% 会跟随新默认变为 30%，手调过的值保留）。
@@ -137,6 +139,7 @@ plugin_manager remove_bundle  target=dsh-signal-field
 11. 总开关关闭后：`document.documentElement` 上不应残留 `data-mui*` 属性，`<style data-plugin="dsh-signal-field:styles">` 应被移除。
 12. 设置页结构（v0.2.9）：只剩「页面」与「动效」两个模块 + 一条分割线；关掉「聊天会话页面」后聊天页回原生外观、HUD 面板同步失去毛玻璃；背景强度默认显示 30%。
 13. 省电回归（v0.2.11）：默认「重绘帧率上限 30 fps」下，画面观感应与 60 fps 无可见差别；切到别的应用再切回来，背景应无缝恢复、不跳帧也不静止；在信号场上快速划动指针，轨迹应仍然跟手（交互期临时取消限帧）。自检文本末尾的 `--- performance ---` 段会输出实测 `fps` / `avgRenderMs` / `renders` / `skips`，可直接对照。
+14. 速度回归（v0.3.0）：两个速度滑块默认 1× 时观感应与 v0.2.11 完全一致。拖动「标题动画速度」时，扫光应平滑地变快/变慢且**位置不跳**、标题**不闪不重播**；拖动「背景动画速度」时波形、涟漪摆动与扩散应同步变速，HUD 补场同步；把背景速度拉满并同时把帧率压到 15 fps，允许变顿但不允许画面撕裂或静止。自检文本的 `speeds: title=…x background=…x` 一行应与滑块值一致。
 
 ---
 
@@ -168,7 +171,7 @@ dsh-signal-field/
 │   ├── settings-page.js  # 「UI 动画」设置页
 │   └── client.js         # 模块入口
 ├── scripts/build.mjs
-├── test/{settings,page,techtext,hero-layout,build,wiring,frame-pace,sync-coalesce}.test.mjs
+├── test/{settings,page,techtext,hero-layout,build,wiring,frame-pace,sync-coalesce,speed,title-speed}.test.mjs
 └── docs/dom-anchors.md
 ```
 

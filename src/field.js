@@ -10,7 +10,7 @@
  */
 
 import { DITHER_FRAGMENT, INTRO_SECONDS, MAX_RIPPLES, MAX_TRAIL, RIPPLE_SECONDS, VERTEX, WAVE_FRAGMENT } from "./glsl.js";
-import { FPS_RANGE } from "./settings.js";
+import { FPS_RANGE, scaleStep, speedValue } from "./settings.js";
 
 const MAX_PALETTE = 8;
 const DITHER_MODES = { bayer: 0, bayer4: 1, bayer2: 2, halftone: 3, lines: 4, crosshatch: 5, noise: 6, none: 7 };
@@ -219,6 +219,8 @@ export function createField(container, options) {
     brightness: 0.05,
     dpr: 1,
     fps: 30,
+    // v0.3.0：整片背景的时钟倍率（1 = 不缩放）。
+    speed: 1,
   };
 
   const view = { width: 1, height: 1, ratio: 1, cell: 1, cellCss: 1, cols: 1, rows: 1 };
@@ -302,6 +304,10 @@ export function createField(container, options) {
     // v0.2.11：重绘帧率上限。非法值保持现值，避免设置层出问题时把画面锁死。
     if (typeof src.fps === "number" && Number.isFinite(src.fps)) {
       settings.fps = fieldClamp(Math.round(src.fps), FPS_RANGE.min, FPS_RANGE.max);
+    }
+    // v0.3.0：背景动画速度倍率。非法值保持现值，避免把画面锁死或锁成一帧静止。
+    if (typeof src.speed === "number" && Number.isFinite(src.speed)) {
+      settings.speed = speedValue(src.speed);
     }
   }
 
@@ -441,7 +447,10 @@ export function createField(container, options) {
     const dt = last ? fieldClamp((now - last) / 1000, 0.0005, 0.05) : 1 / 60;
     last = now;
     lastRenderAt = now;
-    if (!settings.disableAnimation) state.time += dt;
+    // v0.3.0：整体时钟走速。波形（uTime × uWaveSpeed）与着色器里涟漪摆动的
+    // `uTime * 7.0` 都由 state.time 驱动，所以乘在这里等于让整片背景一起变快/变慢。
+    // 拖尾衰减、指针跟随、入场揭示刻意仍用原始 dt，不受速度影响。
+    if (!settings.disableAnimation) state.time += scaleStep(dt, settings.speed);
 
     const engaged = settings.enableMouseInteraction && pointer.inside;
     state.presence += ((engaged ? 1 : 0) - state.presence) * (1 - Math.exp(-dt / (engaged ? 0.12 : 0.35)));
@@ -473,7 +482,9 @@ export function createField(container, options) {
     }
 
     for (let index = ripples.length - 1; index >= 0; index -= 1) {
-      ripples[index].age += dt;
+      // 涟漪年龄同样按倍率推进：扩散变快、存续也同比缩短（1.6s ÷ 倍率）。
+      // 这是「整片背景统一倍率」的必然结果，属于预期行为（见 README）。
+      ripples[index].age += scaleStep(dt, settings.speed);
       if (ripples[index].age >= RIPPLE_SECONDS) ripples.splice(index, 1);
     }
 

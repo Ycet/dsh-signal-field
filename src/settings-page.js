@@ -5,7 +5,7 @@ import React from "react";
  *
  * v0.2.9 起页面分成两个模块（中间一条分割线）：
  *   1. 「页面」——哪些页面展示动效（新建会话页面 / 聊天会话页面）
- *   2. 「动效」——动效本身（标题、背景、输入框毛玻璃、背景强度、重绘帧率上限）
+ *   2. 「动效」——动效本身（标题、标题动画速度、背景、背景强度、背景动画速度、毛玻璃、重绘帧率上限）
  * 总开关单独一行放在两个模块之前。
  *
  * 只做三件事：把设置渲染成开关/滑块、把改动写回 store、在必要时说明降级状态。
@@ -189,6 +189,22 @@ export function SettingsPage(props) {
             onChange: (value) => set({ title: { interact: value } }),
           }),
         ),
+        // v0.3.0：标题动画速度。范围与步长镜像 settings.js 的 SPEED_RANGE；
+        // 这里写常量而不是 import，是因为设置页测试会剥掉 import 行后再渲染组件。
+        h(
+          Row,
+          { label: t("rowTitleSpeed"), hint: t("rowTitleSpeedHint") },
+          h(Range, {
+            label: t("rowTitleSpeed"),
+            value: state.title.speed,
+            min: 0.25,
+            max: 2,
+            step: 0.25,
+            display: `${state.title.speed}×`,
+            disabled: off,
+            onChange: (value) => set({ title: { speed: value } }),
+          }),
+        ),
         h(
           Row,
           { label: t("rowBackgroundIdle"), hint: t("rowBackgroundIdleHint") },
@@ -226,6 +242,21 @@ export function SettingsPage(props) {
             display: `${Math.round(state.background.intensity * 100)}%`,
             disabled: off,
             onChange: (value) => set({ background: { intensity: value } }),
+          }),
+        ),
+        // v0.3.0：背景动画速度（整片背景的时钟倍率，含涟漪）。与帧率上限完全独立。
+        h(
+          Row,
+          { label: t("rowBackgroundSpeed"), hint: t("rowBackgroundSpeedHint") },
+          h(Range, {
+            label: t("rowBackgroundSpeed"),
+            value: state.background.speed,
+            min: 0.25,
+            max: 2,
+            step: 0.25,
+            display: `${state.background.speed}×`,
+            disabled: off,
+            onChange: (value) => set({ background: { speed: value } }),
           }),
         ),
         // v0.2.11：重绘帧率上限。范围与步长镜像 settings.js 的 FPS_RANGE，
