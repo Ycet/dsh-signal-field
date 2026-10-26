@@ -18,9 +18,15 @@ An animated-UI plugin for DeepSeek Harness (DSH) on Web and desktop: it brings a
 
 ## Demo
 
-![Demo: dithered signal-field backdrop, blueprint headline and frosted-glass composer](docs/demo.gif)
+**New session page (idle)** — dithered signal field, "DEEPSEEK HARNESS" blueprint headline and frosted-glass composer:
 
-(720×423, ~30 s, 25 MB; downscaled from the original recording — if the animation does not start, open [`docs/demo.gif`](docs/demo.gif) directly.)
+![New session page: dithered signal field, DEEPSEEK HARNESS blueprint headline and frosted-glass composer](docs/screenshot-hero.png)
+
+**Chat session page (active)** — the field runs through the transcript and the composer strip, and the composer card reads as frosted glass:
+
+![Chat session page: signal field continues through the transcript into the composer strip, composer card reads as frosted glass](docs/screenshot-chat.png)
+
+(Light theme, 2378×1708 screenshots. The animation is rendered live; these stills show the final look.)
 
 ---
 
