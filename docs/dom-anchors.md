@@ -392,5 +392,5 @@ v0.2.5 按面板外扩 24px 铺，实机上露出两个问题：
 
 - 设置页移除三处界面内容：「动效仅在新增会话页与聊天会话页生效…」作用范围说明、「与 dsh-ascii-whales 同时开启时…」共存说明、以及整块「自检信息」（连同样式与语言键）。
 - `stage.diagnose()` 与设置页 inject 上的 `diagnose` **保留**：界面不再展示，但仍可在需要时通过注入面调用。
-- README 增加「演示」区，素材在 v0.2.10 内调整过两次：先是用 H.264 MP4，随后替换为 `docs/demo.gif`（原始录屏 1470×864 / 78MB 压缩为 720×423 / 12fps / 25MB），最终改为两张静态截图 `docs/screenshot-hero.png`（新增会话页）与 `docs/screenshot-chat.png`（聊天会话页）；GIF 与 MP4 均已移出仓库。
+- README 增加「演示」区，素材在 v0.2.10 内调整过两次：先是用 H.264 MP4，随后替换为 `docs/demo.gif`（原始录屏 1470×864 / 78MB 压缩为 720×423 / 12fps / 25MB），最终改为两张静态截图 `docs/screenshot-hero.png`（新增会话页）与 `docs/screenshot-chat.png`（聊天会话页）；GIF 与 MP4 均已移出仓库。（v0.3.0 起「演示」区再次改为两张主题动图 `docs/light_mode_preview.gif` 与 `docs/dark_mode_preview.gif`；上文的静态截图已不再被 README 引用，但文件仍保留在 `docs/` 作为历史素材。）
 - 截图处理：原图 2378×1708 RGBA（alpha 全 255）转 RGB 后仅做 `optimize`，282 KB / 422 KB。**不要降采样**——抖动细颗粒被重采样成噪点状灰阶后反而涨到 700 KB～1 MB，原尺寸保留硬边抖动图案压缩率更高。

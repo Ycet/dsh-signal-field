@@ -18,15 +18,13 @@ DSH（DeepSeek Harness）Web / 桌面端动效界面插件：把「抖动信号�
 
 ## 演示
 
-**新增会话页（静息态）** —— 抖动信号场背景、「DEEPSEEK HARNESS」蓝图标题、毛玻璃输入框：
+**浅色主题**
 
-![新增会话页：抖动信号场背景、DEEPSEEK HARNESS 蓝图标题与毛玻璃输入框](docs/screenshot-hero.png)
+![浅色主题动图：抖动信号场背景、「DEEPSEEK HARNESS」蓝图标题与毛玻璃输入框](docs/light_mode_preview.gif)
 
-**聊天会话页（对话态）** —— 信号场贯穿消息区与输入框条带，输入框卡片呈毛玻璃，底部状态行不受影响：
+**深色主题**
 
-![聊天会话页：信号场背景延续到消息区与底部输入框条带，输入框卡片呈毛玻璃](docs/screenshot-chat.png)
-
-（浅色主题、2378×1708 截图。动效为实时渲染，静态图展示的是最终观感。）
+![深色主题动图：同一套动效在暗色配色下的实时演示](docs/dark_mode_preview.gif)
 
 ---
 
