@@ -1,9 +1,9 @@
-# dsh-signal-field v0.3.0
+# dsh-signal-field v0.3.1
 
 [![中文](https://img.shields.io/badge/简体中文-red?style=for-the-badge)](README.md)
 [![EN](https://img.shields.io/badge/English-blue?style=for-the-badge)](README_en.md)
 
-![version](https://img.shields.io/badge/version-v0.3.0-blue?style=for-the-badge)
+![version](https://img.shields.io/badge/version-v0.3.1-blue?style=for-the-badge)
 ![license](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
 ![platform](https://img.shields.io/badge/platform-DSH%20Web%20%2F%20Desktop-informational?style=for-the-badge)
 
@@ -47,6 +47,7 @@ v0.2.7 再把背衬缩小到**只盖「输入框下方那一行信息文字」**
 - HUD 面板是浮在内容区右侧的悬浮层，那一带原本没有信号场，玻璃只能模糊到白、看起来像不透明；v0.2.3 起在它背后补一层同样的场，玻璃才有东西可透。v0.2.5 修正两层问题：补场改为插进面板所在的同一层（DSH 的 `shell.overlay`）并排在面板之前（原来挂在 `body` 上用 `z-index:-1`，被外壳底色整块盖住，等于不存在），且尺寸从「面板矩形 + 24px」改为一路铺到视口右下角——面板高度由内容撑出，内容短时它下方原本会露出一块纯白。
 v0.2.6 再修两处观感问题：补场原来按「面板外扩 24px」铺，顶上比会话内容区高出一截，右栏于是浮出一块**带硬边的补丁**；左侧那圈外扩又落在内容区之上，两层场叠成一条**发脏的竖带**（亮格 233 → 243、暗格 233 → 218）。现在补场的盒子直接对齐「内容区那条带子」（左缘 = 内容区右缘、上缘 = 内容区上沿、右/下到视口边），并自带一层同源不透明底色（`--mui-surface-base`），重叠处只会被它盖掉，不再叠两层场。
 - v0.2.4 起**作用范围不再包含右侧边栏**：右栏的动效背景整块移除（图层、观察器、CSS 与设置项一并删除），右栏回到 DSH 原生外观；设置页总开关数由 11 降为 10。HUD 面板自己那一条竖带仍由补场覆盖（否则面板玻璃无场可模糊、面板下方也露白），面板关闭时补场随之移除。
+- **HUD 补场的交互与出现时机**（v0.3.1）：补场与内容区共用同一个「背景鼠标交互」开关——指针扫过面板背后那条竖带时同样有拖尾擦除（亮色）/ 点亮（暗色），点击同样出涟漪（窄条内会被容器裁切，属预期）。补场**不播入场揭示**，进入聊天会话页时直接满强度显示；内容区仍保留原 1.8s 揭示与 0.5s 淡入。
 
 ---
 
@@ -138,6 +139,7 @@ plugin_manager remove_bundle  target=dsh-signal-field
 12. 设置页结构（v0.2.9）：只剩「页面」与「动效」两个模块 + 一条分割线；关掉「聊天会话页面」后聊天页回原生外观、HUD 面板同步失去毛玻璃；背景强度默认显示 30%。
 13. 省电回归（v0.2.11）：默认「重绘帧率上限 30 fps」下，画面观感应与 60 fps 无可见差别；切到别的应用再切回来，背景应无缝恢复、不跳帧也不静止；在信号场上快速划动指针，轨迹应仍然跟手（交互期临时取消限帧）。自检文本末尾的 `--- performance ---` 段会输出实测 `fps` / `avgRenderMs` / `renders` / `skips`，可直接对照。
 14. 速度回归（v0.3.0）：两个速度滑块默认 1× 时观感应与 v0.2.11 完全一致。拖动「标题动画速度」时，扫光应平滑地变快/变慢且**位置不跳**、标题**不闪不重播**；拖动「背景动画速度」时波形、涟漪摆动与扩散应同步变速，HUD 补场同步；把背景速度拉满并同时把帧率压到 15 fps，允许变顿但不允许画面撕裂或静止。自检文本的 `speeds: title=…x background=…x` 一行应与滑块值一致。
+15. 补场回归（v0.3.1）：进入聊天会话页时，**面板背后那条竖带应立即满强度出现**，不再有「先纯色、再从中心向外扩散」的几秒等待；内容区仍保留 1.8s 揭示与 0.5s 淡入（两者观感不同是刻意的）。指针扫过补场条带应有拖尾、点击应有涟漪；关掉「背景鼠标交互」后补场与内容区应同时停止响应；面板没有几何（如刚打开、尺寸为 0）时补场应暂停而不是继续空转。
 
 ---
 
@@ -169,7 +171,7 @@ dsh-signal-field/
 │   ├── settings-page.js  # 「UI 动画」设置页
 │   └── client.js         # 模块入口
 ├── scripts/build.mjs
-├── test/{settings,page,techtext,hero-layout,build,wiring,frame-pace,sync-coalesce,speed,title-speed}.test.mjs
+├── test/{settings,page,techtext,hero-layout,build,wiring,frame-pace,sync-coalesce,speed,title-speed,hud-backdrop}.test.mjs
 └── docs/dom-anchors.md
 ```
 

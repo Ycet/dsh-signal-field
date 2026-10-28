@@ -1094,6 +1094,14 @@ window.__ModuleLoader__.load({
         if (typeof src.speed === "number" && Number.isFinite(src.speed)) {
           settings.speed = speedValue(src.speed);
         }
+        // v0.3.1：入场揭示开关。HUD 补场用 intro:false 跳过那 1.8s 的中心向外展开，
+        // 否则它每次进聊天页都会被重建、把展开动画从头再播一遍，看起来就是「过几秒才出现」。
+        if (typeof src.intro === "boolean") {
+          settings.intro = src.intro;
+          // 关闭揭示时同步把进度补满：applyOptions 的调用点在 state 声明之后（见文件下方），
+          // 所以首帧就是满强度，不会先画一帧半透明的再跳变。
+          if (!settings.intro) state.reveal = 1;
+        }
       }
 
       applyOptions({ ...initial, dpr: (window.devicePixelRatio || 1) });
@@ -2406,6 +2414,9 @@ window.__ModuleLoader__.load({
        场的观感处处一致；同时它也让「面板下方那一竖条」不再露出外壳白底。 */
     [data-mui-field][data-mui-field-hud]{
       position:fixed;inset:auto;z-index:0;background:var(--mui-surface-base);
+      /* v0.3.1：补场不做淡入。它每次进聊天页都会重建，0.5s 过渡叠上入场揭示，
+         观感就是「面板背后那块背景要过两三秒才出来」。内容区仍保留上面那条 0.5s 过渡。 */
+      transition:none;
     }
     /* 内容区默认应该是透明的（底色由壳层给）。这里把已知的几层容器显式放开，
        避免主题或页面自带底色盖住信号场；只动「会包住正文」的容器，不动侧栏。 */
@@ -3216,10 +3227,15 @@ window.__ModuleLoader__.load({
             dark,
             intensity: state.background.intensity,
             idle: state.background.idle,
-            interact: false,
+            // v0.3.1：与内容区共用「背景鼠标交互」开关。原来这里写死 false，
+            // 导致面板背后那块背景完全没有鼠标交互动效。
+            interact: state.background.interact,
             fps: state.background.fps,
             // HUD 补场与内容区共用同一个背景速度：两者是同一片背景的两段，不同速会在接缝处露馅。
             speed: state.background.speed,
+            // v0.3.1：补场不播入场揭示。它是内容区那片背景的延续段，而且每次进聊天页都会被重建，
+            // 保留揭示就等于每次进页都重播 1.8s 的展开动画——也就是「过几秒才出现」的直接原因。
+            intro: false,
             reduceMotion: status.getSnapshot().reducedMotion,
             onFallback: (reason) => {
               hudNote = `fallback:${reason}`;
@@ -3232,7 +3248,7 @@ window.__ModuleLoader__.load({
             dark,
             intensity: state.background.intensity,
             idle: state.background.idle,
-            interact: false,
+            interact: state.background.interact,
             fps: state.background.fps,
             speed: state.background.speed,
           });

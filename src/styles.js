@@ -33,6 +33,9 @@ export const CSS = `
    场的观感处处一致；同时它也让「面板下方那一竖条」不再露出外壳白底。 */
 [data-mui-field][data-mui-field-hud]{
   position:fixed;inset:auto;z-index:0;background:var(--mui-surface-base);
+  /* v0.3.1：补场不做淡入。它每次进聊天页都会重建，0.5s 过渡叠上入场揭示，
+     观感就是「面板背后那块背景要过两三秒才出来」。内容区仍保留上面那条 0.5s 过渡。 */
+  transition:none;
 }
 /* 内容区默认应该是透明的（底色由壳层给）。这里把已知的几层容器显式放开，
    避免主题或页面自带底色盖住信号场；只动「会包住正文」的容器，不动侧栏。 */

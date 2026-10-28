@@ -309,6 +309,14 @@ export function createField(container, options) {
     if (typeof src.speed === "number" && Number.isFinite(src.speed)) {
       settings.speed = speedValue(src.speed);
     }
+    // v0.3.1：入场揭示开关。HUD 补场用 intro:false 跳过那 1.8s 的中心向外展开，
+    // 否则它每次进聊天页都会被重建、把展开动画从头再播一遍，看起来就是「过几秒才出现」。
+    if (typeof src.intro === "boolean") {
+      settings.intro = src.intro;
+      // 关闭揭示时同步把进度补满：applyOptions 的调用点在 state 声明之后（见文件下方），
+      // 所以首帧就是满强度，不会先画一帧半透明的再跳变。
+      if (!settings.intro) state.reveal = 1;
+    }
   }
 
   applyOptions({ ...initial, dpr: (window.devicePixelRatio || 1) });

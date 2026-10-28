@@ -573,10 +573,15 @@ export function createStage(options) {
         dark,
         intensity: state.background.intensity,
         idle: state.background.idle,
-        interact: false,
+        // v0.3.1：与内容区共用「背景鼠标交互」开关。原来这里写死 false，
+        // 导致面板背后那块背景完全没有鼠标交互动效。
+        interact: state.background.interact,
         fps: state.background.fps,
         // HUD 补场与内容区共用同一个背景速度：两者是同一片背景的两段，不同速会在接缝处露馅。
         speed: state.background.speed,
+        // v0.3.1：补场不播入场揭示。它是内容区那片背景的延续段，而且每次进聊天页都会被重建，
+        // 保留揭示就等于每次进页都重播 1.8s 的展开动画——也就是「过几秒才出现」的直接原因。
+        intro: false,
         reduceMotion: status.getSnapshot().reducedMotion,
         onFallback: (reason) => {
           hudNote = `fallback:${reason}`;
@@ -589,7 +594,7 @@ export function createStage(options) {
         dark,
         intensity: state.background.intensity,
         idle: state.background.idle,
-        interact: false,
+        interact: state.background.interact,
         fps: state.background.fps,
         speed: state.background.speed,
       });

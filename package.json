@@ -1,6 +1,6 @@
 {
   "name": "dsh-signal-field",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "description": "DSH 动效界面插件：抖动信号场背景、蓝图标题与毛玻璃输入框，可在「设置 → UI 动画」逐项开关。",
   "type": "module",
