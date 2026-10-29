@@ -7,6 +7,10 @@
  *   - 所有选择器都挂在插件自有属性 / 自有类名上，卸载时随 <style> 一起消失。
  */
 
+// v0.4.0：鲸鱼等宽字体的内嵌 data URI。构建时本行被剥离，
+// 产物里 WHALE_MONO_URI 由前面的 src/whale-fonts.js 提供（ORDER 保证顺序）。
+import { WHALE_MONO_URI } from './whale-fonts.js';
+
 export const STYLE_ATTR = 'data-plugin';
 export const STYLE_ID = 'dsh-signal-field:styles';
 
@@ -51,6 +55,26 @@ html[data-mui-active] [data-slot="conversation.composer.bar"]{background-color:t
   background:
     radial-gradient(120% 90% at 50% 38%, color-mix(in srgb, var(--mui-field-wave) 42%, transparent), transparent 68%),
     var(--mui-field-bg);
+}
+
+/* ===== 鲸鱼图层（v0.4.0，从 dsh-ascii-whales 迁移）=====
+   与信号场一样挂在内容面内部、同为 z-index:-1：两者都在内容面自身底色之上、正文之下，
+   谁在上只取决于插入顺序（信号场先插入、鲸鱼后插入，所以鲸鱼压在信号场之上）。
+   鲸鱼画布是透明的（alpha:true + clearRect），因此叠加时是「鲸鱼游在抖动天空前」，
+   不会像自带底色的图层那样把信号场整片盖掉。
+   字体在这里声明：Whale Mono 是内嵌子集，data URI 由 whale-fonts.js 提供。 */
+@font-face{
+  font-family:"Whales Mono";
+  src:url("${WHALE_MONO_URI}") format("woff");
+  font-style:normal;font-weight:600;font-display:swap;
+}
+[data-mui-whale]{
+  position:absolute;inset:0;z-index:-1;pointer-events:none;overflow:hidden;
+  opacity:var(--mui-whale-opacity,1);
+}
+[data-mui-whale] > canvas{
+  position:absolute;inset:0;display:block;width:100%;height:100%;
+  font-family:"Whales Mono",ui-monospace,Menlo,monospace;font-weight:600;
 }
 
 /* ===== 蓝图标题 =====
@@ -237,12 +261,47 @@ html[data-mui-scope][data-mui-hud-glass][data-mui-dark] .hud-panel::before{
   flex:none;min-width:40px;text-align:right;font-variant-numeric:tabular-nums;
   font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);
 }
+/* 分段选择（v0.4.0，用于「鲸鱼种类」）。
+   自绘成两个并排按钮而不是用 select：选项只有 2 个，按钮一眼可见当前值，
+   且 aria-pressed 的读屏语义比 select 更贴近「在这几个里选一个」。 */
+.mui-seg{flex:none;display:flex;gap:6px;flex-wrap:wrap}
+.mui-seg-item{
+  border:1px solid var(--dsw-alias-border-l2);background:transparent;cursor:pointer;
+  color:var(--dsw-alias-label-primary);border-radius:8px;padding:3px 12px;
+  font-size:12px;line-height:18px;font-family:inherit;
+  transition:background .15s var(--ds-ease-in-out, ease);
+}
+.mui-seg-item:hover{background:color-mix(in srgb, var(--dsw-alias-label-primary) 7%, transparent)}
+.mui-seg-item[aria-pressed="true"]{
+  background:var(--dsw-alias-brand-primary);border-color:var(--dsw-alias-brand-primary);color:#fff;
+}
+.mui-seg-item:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
+.mui-seg-item:disabled{opacity:.5;cursor:not-allowed}
+/* 两列数字输入网格（v0.4.0，鲸鱼的 11 个数值项）。
+   为什么不用 .mui-row：11 条单列行会把设置页拉得很长，而这些都是「一个数」的短参数，
+   两列并排更省纵向空间。minmax(220px,1fr) 让窄窗口自动折成一列。 */
+.mui-numgrid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:4px 24px;padding:2px 0 4px;
+}
+.mui-num{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;padding:4px 0}
+.mui-num-label{
+  font-size:13px;line-height:20px;color:var(--dsw-alias-label-primary);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.mui-num-input{
+  flex:none;width:88px;height:26px;padding:0 8px;border-radius:8px;
+  border:1px solid var(--dsw-alias-border-l2);background:transparent;
+  color:var(--dsw-alias-label-primary);font-family:inherit;font-size:12px;line-height:24px;
+  font-variant-numeric:tabular-nums;text-align:right;
+}
+.mui-num-input:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}
+.mui-num-input:disabled{opacity:.5;cursor:not-allowed}
 .mui-note{
   display:flex;gap:8px;align-items:flex-start;margin:0;padding:8px 10px;border-radius:8px;
   font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);
   background:color-mix(in srgb, var(--dsw-alias-label-primary) 5%, transparent);
-}
-.mui-note[data-tone="warn"]{
+}.mui-note[data-tone="warn"]{
   color:var(--dsw-alias-state-warn-primary);
   background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 12%, transparent);
 }

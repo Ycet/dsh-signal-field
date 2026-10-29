@@ -1,8 +1,8 @@
 {
   "name": "dsh-signal-field",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "private": true,
-  "description": "DSH 动效界面插件：抖动信号场背景、蓝图标题与毛玻璃输入框，可在「设置 → UI 动画」逐项开关。",
+  "description": "DSH 动效界面插件：抖动信号场背景、蓝图标题、毛玻璃输入框与 ASCII 鲸鱼动画，可在「设置 → UI 动画」逐项开关。",
   "type": "module",
   "main": "index.js",
   "icon": "icon.svg",
@@ -20,7 +20,8 @@
     "icon.svg",
     "locale/*.json",
     "README.md",
-    "README_en.md"
+    "README_en.md",
+    "THIRD_PARTY_NOTICES.md"
   ],
   "dsh": {
     "bundle": {

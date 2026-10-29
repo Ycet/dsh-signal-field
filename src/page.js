@@ -54,3 +54,29 @@ export function resolvePanelTargets(input) {
   if (!inScope) return { hud: false };
   return { hud: !!src.chatPage };
 }
+
+/**
+ * 决定「鲸鱼动画」这一图层是否应该存在（v0.4.0）。
+ *
+ * 三道上级闸门都要开，缺一不可：
+ *   1. 总开关（启用全部动效）；
+ *   2. 页面开关「新建会话页面」——它代表「这一页要不要动效背景」，鲸鱼只是其中一层；
+ *   3. 鲸鱼自己的开关。
+ * 最后才是页面判定：鲸鱼**只**在新增会话页渲染。
+ *
+ * 为什么只在 hero：这是从 dsh-ascii-whales 原样继承的行为
+ * （它自己用 `contentPhase === "hero"` 硬判），也是性能上的选择——
+ * 聊天会话页正在流式输出，再叠一层满帧 Canvas 栅格化不划算。
+ *
+ * 本函数不含任何 DOM API，故可被 `node --test` 直接导入断言。
+ *
+ * @param {{ page?: string, heroPage?: unknown, master?: unknown, whaleEnabled?: unknown }} input
+ * @returns {boolean}
+ */
+export function resolveWhaleTarget(input) {
+  const src = input && typeof input === "object" ? input : {};
+  if (!src.master) return false;
+  if (!src.heroPage) return false;
+  if (!src.whaleEnabled) return false;
+  return src.page === PAGE_HERO;
+}

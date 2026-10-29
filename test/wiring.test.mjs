@@ -53,15 +53,32 @@ function element(tag) {
       return attrs.has(String(name));
     },
     append(child) {
+      // v0.4.0 起记录 parentElement：鲸鱼图层要靠它判断「宿主是否被重建过」，
+      // 不记录的话每次 sync 都会被误判成脱离文档而反复重建。
+      child.parentElement = node;
       node.children.push(child);
       if (!node.firstChild) node.firstChild = child;
     },
-    insertBefore(child) {
+    insertBefore(child, reference) {
+      child.parentElement = node;
+      const index = reference ? node.children.indexOf(reference) : -1;
+      if (index >= 0) {
+        node.children.splice(index, 0, child);
+        node.firstChild = node.children[0];
+        return child;
+      }
       node.children.unshift(child);
       node.firstChild = child;
       return child;
     },
-    remove() {},
+    remove() {
+      const parent = node.parentElement;
+      if (!parent) return;
+      const index = parent.children.indexOf(node);
+      if (index >= 0) parent.children.splice(index, 1);
+      parent.firstChild = parent.children[0] || null;
+      node.parentElement = null;
+    },
     addEventListener() {},
     removeEventListener() {},
     querySelector() {
@@ -147,7 +164,12 @@ async function loadModule(options) {
     requestAnimationFrame: () => 1,
     cancelAnimationFrame: () => {},
     localStorage: {
-      getItem: () => null,
+      // options.settings 传入时把它当作已落盘的存档（键名与 settings.js 的 STORAGE_KEY 一致）；
+      // 其它键一律返回 null，避免旧键迁移逻辑被误触发。
+      getItem: (key) =>
+        options && typeof options.settings === 'string' && key === 'dsh-signal-field:v1'
+          ? options.settings
+          : null,
       setItem: () => {},
       removeItem: () => {},
     },
@@ -428,4 +450,66 @@ test('wiring: 自检文本可生成（覆盖座位背衬与 HUD 补场两段）'
   assert.match(text, /seatVeil:/, '自检应回读座位背衬');
   assert.match(text, /hudBackdrop:/, '自检应回读 HUD 补场');
   assert.match(text, /sameAsPanel=/, '自检应回读补场与面板是否同层');
+});
+
+// ---- v0.4.0：鲸鱼图层的装配 ------------------------------------------------
+
+/** 在给定存档下装配一次，返回替身 DOM 与鲸鱼图层查询结果。 */
+async function mountWith(settings, conversationPhase = 'hero') {
+  const { mod, doc } = await loadModule({
+    conversationPhase,
+    settings: settings === undefined ? undefined : JSON.stringify(settings),
+  });
+  const ctx = {
+    effect(factory) {
+      const dispose = factory();
+      return () => {
+        if (typeof dispose === 'function') dispose();
+      };
+    },
+    locale: { register: () => () => {}, bind: () => (key) => key },
+    slots: {
+      inject(_key, callback) {
+        callback();
+      },
+      register() {
+        return () => {};
+      },
+    },
+  };
+  mod.apply(ctx);
+  const layers = doc.conversation.children.filter((child) => child.hasAttribute('data-mui-whale'));
+  return { doc, layers };
+}
+
+test('wiring: hero 页默认挂出鲸鱼图层，且引擎失败时走兜底不抛错', async () => {
+  // 替身没有 Canvas2D（getContext 返回 null），所以引擎必定构造失败；
+  // 这一条同时验证「图层挂上了」与「失败被兜住、没把 apply 炸掉」。
+  const { layers } = await mountWith(undefined);
+  assert.equal(layers.length, 1, 'hero 页应恰好有一个鲸鱼图层');
+  const layer = layers[0];
+  assert.equal(layer.hasAttribute('aria-hidden'), true, '鲸鱼图层必须对读屏隐藏');
+  assert.equal(layer.children.length, 1, '图层里应有一个 canvas');
+  assert.equal(layer.children[0].tagName, 'CANVAS');
+  assert.equal(layer.hasAttribute('data-whale-fallback'), true, '无 Canvas2D 时应标记兜底状态');
+});
+
+test('wiring: 鲸鱼开关关闭时不建图层', async () => {
+  const { layers } = await mountWith({ whale: { enabled: false } });
+  assert.equal(layers.length, 0, '关掉鲸鱼开关后不该有任何鲸鱼图层');
+});
+
+test('wiring: 「新建会话页面」关闭时不建图层（页面开关是上级）', async () => {
+  const { layers } = await mountWith({ pages: { hero: false } });
+  assert.equal(layers.length, 0, '页面开关关闭时鲸鱼也应停用');
+});
+
+test('wiring: 聊天会话页不建鲸鱼图层（只在新增会话页渲染）', async () => {
+  const { layers } = await mountWith(undefined, 'active');
+  assert.equal(layers.length, 0, '聊天页不该出现鲸鱼图层');
+});
+
+test('wiring: 总开关关闭时不建鲸鱼图层', async () => {
+  const { layers } = await mountWith({ enabled: false });
+  assert.equal(layers.length, 0, '总开关关闭后不该有任何鲸鱼图层');
 });

@@ -35,8 +35,26 @@ window.__ModuleLoader__.load({
         "rowIntensityHint": "只影响信号场的浓淡，不改变动画速度；默认 30%。",
         "rowBackgroundSpeed": "背景动画速度",
         "rowBackgroundSpeedHint": "整片背景的流动快慢：波形、涟漪摆动与扩散一起变，涟漪存续也随之缩短；1× 即当前观感。与重绘帧率独立，高速度配低帧率会显得一顿一顿。",
-        "rowFps": "重绘帧率上限",
-        "rowFpsHint": "限制信号场的重绘频率，越低越省电；窗口失焦时自动降到 8 fps，指针交互时临时回到屏幕帧率。",
+        "rowFps": "动画重绘帧率上限",
+        "rowFpsHint": "限制信号场与鲸鱼的重绘频率，越低越省电；窗口失焦时信号场自动降到 8 fps，指针交互时临时回到屏幕帧率。",
+        "rowWhaleEnabled": "鲸鱼动效",
+        "rowWhaleEnabledHint": "在新建会话页叠一层 ASCII 鲸鱼。它压在信号场之上，两者开关独立：关掉鲸鱼，信号场照常。",
+        "rowWhaleSpecies": "鲸鱼种类",
+        "rowWhaleSpeciesHint": "座头鲸胸鳍更长、尾鳍更宽；虎鲸体型略小并带白色斑纹。",
+        "whaleHumpback": "座头鲸",
+        "whaleOrca": "虎鲸",
+        "whaleNumbersHint": "以下参数即时生效。改动「种类 / 数量 / 大小 / 字符栅格 / 小鱼数量」会重建整片海洋；其余参数是热更新，不会重播。",
+        "rowWhaleCount": "鲸鱼数量",
+        "rowWhaleSpeed": "鲸鱼游动速度",
+        "rowWhaleBodySwing": "鲸鱼身体摆动幅度",
+        "rowWhaleTurnAgility": "鲸鱼转弯灵活度",
+        "rowWhaleTailFrequency": "鲸鱼摆尾频率",
+        "rowWhaleSize": "鲸鱼大小",
+        "rowWhaleOpacity": "鲸鱼透明度",
+        "rowWhaleGridScale": "鲸鱼字符栅格（倍）",
+        "rowWhaleGridOpacity": "鲸鱼底纹网格透明度",
+        "rowWhaleFishCount": "鲸鱼小鱼数量",
+        "rowWhaleWake": "鲸鱼尾迹强度",
         "reducedMotion": "系统开启了「减少动效」，动画与鼠标交互已默认关闭；需要时可在此手动打开。",
         "reset": "恢复默认",
         "resetDone": "已恢复默认设置",
@@ -70,8 +88,26 @@ window.__ModuleLoader__.load({
         "rowIntensityHint": "Only changes how dense the signal field is, not its speed; 30% by default.",
         "rowBackgroundSpeed": "Backdrop animation speed",
         "rowBackgroundSpeedHint": "Flow speed of the whole backdrop: wave drift, ripple wobble and ripple spread all scale together, and ripples live correspondingly shorter; 1× is the current feel. Independent of the redraw cap — high speed with a low cap looks steppy.",
-        "rowFps": "Redraw frame-rate cap",
-        "rowFpsHint": "Caps how often the signal field redraws; lower saves more power. It drops to 8 fps while the window is unfocused and returns to the display rate during pointer interaction.",
+        "rowFps": "Animation redraw cap",
+        "rowFpsHint": "Caps how often the signal field and whales redraw; lower saves more power. The field drops to 8 fps while the window is unfocused and returns to the display rate during pointer interaction.",
+        "rowWhaleEnabled": "Whale animation",
+        "rowWhaleEnabledHint": "Stacks an ASCII whale layer on the new-session page. It sits above the signal field, and the two switches are independent: turning whales off leaves the field untouched.",
+        "rowWhaleSpecies": "Whale species",
+        "rowWhaleSpeciesHint": "Humpback has longer flippers and wider flukes; orca is slightly smaller with white markings.",
+        "whaleHumpback": "Humpback",
+        "whaleOrca": "Orca",
+        "whaleNumbersHint": "These apply immediately. Changing species, whale count, size, cell size or fish count rebuilds the whole ocean; the rest update in place without replaying.",
+        "rowWhaleCount": "Whale count",
+        "rowWhaleSpeed": "Whale swim speed",
+        "rowWhaleBodySwing": "Whale body swing",
+        "rowWhaleTurnAgility": "Whale turn agility",
+        "rowWhaleTailFrequency": "Whale tail frequency",
+        "rowWhaleSize": "Whale size",
+        "rowWhaleOpacity": "Whale opacity",
+        "rowWhaleGridScale": "Whale cell size (x)",
+        "rowWhaleGridOpacity": "Whale grid opacity",
+        "rowWhaleFishCount": "Whale fish count",
+        "rowWhaleWake": "Whale wake intensity",
         "reducedMotion": "The system asks for reduced motion, so animation and pointer interaction are off by default; you can still switch them on here.",
         "reset": "Reset to defaults",
         "resetDone": "Defaults restored",
@@ -127,6 +163,48 @@ window.__ModuleLoader__.load({
     const SPEED_RANGE = Object.freeze({ min: 0.25, max: 2, step: 0.25 });
 
     /**
+     * 鲸鱼动画的取值范围（v0.4.0，从 dsh-ascii-whales 迁移后重新标定）。
+     *
+     * 与上游的区别只在步长：上游对 <1 的小数用 0.05、其余用区间步长，
+     * 于是 bodySwing 的区间步长 0.1 会把 0.75 吸成 0.8、fishCount 的 10 会把 188 吸成 190。
+     * 这里统一取「能精确命中全部默认值的最小步长」，所以 0.75 / 0.85 / 188 都原样保留。
+     * 逐项默认值与含义见 README 的鲸鱼章节。
+     */
+    const WHALE_RANGES = Object.freeze({
+      count: Object.freeze({ min: 1, max: 20, step: 1 }),
+      speed: Object.freeze({ min: 0.1, max: 10, step: 0.05 }),
+      bodySwing: Object.freeze({ min: 0, max: 3, step: 0.05 }),
+      turnAgility: Object.freeze({ min: 0.1, max: 3, step: 0.05 }),
+      tailFrequency: Object.freeze({ min: 0.1, max: 5, step: 0.05 }),
+      size: Object.freeze({ min: 0.1, max: 10, step: 0.1 }),
+      opacity: Object.freeze({ min: 0, max: 1, step: 0.05 }),
+      gridScale: Object.freeze({ min: 0.1, max: 10, step: 0.05 }),
+      gridOpacity: Object.freeze({ min: 0, max: 1, step: 0.01 }),
+      fishCount: Object.freeze({ min: 0, max: 1000, step: 1 }),
+      wake: Object.freeze({ min: 0, max: 10, step: 0.1 }),
+    });
+
+    /** 鲸鱼种类的合法取值：座头鲸 / 虎鲸。 */
+    const WHALE_SPECIES = Object.freeze(['humpback', 'orca']);
+
+    /** whale 分组里可由 patch() 合并的键（顺序与设置页行序不同，这里只是键表）。 */
+    const WHALE_KEYS = Object.freeze([
+      'enabled',
+      'species',
+      'count',
+      'speed',
+      'bodySwing',
+      'turnAgility',
+      'tailFrequency',
+      'size',
+      'opacity',
+      'gridScale',
+      'gridOpacity',
+      'fishCount',
+      'wake',
+    ]);
+
+    /**
      * 归一化一个速度倍率：非有限值一律回落 1×，其余钳到 SPEED_RANGE。
      *
      * 与 num() 的区别：这里**不做步长吸附**，因为运行时也要用它把外部传进来的
@@ -159,16 +237,20 @@ window.__ModuleLoader__.load({
     }
 
     /**
-     * 默认设置（v0.2.9 结构 + v0.2.11 的 background.fps + v0.3.0 的两个 speed）：
+     * 默认设置（v0.2.9 结构 + v0.2.11 的 background.fps + v0.3.0 的两个 speed
+     * + v0.4.0 的 whale 分组）：
      *   pages      —— 哪些页面展示动效（设置页模块「页面」）
      *   title      —— 标题默认动效 / 鼠标交互 / 动画速度（默认 1×）
      *   background —— 背景默认动效 / 鼠标交互 / 强度（默认 30%）/ 帧率上限（默认 30fps）/ 速度（默认 1×）
      *   glass      —— 输入框毛玻璃总开关；blur 固定 14px，已不再提供滑块
+     *   whale      —— 鲸鱼动画（v0.4.0 从 dsh-ascii-whales 迁移）：开关 + 种类 + 11 个数值项。
+     *                 默认值 = 迁移当时用户的实际取值，不是上游出厂默认（差异见 README）。
      * HUD 面板毛玻璃没有独立开关：它跟随「聊天会话页面」开关（详见 README 设置页章节）。
      *
      * 逐版只往已有分组里**加键**，因此一直**不升 SCHEMA_VERSION**：
      * normalize() 对缺失键填默认值、对未知键直接丢弃，
      * 旧存档读出来就是新默认，旧版本读到新存档只是丢掉不认识的键，两个方向都不会坏。
+     * v0.4.0 同样是加分组：旧存档没有 whale 键，读出来就是上表默认。
      */
     function defaults() {
       return {
@@ -178,6 +260,21 @@ window.__ModuleLoader__.load({
         title: { idle: true, interact: true, speed: 1 },
         background: { idle: true, interact: true, intensity: 0.3, fps: 30, speed: 1 },
         glass: { enabled: true, blur: 14 },
+        whale: {
+          enabled: true,
+          species: 'humpback',
+          count: 1,
+          speed: 0.5,
+          bodySwing: 0.75,
+          turnAgility: 0.8,
+          tailFrequency: 0.85,
+          size: 1.5,
+          opacity: 0.5,
+          gridScale: 0.5,
+          gridOpacity: 0.1,
+          fishCount: 188,
+          wake: 1,
+        },
       };
     }
 
@@ -238,6 +335,7 @@ window.__ModuleLoader__.load({
       const title = group(src.title);
       const background = group(src.background);
       const glass = group(src.glass);
+      const whale = group(src.whale);
 
       // 旧结构恰用旧默认强度时，跟着新默认一起变淡；手调过的值原样保留。
       const rawIntensity = background.intensity;
@@ -266,6 +364,22 @@ window.__ModuleLoader__.load({
         glass: {
           enabled: legacy ? legacy.glass : bool(glass.enabled, base.glass.enabled),
           blur: num(glass.blur, BLUR_RANGE, base.glass.blur),
+        },
+        // v0.4.0：鲸鱼动画。species 走白名单，其余走 num() 的钳位 + 步长吸附。
+        whale: {
+          enabled: bool(whale.enabled, base.whale.enabled),
+          species: WHALE_SPECIES.includes(whale.species) ? whale.species : base.whale.species,
+          count: num(whale.count, WHALE_RANGES.count, base.whale.count),
+          speed: num(whale.speed, WHALE_RANGES.speed, base.whale.speed),
+          bodySwing: num(whale.bodySwing, WHALE_RANGES.bodySwing, base.whale.bodySwing),
+          turnAgility: num(whale.turnAgility, WHALE_RANGES.turnAgility, base.whale.turnAgility),
+          tailFrequency: num(whale.tailFrequency, WHALE_RANGES.tailFrequency, base.whale.tailFrequency),
+          size: num(whale.size, WHALE_RANGES.size, base.whale.size),
+          opacity: num(whale.opacity, WHALE_RANGES.opacity, base.whale.opacity),
+          gridScale: num(whale.gridScale, WHALE_RANGES.gridScale, base.whale.gridScale),
+          gridOpacity: num(whale.gridOpacity, WHALE_RANGES.gridOpacity, base.whale.gridOpacity),
+          fishCount: num(whale.fishCount, WHALE_RANGES.fishCount, base.whale.fishCount),
+          wake: num(whale.wake, WHALE_RANGES.wake, base.whale.wake),
         },
       };
     }
@@ -301,6 +415,7 @@ window.__ModuleLoader__.load({
           'speed',
         ]),
         glass: mergeGroup(base.glass, src.glass, ['enabled', 'blur']),
+        whale: mergeGroup(base.whale, src.whale, WHALE_KEYS),
       };
       return normalize(next);
     }
@@ -524,6 +639,32 @@ window.__ModuleLoader__.load({
       const inScope = src.page === PAGE_HERO || src.page === PAGE_CHAT;
       if (!inScope) return { hud: false };
       return { hud: !!src.chatPage };
+    }
+
+    /**
+     * 决定「鲸鱼动画」这一图层是否应该存在（v0.4.0）。
+     *
+     * 三道上级闸门都要开，缺一不可：
+     *   1. 总开关（启用全部动效）；
+     *   2. 页面开关「新建会话页面」——它代表「这一页要不要动效背景」，鲸鱼只是其中一层；
+     *   3. 鲸鱼自己的开关。
+     * 最后才是页面判定：鲸鱼**只**在新增会话页渲染。
+     *
+     * 为什么只在 hero：这是从 dsh-ascii-whales 原样继承的行为
+     * （它自己用 `contentPhase === "hero"` 硬判），也是性能上的选择——
+     * 聊天会话页正在流式输出，再叠一层满帧 Canvas 栅格化不划算。
+     *
+     * 本函数不含任何 DOM API，故可被 `node --test` 直接导入断言。
+     *
+     * @param {{ page?: string, heroPage?: unknown, master?: unknown, whaleEnabled?: unknown }} input
+     * @returns {boolean}
+     */
+    function resolveWhaleTarget(input) {
+      const src = input && typeof input === "object" ? input : {};
+      if (!src.master) return false;
+      if (!src.heroPage) return false;
+      if (!src.whaleEnabled) return false;
+      return src.page === PAGE_HERO;
     }
 
 
@@ -2378,6 +2519,2103 @@ window.__ModuleLoader__.load({
     }
 
 
+    // ---- src/whale-fonts.js ----
+    /**
+     * dsh-signal-field · 鲸鱼动画的等宽字体子集（v0.4.0）
+     *
+     * 来源：Geist Mono（The Geist Project Authors），SIL Open Font License 1.1。
+     * 子集与 base64 编码沿用 dsh-ascii-whales 的 assets/fonts/whales-mono.woff（weight 600）。
+     * 许可全文与说明见仓库根目录 THIRD_PARTY_NOTICES.md。
+     *
+     * 为什么内嵌而不是引用外部文件：Client bundle 只有一个 client.js，加载器不解析相对资源路径；
+     * data URI 是唯一能在不联网、不额外请求的前提下保证首帧字形就已就绪的做法。
+     * 鲸鱼轮廓是靠字形宽度测量出来的，字体一旦回退成系统等宽，轮廓与描字都会偏。
+     */
+
+    const WHALE_MONO_URI =
+      "data:font/woff;base64,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";
+
+
+    // ---- src/whale-engine.js ----
+    /**
+     * dsh-signal-field · 鲸鱼动画引擎（v0.4.0，从 dsh-ascii-whales 迁移）
+     *
+     * 版权：本体动画改编自 stackedlol/ascii-sharks（MIT，Copyright (c) 2026 drewdi），
+     * 固定上游快照 commit c521e24a787e6d4cc460d4cf2b9815f25e4fe453。
+     * 许可全文、保留与适配清单见仓库根目录 THIRD_PARTY_NOTICES.md。
+     * 本插件的 MIT 许可不重新许可上游源码，上游署名在此保留。
+     *
+     * 保留：固定步长引擎、鱼群集群/追逐、柔性脊柱、单元格栅格化、光照、字形浓淡与尾迹扩散。
+     *
+     * 与本插件不同的适配（共 5 处，均在下方用「[适配 N]」标出）：
+     *   1. 整块包进 IIFE 并只导出 WHALE_ENGINE。
+     *      原因不是洁癖：src/stage.js 已有顶层 `clamp`，与移植块的 `var clamp` 同处一个闭包会互相覆盖。
+     *      IIFE 边界让上游代码可以逐字保留，也免疫将来的一切重名。
+     *   2. 丢弃 Kanji 渲染器（Painter / GlyphAtlas / InkRamp / SKIN_POOL 等 582 行不进入产物）
+     *      与汉字字库：本插件的字符风格固定 ASCII，不提供切换。
+     *   3. 忽略 prefers-reduced-motion：删除 matchMedia 订阅、drawStill() 与全部 reducedMotion 判定。
+     *      鲸鱼按配置帧率运行（这是明确的产品决策，不是遗漏）。
+     *   4. 帧率上限：frame() 开头按 fpsCap 门控。
+     *   5. 指针监听可拆装：interact=false 时不注册 window 级监听。
+     *
+     * 构建约定：本文件由 scripts/build.mjs 原样拼进 client.js，只允许一个具名导出。
+     */
+
+    const WHALE_ENGINE = (() => {
+      // [适配 1] 上游整块放进这个 IIFE：src/stage.js 已有顶层 `clamp`，
+      // 与移植块的 `var clamp` 同处一个闭包会互相覆盖，故用 IIFE 做边界隔离。
+      // ========================================================================
+      // 上游移植段开始（stackedlol/ascii-sharks，逐字保留，勿在此段内改动）
+      // 对应 dsh-ascii-whales lib/client.js 第 69–1597 行
+      //   vendor/ascii-sharks/cells.ts → math.ts → species.ts → world.ts
+      //                                → whales.ts → renderer.ts
+      // ========================================================================
+    // vendor/ascii-sharks/cells.ts
+    function cellSize(scale, square) {
+      const cw = Math.max(1, Math.round(8 * scale));
+      const ch = Math.round(cw * 1.45);
+      const side = Math.max(4, Math.round(Math.sqrt(cw * ch)));
+      return square ? [side, side] : [cw, ch];
+    }
+
+    // vendor/ascii-sharks/math.ts
+    var TAU = Math.PI * 2;
+    var clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
+    var rand = (lo, hi) => lo + Math.random() * (hi - lo);
+    var randInt = (lo, hi) => Math.floor(rand(lo, hi + 1));
+    function smoothstep(e0, e1, x) {
+      const t = clamp((x - e0) / (e1 - e0), 0, 1);
+      return t * t * (3 - 2 * t);
+    }
+    function angleDiff(a, b) {
+      let d = (b - a) % TAU;
+      if (d > Math.PI) d -= TAU;
+      if (d < -Math.PI) d += TAU;
+      return d;
+    }
+    function hash3(x, y, z) {
+      let h = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263) ^ Math.imul(z | 0, 1442695041);
+      h = Math.imul(h ^ h >>> 13, 1274126177);
+      h ^= h >>> 16;
+      return (h >>> 0) / 4294967296;
+    }
+    var K1 = 1 / 260;
+    var K2 = 1 / 310;
+    var K3 = 1 / 190;
+    var CURRENT_SCALE = 3400;
+    function current(x, y, t, out) {
+      const a = x * K1 + t * 0.07;
+      const b = y * K2 - t * 0.05;
+      const c = (x + y) * K3 + t * 0.11;
+      out.x = (-K2 * Math.sin(a) * Math.sin(b) + 0.5 * K3 * Math.cos(c)) * CURRENT_SCALE;
+      out.y = (-K1 * Math.cos(a) * Math.cos(b) - 0.5 * K3 * Math.cos(c)) * CURRENT_SCALE;
+      return out;
+    }
+
+    // vendor/ascii-sharks/species.ts
+    var SPECIES = [
+      {
+        name: "sardine",
+        cruise: 36,
+        maxSpeed: 64,
+        minSpeed: 18,
+        weight: 3,
+        schoolSize: [18, 28],
+        spacing: [1.8, 1.1],
+        align: 1.6,
+        cohesion: 1.6,
+        jitter: 40,
+        mill: 70,
+        verticalDrag: 0.5
+      },
+      {
+        name: "anchovy",
+        cruise: 46,
+        maxSpeed: 78,
+        minSpeed: 22,
+        weight: 3,
+        schoolSize: [20, 32],
+        spacing: [1.5, 1],
+        align: 3.2,
+        cohesion: 0.45,
+        jitter: 30,
+        mill: 0,
+        verticalDrag: 1.4
+      },
+      {
+        name: "silverside",
+        cruise: 40,
+        maxSpeed: 70,
+        minSpeed: 20,
+        weight: 3,
+        schoolSize: [12, 20],
+        spacing: [2, 1.1],
+        align: 2.4,
+        cohesion: 1.1,
+        jitter: 35,
+        mill: 0,
+        verticalDrag: 1.6
+      },
+      {
+        name: "mackerel",
+        cruise: 32,
+        maxSpeed: 60,
+        minSpeed: 16,
+        weight: 2,
+        schoolSize: [5, 9],
+        spacing: [2.6, 1.3],
+        align: 2,
+        cohesion: 0.9,
+        jitter: 25,
+        mill: 0,
+        verticalDrag: 2
+      },
+      {
+        name: "goby",
+        cruise: 26,
+        maxSpeed: 56,
+        minSpeed: 10,
+        weight: 1,
+        schoolSize: [8, 12],
+        spacing: [1.4, 1.1],
+        align: 0.35,
+        cohesion: 1.4,
+        jitter: 110,
+        mill: 0,
+        verticalDrag: 0.3
+      }
+    ];
+    var TOTAL_WEIGHT = SPECIES.reduce((sum, s) => sum + s.weight, 0);
+    function pickSpecies() {
+      let r = Math.random() * TOTAL_WEIGHT;
+      for (let i = 0; i < SPECIES.length; i++) {
+        r -= SPECIES[i].weight;
+        if (r <= 0) return i;
+      }
+      return 0;
+    }
+
+    // vendor/ascii-sharks/world.ts
+    var SHARK_NODES = 20;
+    var DEFAULT_SHARKS = [
+      { kind: "classic", size: 1 },
+      { kind: "classic", size: 0.7 },
+      { kind: "classic", size: 0.84 },
+      { kind: "classic", size: 0.77 }
+    ];
+    var FISH_SEPARATION_K = 420;
+    var FISH_ALIGN_K = 1.4;
+    var FISH_COHESION_K = 1;
+    var FISH_FLEE_K = 1100;
+    var BLIND_COS = -0.6;
+    var World = class {
+      /** fishCount overrides the area-based population (the sidebar wants a single small school). */
+      constructor(sharkSpecs = DEFAULT_SHARKS, fishCount) {
+        this.sharkSpecs = sharkSpecs;
+        this.fishCount = fishCount;
+      }
+      turnAgility = 1;
+      tailFrequency = 1;
+      width = 0;
+      height = 0;
+      time = 0;
+      fish = [];
+      sharks = [];
+      events = [];
+      pointer = { x: 0, y: 0, active: false };
+      /** Fish neighbourhood radius; the spatial hash bucket size matches it. */
+      perception = 60;
+      /** Per-species personal space in px (x, y). */
+      sepX = [];
+      sepY = [];
+      foreignSep = 40;
+      bucketCols = 0;
+      bucketRows = 0;
+      bucketHead = new Int32Array(0);
+      bucketCount = new Uint16Array(0);
+      bucketNext = new Int32Array(0);
+      lastSpawn = 0;
+      tmp = { x: 0, y: 0 };
+      resize(width, height, cellW, cellH) {
+        const first = this.width === 0;
+        this.width = width;
+        this.height = height;
+        this.sepX = SPECIES.map((sp) => sp.spacing[0] * cellW);
+        this.sepY = SPECIES.map((sp) => sp.spacing[1] * cellH);
+        this.perception = Math.max(cellH * 3, cellW * 5.5);
+        this.foreignSep = cellW * 3;
+        if (first || this.fish.length === 0) {
+          this.seed();
+          return;
+        }
+        for (const f of this.fish) {
+          f.x = clamp(f.x, 0, width);
+          f.y = clamp(f.y, 0, height);
+        }
+      }
+      seed() {
+        const { width: W, height: H } = this;
+        const minSide = Math.min(W, H);
+        const baseLength = clamp(minSide * 0.44, 170, 430);
+        const sharkCount = this.sharkSpecs.length;
+        this.sharks = [];
+        for (let i = 0; i < sharkCount; i++) {
+          const { kind, size } = this.sharkSpecs[i];
+          const length = baseLength * size;
+          const orbitRadius = minSide * rand(0.28, 0.4);
+          const a = i / sharkCount * TAU + rand(-0.4, 0.4);
+          const orbitDir = i % 2 === 0 ? 1 : -1;
+          const x = W / 2 + Math.cos(a) * orbitRadius * (W / minSide) * 0.9;
+          const y = H / 2 + Math.sin(a) * orbitRadius;
+          const heading = a + orbitDir * Math.PI / 2;
+          const nodes = new Float32Array(SHARK_NODES * 2);
+          const seg = length / (SHARK_NODES - 1);
+          for (let n = 0; n < SHARK_NODES; n++) {
+            nodes[n * 2] = x - Math.cos(heading) * seg * n;
+            nodes[n * 2 + 1] = y - Math.sin(heading) * seg * n;
+          }
+          this.sharks.push({
+            id: i + 1,
+            kind,
+            length,
+            nodes,
+            heading,
+            speed: 30,
+            phase: rand(0, TAU),
+            turn: 0,
+            hunger: rand(0.25, 0.75),
+            wander: 0,
+            orbitDir,
+            orbitRadius,
+            target: null,
+            retargetAt: 0,
+            depth: size
+          });
+        }
+        this.sharks.sort((a, b) => a.length - b.length);
+        const total = this.fishCount ?? clamp(Math.round(W * H / 4400), 85, 340);
+        this.fish = [];
+        while (this.fish.length < total) {
+          const species = pickSpecies();
+          const sp = SPECIES[species];
+          const size = Math.min(randInt(sp.schoolSize[0], sp.schoolSize[1]), total - this.fish.length);
+          const millDir = Math.random() < 0.5 ? 1 : -1;
+          const cx = rand(W * 0.06, W * 0.94);
+          const cy = rand(H * 0.08, H * 0.92);
+          const dir = (Math.random() < 0.5 ? 0 : Math.PI) + rand(-0.5, 0.5);
+          for (let k = 0; k < size; k++) {
+            this.fish.push({
+              x: cx + rand(-1, 1) * this.sepX[species] * Math.sqrt(size),
+              y: cy + rand(-1, 1) * this.sepY[species] * Math.sqrt(size) * 0.6,
+              vx: Math.cos(dir) * sp.cruise,
+              vy: Math.sin(dir) * sp.cruise,
+              species,
+              alarm: 0,
+              alive: true,
+              respawnAt: 0,
+              phase: rand(0, TAU),
+              turn: 0,
+              depth: rand(0.55, 1),
+              millDir
+            });
+          }
+        }
+        this.bucketNext = new Int32Array(this.fish.length);
+      }
+      splash(x, y) {
+        this.events.push({ kind: "splash", x, y });
+        const r = 240;
+        for (const f of this.fish) {
+          if (!f.alive) continue;
+          const dx = f.x - x;
+          const dy = f.y - y;
+          const d = Math.hypot(dx, dy);
+          if (d > r || d < 1e-3) continue;
+          const k = (1 - d / r) * 260;
+          f.vx += dx / d * k;
+          f.vy += dy / d * k;
+          f.alarm = 1;
+        }
+      }
+      step(dt, beatDt = dt) {
+        this.time += dt;
+        this.rebuildHash();
+        this.stepFish(dt);
+        this.stepSharks(dt, beatDt);
+        this.respawn();
+      }
+      rebuildHash() {
+        const size = this.perception;
+        const pad = 2;
+        this.bucketCols = Math.ceil(this.width / size) + pad * 2;
+        this.bucketRows = Math.ceil(this.height / size) + pad * 2;
+        const n = this.bucketCols * this.bucketRows;
+        if (this.bucketHead.length !== n) {
+          this.bucketHead = new Int32Array(n);
+          this.bucketCount = new Uint16Array(n);
+        }
+        this.bucketHead.fill(-1);
+        this.bucketCount.fill(0);
+        if (this.bucketNext.length !== this.fish.length) {
+          this.bucketNext = new Int32Array(this.fish.length);
+        }
+        for (let i = 0; i < this.fish.length; i++) {
+          const f = this.fish[i];
+          if (!f.alive) continue;
+          const b = this.bucketOf(f.x, f.y);
+          this.bucketNext[i] = this.bucketHead[b];
+          this.bucketHead[b] = i;
+          this.bucketCount[b]++;
+        }
+      }
+      bucketOf(x, y) {
+        const size = this.perception;
+        const c = clamp(Math.floor(x / size) + 2, 0, this.bucketCols - 1);
+        const r = clamp(Math.floor(y / size) + 2, 0, this.bucketRows - 1);
+        return r * this.bucketCols + c;
+      }
+      stepFish(dt) {
+        const { fish, sharks, pointer, width: W, height: H, time } = this;
+        const R = this.perception;
+        const R2 = R * R;
+        const foreignSep = this.foreignSep;
+        const size = this.perception;
+        const cols = this.bucketCols;
+        const rows = this.bucketRows;
+        const head = this.bucketHead;
+        const next = this.bucketNext;
+        const cur = this.tmp;
+        const calmDecay = Math.exp(-dt * 0.7);
+        const contagion = Math.min(1, dt * 6);
+        for (let i = 0; i < fish.length; i++) {
+          const f = fish[i];
+          if (!f.alive) continue;
+          const sp = SPECIES[f.species];
+          const spread = 1 + 1.8 * f.alarm;
+          const sepX = this.sepX[f.species] * spread;
+          const sepY = this.sepY[f.species] * spread;
+          const speed = Math.hypot(f.vx, f.vy) || 1;
+          const hx = f.vx / speed;
+          const hy = f.vy / speed;
+          let ax = 0;
+          let ay = 0;
+          let sx = 0;
+          let sy = 0;
+          let avx = 0;
+          let avy = 0;
+          let cx = 0;
+          let cy = 0;
+          let n = 0;
+          let neighbourAlarm = 0;
+          const bc = clamp(Math.floor(f.x / size) + 2, 0, cols - 1);
+          const br = clamp(Math.floor(f.y / size) + 2, 0, rows - 1);
+          for (let r = Math.max(0, br - 1); r <= Math.min(rows - 1, br + 1); r++) {
+            for (let c = Math.max(0, bc - 1); c <= Math.min(cols - 1, bc + 1); c++) {
+              let j = head[r * cols + c];
+              while (j !== -1) {
+                if (j !== i) {
+                  const o = fish[j];
+                  const dx = o.x - f.x;
+                  const dy = o.y - f.y;
+                  const d2 = dx * dx + dy * dy;
+                  if (d2 < R2 && d2 > 1e-6) {
+                    const d = Math.sqrt(d2);
+                    if ((dx * hx + dy * hy) / d > BLIND_COS) {
+                      const qx = dx / sepX;
+                      const qy = dy / sepY;
+                      const q2 = qx * qx + qy * qy;
+                      if (q2 < 1) {
+                        const q = Math.sqrt(q2) || 1e-3;
+                        const k = (1 - q) / q;
+                        sx -= qx * k;
+                        sy -= qy * k;
+                      }
+                      if (o.species === f.species) {
+                        avx += o.vx;
+                        avy += o.vy;
+                        cx += dx;
+                        cy += dy;
+                        n++;
+                      } else if (d < foreignSep) {
+                        const k = (1 - d / foreignSep) / d * 0.6;
+                        sx -= dx * k;
+                        sy -= dy * k;
+                      }
+                      if (o.alarm > neighbourAlarm) neighbourAlarm = o.alarm;
+                    }
+                  }
+                }
+                j = next[j];
+              }
+            }
+          }
+          ax += sx * FISH_SEPARATION_K;
+          ay += sy * FISH_SEPARATION_K;
+          if (n > 0) {
+            const alignK = FISH_ALIGN_K * sp.align;
+            const cohesionK = FISH_COHESION_K * sp.cohesion * (1 - 0.8 * f.alarm);
+            ax += (avx / n - f.vx) * alignK + cx / n * cohesionK;
+            ay += (avy / n - f.vy) * alignK + cy / n * cohesionK;
+            if (sp.mill > 0) {
+              const cl = Math.hypot(cx, cy) || 1;
+              ax += -cy / cl * f.millDir * sp.mill * (1 - f.alarm);
+              ay += cx / cl * f.millDir * sp.mill * (1 - f.alarm);
+            }
+          }
+          let fear = 0;
+          for (const sh of sharks) {
+            const fearR = sh.length * 0.6 + 60;
+            let best = Infinity;
+            let bx = 0;
+            let by = 0;
+            for (let k = 0; k <= 12; k += 3) {
+              const nx = sh.nodes[k * 2];
+              const ny = sh.nodes[k * 2 + 1];
+              const d2 = (f.x - nx) ** 2 + (f.y - ny) ** 2;
+              if (d2 < best) {
+                best = d2;
+                bx = nx;
+                by = ny;
+              }
+            }
+            const d = Math.sqrt(best);
+            if (d >= fearR || d < 1e-3) continue;
+            let w = 1 - d / fearR;
+            w *= w;
+            const awayX = (f.x - bx) / d;
+            const awayY = (f.y - by) / d;
+            const shx = Math.cos(sh.heading);
+            const shy = Math.sin(sh.heading);
+            const side = shx * (f.y - sh.nodes[1]) - shy * (f.x - sh.nodes[0]) >= 0 ? 1 : -1;
+            ax += (awayX * 0.7 - shy * side * 0.9) * FISH_FLEE_K * w;
+            ay += (awayY * 0.7 + shx * side * 0.9) * FISH_FLEE_K * w;
+            fear = Math.max(fear, Math.sqrt(w));
+          }
+          if (pointer.active) {
+            const pr = 130;
+            const dx = f.x - pointer.x;
+            const dy = f.y - pointer.y;
+            const d = Math.hypot(dx, dy);
+            if (d < pr && d > 1e-3) {
+              const w = (1 - d / pr) ** 2;
+              ax += dx / d * FISH_FLEE_K * w;
+              ay += dy / d * FISH_FLEE_K * w;
+              fear = Math.max(fear, Math.sqrt(w) * 0.8);
+            }
+          }
+          let alarm = Math.max(f.alarm * calmDecay, fear);
+          const relayed = neighbourAlarm * 0.86;
+          if (relayed > alarm) alarm += (relayed - alarm) * contagion;
+          f.alarm = alarm;
+          const m = 36;
+          if (f.x < m) ax += (m - f.x) * 7;
+          else if (f.x > W - m) ax -= (f.x - (W - m)) * 7;
+          if (f.y < m) ay += (m - f.y) * 7;
+          else if (f.y > H - m) ay -= (f.y - (H - m)) * 7;
+          current(f.x, f.y, time, cur);
+          ax += cur.x * 0.5 + (Math.random() - 0.5) * sp.jitter;
+          ay += cur.y * 0.5 + (Math.random() - 0.5) * sp.jitter;
+          ay -= f.vy * sp.verticalDrag * (1 - 0.7 * f.alarm);
+          const preferred = sp.cruise * (1 + 1.3 * f.alarm);
+          ax += (preferred - speed) * hx * 1.6;
+          ay += (preferred - speed) * hy * 1.6;
+          const before = Math.atan2(f.vy, f.vx);
+          f.vx += ax * dt;
+          f.vy += ay * dt;
+          const maxSpeed = sp.maxSpeed * (1 + 1.8 * f.alarm);
+          const s = Math.hypot(f.vx, f.vy);
+          if (s > maxSpeed) {
+            f.vx *= maxSpeed / s;
+            f.vy *= maxSpeed / s;
+          } else if (s < sp.minSpeed && s > 1e-3) {
+            f.vx *= sp.minSpeed / s;
+            f.vy *= sp.minSpeed / s;
+          }
+          f.turn += (angleDiff(before, Math.atan2(f.vy, f.vx)) / dt - f.turn) * Math.min(1, dt * 8);
+          f.phase += dt * (7 + Math.hypot(f.vx, f.vy) * 0.12);
+          f.x = clamp(f.x + f.vx * dt, -60, W + 60);
+          f.y = clamp(f.y + f.vy * dt, -60, H + 60);
+        }
+      }
+      stepSharks(dt, beatDt) {
+        const { sharks, width: W, height: H, time } = this;
+        const minSide = Math.min(W, H);
+        const cxW = W / 2;
+        const cyW = H / 2;
+        for (const sh of sharks) {
+          const L = sh.length;
+          const nodes = sh.nodes;
+          const hx = nodes[0];
+          const hy = nodes[1];
+          sh.hunger = Math.min(1, sh.hunger + dt * 0.03);
+          let dx = Math.cos(sh.heading);
+          let dy = Math.sin(sh.heading);
+          sh.wander = clamp(sh.wander + (Math.random() - 0.5) * dt * 3.2, -1.1, 1.1);
+          dx += Math.cos(sh.heading + sh.wander) * 0.45;
+          dy += Math.sin(sh.heading + sh.wander) * 0.45;
+          if (time >= sh.retargetAt) {
+            sh.target = this.findPrey(sh);
+            sh.retargetAt = time + 0.45;
+          }
+          const t = sh.target;
+          let hunting = false;
+          let closing = 0;
+          if (t && t.alive && sh.hunger > 0.3) {
+            const tx = t.x + t.vx * 0.35 - hx;
+            const ty = t.y + t.vy * 0.35 - hy;
+            const d = Math.hypot(tx, ty) || 1;
+            const w = 1.4 + 2.6 * sh.hunger;
+            dx += tx / d * w;
+            dy += ty / d * w;
+            hunting = true;
+            closing = clamp(1 - d / (L * 0.9), 0, 1);
+          } else {
+            const rx = (hx - cxW) / (W / minSide);
+            const ry = hy - cyW;
+            const r = Math.hypot(rx, ry) || 1;
+            const radius = sh.orbitRadius * (1 + 0.15 * Math.sin(time * 0.05 + sh.id));
+            const radial = clamp((radius - r) / radius, -1, 1);
+            dx += (-ry / r * sh.orbitDir + rx / r * radial * 0.9) * 0.55;
+            dy += (rx / r * sh.orbitDir + ry / r * radial * 0.9) * 0.55;
+          }
+          for (const other of sharks) {
+            if (other === sh) continue;
+            for (let k = 0; k < SHARK_NODES; k += 4) {
+              const ox = hx - other.nodes[k * 2];
+              const oy = hy - other.nodes[k * 2 + 1];
+              const d = Math.hypot(ox, oy);
+              const range = (L + other.length) * 0.45;
+              if (d < range && d > 1e-3) {
+                const w = (1 - d / range) * 3;
+                dx += ox / d * w;
+                dy += oy / d * w;
+              }
+            }
+          }
+          const ex = (hx - cxW) / (W * 0.3);
+          const ey = (hy - cyW) / (H * 0.16);
+          const e2 = ex * ex + ey * ey;
+          if (e2 < 1) {
+            const e = Math.sqrt(e2) || 1e-3;
+            const w = (1 - e) * (hunting ? 1 : 2.5);
+            dx += ex / e * w;
+            dy += ey / e * w;
+          }
+          const over = Math.max(-hx, hx - W, -hy, hy - H);
+          if (over > -L * 0.05) {
+            const w = clamp((over + L * 0.05) / (L * 0.35), 0, 1) * 3.5;
+            const toX = cxW - hx;
+            const toY = cyW - hy;
+            const d = Math.hypot(toX, toY) || 1;
+            dx += toX / d * w;
+            dy += toY / d * w;
+          }
+          const desired = Math.atan2(dy, dx);
+          const agility = Math.min(hunting ? 1.7 + closing : 0.8, sh.speed / (L * 0.22));
+          const maxTurn = agility * this.turnAgility * dt;
+          const turned = clamp(angleDiff(sh.heading, desired), -maxTurn, maxTurn);
+          sh.heading += turned;
+          sh.turn += (turned / dt - sh.turn) * Math.min(1, dt * 3);
+          const cruise = 30 + L * 0.04;
+          const targetSpeed = hunting ? cruise * (1.45 + closing * 1.5) : cruise;
+          sh.speed += (targetSpeed - sh.speed) * Math.min(1, dt * 1.1);
+          sh.phase += beatDt * this.tailFrequency * (2 + (30 + L * 0.04) / 24);
+          nodes[0] += Math.cos(sh.heading) * sh.speed * dt;
+          nodes[1] += Math.sin(sh.heading) * sh.speed * dt;
+          const seg = L / (SHARK_NODES - 1);
+          const maxBend = 0.16 * this.turnAgility;
+          let prevAngle = sh.heading + Math.PI;
+          for (let k = 1; k < SHARK_NODES; k++) {
+            const px = nodes[(k - 1) * 2];
+            const py = nodes[(k - 1) * 2 + 1];
+            let angle = Math.atan2(nodes[k * 2 + 1] - py, nodes[k * 2] - px);
+            angle = prevAngle + clamp(angleDiff(prevAngle, angle), -maxBend, maxBend);
+            nodes[k * 2] = px + Math.cos(angle) * seg;
+            nodes[k * 2 + 1] = py + Math.sin(angle) * seg;
+            prevAngle = angle;
+          }
+          if (sh.hunger > 0.15) {
+            const mouthR = L * 0.05 + 8;
+            const mx = nodes[0];
+            const my = nodes[1];
+            for (const f of this.fish) {
+              if (!f.alive) continue;
+              if ((f.x - mx) ** 2 + (f.y - my) ** 2 < mouthR * mouthR) {
+                f.alive = false;
+                f.respawnAt = time + rand(3, 8);
+                sh.hunger = Math.max(0, sh.hunger - 0.16);
+                this.events.push({ kind: "eat", x: f.x, y: f.y });
+              }
+            }
+          }
+        }
+      }
+      /**
+       * Pick prey in the shark's forward cone, preferring close fish in sparse
+       * buckets (stragglers) over fish buried in a dense school.
+       */
+      findPrey(sh) {
+        const range = sh.length * 0.9 + 160;
+        const hx = sh.nodes[0];
+        const hy = sh.nodes[1];
+        const fx = Math.cos(sh.heading);
+        const fy = Math.sin(sh.heading);
+        let best = null;
+        let bestScore = Infinity;
+        let currentScore = Infinity;
+        for (const f of this.fish) {
+          if (!f.alive) continue;
+          const dx = f.x - hx;
+          const dy = f.y - hy;
+          const d = Math.hypot(dx, dy);
+          if (d > range || d < 1e-3) continue;
+          const cos = (dx * fx + dy * fy) / d;
+          if (cos < 0.2) continue;
+          const crowd = this.bucketCount[this.bucketOf(f.x, f.y)];
+          const score = d * (1 + (1 - cos) * 0.8) * (1 + crowd * 0.07);
+          if (score < bestScore) {
+            bestScore = score;
+            best = f;
+          }
+          if (f === sh.target) currentScore = score;
+        }
+        if (sh.target && currentScore < bestScore * 1.3) return sh.target;
+        return best;
+      }
+      respawn() {
+        const { time, width: W, height: H } = this;
+        const due = [];
+        for (const f of this.fish) if (!f.alive && f.respawnAt <= time) due.push(f);
+        if (due.length === 0) return;
+        if (due.length < 6 && time - this.lastSpawn < 9) return;
+        this.lastSpawn = time;
+        const side = randInt(0, 3);
+        const along = rand(0.15, 0.85);
+        const x = side === 0 ? -20 : side === 1 ? W + 20 : along * W;
+        const y = side === 2 ? -20 : side === 3 ? H + 20 : along * H;
+        const inward = Math.atan2(H / 2 - y, W / 2 - x) + rand(-0.5, 0.5);
+        const species = pickSpecies();
+        const sp = SPECIES[species];
+        const millDir = Math.random() < 0.5 ? 1 : -1;
+        for (const f of due.slice(0, sp.schoolSize[1])) {
+          f.alive = true;
+          f.species = species;
+          f.alarm = 0;
+          f.turn = 0;
+          f.millDir = millDir;
+          f.x = x + rand(-1, 1) * this.perception;
+          f.y = y + rand(-1, 1) * this.perception;
+          f.vx = Math.cos(inward) * sp.cruise * 1.4;
+          f.vy = Math.sin(inward) * sp.cruise * 1.4;
+        }
+      }
+    };
+
+    // vendor/ascii-sharks/whales.ts
+    var humpback = {
+      halfWidth: (s) => {
+        if (s < 0.12) return 0.115 * Math.pow(Math.sin(s / 0.12 * Math.PI / 2), 0.45);
+        if (s < 0.35) return 0.115 + 0.02 * Math.sin((s - 0.12) / 0.23 * Math.PI);
+        if (s < 0.87) return 0.018 + 0.097 * Math.pow(1 - (s - 0.35) / 0.52, 1.1);
+        return 0.018 * (1 - (s - 0.87) / 0.13);
+      },
+      pectoral: [0.25, 0.36, 0.41, 0.32],
+      falcate: false,
+      pelvic: [0, 0, 0, 0],
+      caudal: 0.22,
+      dorsal: [0.6, 0.65],
+      secondDorsal: [0, 0],
+      eye: [0.1, 0.13],
+      gills: [0, 0],
+      tint: [0.45, 0.65, 1.3]
+    };
+    var orca = {
+      ...humpback,
+      halfWidth: (s) => {
+        if (s < 0.14) return 0.15 * Math.pow(Math.sin(s / 0.14 * Math.PI / 2), 0.35);
+        if (s < 0.38) return 0.15 + 0.012 * Math.sin((s - 0.14) / 0.24 * Math.PI);
+        if (s < 0.88) return 0.018 + 0.132 * Math.pow(1 - (s - 0.38) / 0.5, 1.3);
+        return 0.018 * (1 - (s - 0.88) / 0.12);
+      },
+      pectoral: [0.25, 0.47, 0.43, 0.23],
+      dorsal: [0.43, 0.55]
+    };
+    function orcaPatch(s, across) {
+      return ((s - 0.205) / 0.067) ** 2 + ((across - 0.75) / 0.22) ** 2 < 1 || ((s - 0.68) / 0.12) ** 2 + ((across - 0.88) / 0.26) ** 2 < 1;
+    }
+    function orcaFlipper(s, distance, reach) {
+      const t = distance / reach;
+      return t >= 0 && t <= 1 && ((s - (0.31 + 0.1 * t)) / 0.085) ** 2 + ((t - 0.48) / 0.52) ** 2 <= 1;
+    }
+    function humpbackFlipper(s, distance, reach) {
+      const t = distance / reach;
+      if (t < 0 || t > 1) return false;
+      const center = 0.29 + 0.12 * t - 0.04 * Math.sin(Math.PI * t);
+      const root = 1 - 0.2 * Math.exp(-(((t - 0.43) / 0.14) ** 2));
+      const width = 0.05 * (1 - 0.5 * t) * Math.sqrt(1 - t ** 6) * root;
+      return Math.abs(s - center) <= width;
+    }
+    function whaleFlukes(s, across) {
+      const t = across / 0.22;
+      if (t < 0 || t > 1) return false;
+      const front = 0.86 + 0.12 * t ** 1.7;
+      const back = 0.945 + 0.035 * t + 0.028 * Math.sin(Math.PI * t);
+      return s >= front && s <= back;
+    }
+
+    // vendor/ascii-sharks/renderer.ts
+    var ALPHA_LEVELS = 6;
+    var FISH_ALPHAS = [0.28, 0.42, 0.58, 0.74, 0.9];
+    var DOT_RGB = [
+      [77, 107, 254],
+      [65, 91, 218],
+      [110, 148, 255],
+      [160, 186, 255],
+      [88, 141, 255]
+    ];
+    var DOT_BASE_ALPHA = [1, 1, 1, 1, 1];
+    var WAKE = DOT_RGB.length - 1;
+    var COLORFUL_ACCENTS = ["#e0892c", "#e03a32", "#b44ae0", "#33c8cc", "#3cb54a", "#3150e8", "#d9c14a"];
+    var GLYPHS = {
+      ascii: { skin: ":;t%SX8#@", fin: "%;tS:", ridge: "@8%", edgeHeavy: ":;", edgeLight: ".',`", mark: "#%@", eye: "o", fish: "-" },
+      hanzi: { skin: "\u6C34\u5DDD\u6C50\u6C99\u6D6A\u6D77\u6F6E\u9CB8\u6DF1", fin: "\u9CCD", ridge: "\u9CCD", edgeHeavy: "\u4E3F\u4E28", edgeLight: "\u4E36\u4E00", mark: "\u9CB8\u6D77\u6F6E", eye: "\u76EE", fish: "\u9C7C\u9CA4\u9CAD\u9CB1" }
+    };
+    var FLAG_BODY = 1;
+    var FLAG_EDGE = 2;
+    var FLAG_FIN = 3;
+    var FLAG_RIDGE = 4;
+    var FLAG_EYE = 5;
+    var FLAG_MARK = 6;
+    var FLAG_WHITE = 7;
+    var SUBSAMPLES = [0.25, 0.3, 0.75, 0.3, 0.25, 0.72, 0.75, 0.72];
+    function classicHalfWidth(s) {
+      if (s < 0.13) return 0.09 * Math.pow(Math.sin(s / 0.13 * Math.PI / 2), 0.95);
+      if (s < 0.3) return 0.09 + 0.016 * smoothstep(0.13, 0.3, s);
+      if (s < 0.84) return 0.019 + 0.087 * Math.pow(1 - (s - 0.3) / 0.54, 1.25);
+      const k = (s - 0.84) / 0.16;
+      return 0.019 * (1 - k) + 0.012 * Math.sin(k * Math.PI);
+    }
+    var SHAPES = {
+      // DSH adaptation: rounded whale head, broad back, long flippers and paired tail flukes.
+      whale: humpback,
+      orca,
+      classic: {
+        halfWidth: classicHalfWidth,
+        pectoral: [0.15, 0.43, 0.55, 0.26],
+        falcate: true,
+        pelvic: [0.57, 0.65, 0.69, 0.085],
+        caudal: 0.085,
+        dorsal: [0.33, 0.47],
+        secondDorsal: [0.71, 0.76],
+        eye: [0.1, 0.14],
+        gills: [0.19, 0.29],
+        tint: [0.92, 0.97, 1.05]
+      },
+      // Slim neck under a wide, swept-back cephalofoil (drawn in sampleShark),
+      // tall first dorsal, long upper tail lobe. Bronze-olive grey.
+      hammerhead: {
+        halfWidth: (s) => {
+          if (s < 0.06) return 0.045;
+          if (s < 0.3) return 0.045 + 0.061 * smoothstep(0.06, 0.3, s);
+          return classicHalfWidth(s) * 0.92;
+        },
+        head: { span: 0.17, sweep: 0.035, depth: 0.09, notch: 0 },
+        pectoral: [0.17, 0.4, 0.5, 0.22],
+        falcate: true,
+        pelvic: [0.56, 0.63, 0.67, 0.075],
+        caudal: 0.11,
+        dorsal: [0.28, 0.44],
+        secondDorsal: [0.7, 0.74],
+        eye: null,
+        gills: [0.16, 0.26],
+        tint: [0.96, 0.98, 0.9]
+      },
+      // Blunt, square snout on a heavy body; barred back. Warm grey-brown.
+      tiger: {
+        halfWidth: (s) => {
+          if (s < 0.13) return 0.1 * Math.pow(Math.sin(s / 0.13 * Math.PI / 2), 0.45);
+          if (s < 0.3) return 0.1 + 0.014 * smoothstep(0.13, 0.3, s);
+          if (s < 0.84) return 0.019 + 0.095 * Math.pow(1 - (s - 0.3) / 0.54, 1.2);
+          const k = (s - 0.84) / 0.16;
+          return 0.019 * (1 - k) + 0.012 * Math.sin(k * Math.PI);
+        },
+        pectoral: [0.15, 0.42, 0.53, 0.25],
+        falcate: true,
+        pelvic: [0.57, 0.65, 0.69, 0.085],
+        caudal: 0.095,
+        dorsal: [0.33, 0.46],
+        secondDorsal: [0.71, 0.75],
+        eye: [0.08, 0.12],
+        gills: [0.19, 0.28],
+        tint: [1.02, 0.95, 0.84]
+      },
+      // Short rounded head, body done by half-length, then a long ribbon of a
+      // tail fin. Broad rounded pectorals, spotted sandy skin.
+      zebra: {
+        halfWidth: (s) => {
+          if (s < 0.1) return 0.075 * Math.pow(Math.sin(s / 0.1 * Math.PI / 2), 0.7);
+          if (s < 0.28) return 0.075 + 0.025 * smoothstep(0.1, 0.28, s);
+          if (s < 0.55) return 0.022 + 0.078 * Math.pow(1 - (s - 0.28) / 0.27, 1.1);
+          const k = (s - 0.55) / 0.45;
+          return 0.022 * (1 - k * k) + 0.012 * Math.sin(k * Math.PI);
+        },
+        pectoral: [0.12, 0.3, 0.36, 0.19],
+        falcate: false,
+        pelvic: [0.42, 0.48, 0.51, 0.065],
+        caudal: 0,
+        dorsal: [0.36, 0.44],
+        secondDorsal: [0.49, 0.53],
+        eye: [0.06, 0.09],
+        gills: [0.13, 0.2],
+        tint: [1.08, 0.97, 0.74]
+      },
+      // Great hammerhead: a broader, nearly straight-edged cephalofoil with a notch at the centre,
+      // a towering sickle first dorsal (drawn long and bright from above), and a cooler slate skin.
+      greathammer: {
+        halfWidth: (s) => {
+          if (s < 0.05) return 0.04;
+          if (s < 0.3) return 0.04 + 0.07 * smoothstep(0.05, 0.3, s);
+          return classicHalfWidth(s) * 0.95;
+        },
+        head: { span: 0.21, sweep: 6e-3, depth: 0.085, notch: 0.014 },
+        pectoral: [0.16, 0.38, 0.49, 0.24],
+        falcate: true,
+        pelvic: [0.55, 0.62, 0.67, 0.085],
+        caudal: 0.13,
+        dorsal: [0.24, 0.45],
+        secondDorsal: [0.68, 0.74],
+        eye: null,
+        gills: [0.15, 0.25],
+        tint: [0.86, 0.93, 1.02]
+      },
+      // Shortfin mako: a long conical snout, a torpedo body that narrows hard to the tail stalk,
+      // and a tall crescent tail. Metallic indigo back.
+      mako: {
+        halfWidth: (s) => {
+          if (s < 0.17) return 0.088 * Math.pow(Math.sin(s / 0.17 * Math.PI / 2), 1.5);
+          if (s < 0.32) return 0.088 + 0.012 * smoothstep(0.17, 0.32, s);
+          if (s < 0.86) return 0.014 + 0.086 * Math.pow(1 - (s - 0.32) / 0.54, 1.45);
+          const k = (s - 0.86) / 0.14;
+          return 0.014 * (1 - k) + 0.01 * Math.sin(k * Math.PI);
+        },
+        pectoral: [0.18, 0.4, 0.5, 0.21],
+        falcate: true,
+        pelvic: [0.58, 0.64, 0.68, 0.06],
+        caudal: 0.13,
+        dorsal: [0.34, 0.45],
+        secondDorsal: [0.76, 0.79],
+        eye: [0.11, 0.15],
+        gills: [0.2, 0.3],
+        tint: [0.78, 0.9, 1.2]
+      },
+      // Thresher: a compact body over the front half, then the upper tail lobe as a long whip
+      // that's as long as the shark itself. Big eyes, long sickle pectorals, bronze-violet skin.
+      thresher: {
+        halfWidth: (s) => {
+          if (s < 0.08) return 0.07 * Math.pow(Math.sin(s / 0.08 * Math.PI / 2), 0.75);
+          if (s < 0.2) return 0.07 + 0.02 * smoothstep(0.08, 0.2, s);
+          if (s < 0.48) return 0.012 + 0.078 * Math.pow(1 - (s - 0.2) / 0.28, 1.3);
+          const k = (s - 0.48) / 0.52;
+          return 0.012 * (1 - k) + 6e-3 * Math.sin(k * Math.PI * 0.9) + 2e-3;
+        },
+        pectoral: [0.12, 0.27, 0.36, 0.2],
+        falcate: true,
+        pelvic: [0.37, 0.41, 0.44, 0.045],
+        caudal: 0,
+        dorsal: [0.24, 0.32],
+        secondDorsal: [0.45, 0.47],
+        eye: [0.05, 0.1],
+        gills: [0.11, 0.18],
+        tint: [1, 0.9, 1.08]
+      },
+      // Nurse shark: a blunt, broad head, a heavy flattened body with both dorsals set far back,
+      // rounded paddle pectorals, and a long low tail with no lower lobe. Tawny brown.
+      nurse: {
+        halfWidth: (s) => {
+          if (s < 0.08) return 0.085 * Math.pow(Math.sin(s / 0.08 * Math.PI / 2), 0.4);
+          if (s < 0.3) return 0.085 + 0.02 * smoothstep(0.08, 0.3, s);
+          if (s < 0.72) return 0.022 + 0.083 * Math.pow(1 - (s - 0.3) / 0.42, 1.1);
+          const k = (s - 0.72) / 0.28;
+          return 0.022 * (1 - k * k) + 0.014 * Math.sin(k * Math.PI);
+        },
+        pectoral: [0.16, 0.34, 0.4, 0.17],
+        falcate: false,
+        pelvic: [0.45, 0.52, 0.55, 0.075],
+        caudal: 0,
+        dorsal: [0.5, 0.58],
+        secondDorsal: [0.63, 0.69],
+        eye: [0.05, 0.075],
+        gills: [0.14, 0.22],
+        tint: [1.1, 0.96, 0.76]
+      }
+    };
+    var KINDS = Object.keys(SHAPES);
+    function inTriangle(px, py, ax, ay, bx, by, cx, cy) {
+      const d1 = (px - bx) * (ay - by) - (ax - bx) * (py - by);
+      const d2 = (px - cx) * (by - cy) - (bx - cx) * (py - cy);
+      const d3 = (px - ax) * (cy - ay) - (cx - ax) * (py - ay);
+      const neg = d1 < 0 || d2 < 0 || d3 < 0;
+      const pos = d1 > 0 || d2 > 0 || d3 > 0;
+      return !(neg && pos);
+    }
+    function paintGrid(g, W, H, cw, ch, dpr, dark = true, opacity = 0.05) {
+      if (opacity === 0) return;
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.strokeStyle = dark ? `rgba(140,165,255,${opacity})` : `rgba(77,107,254,${opacity})`;
+      g.lineWidth = 1;
+      g.beginPath();
+      for (let c = 0; c <= Math.ceil(W / cw); c++) {
+        const x = Math.round(c * cw * dpr) + 0.5;
+        g.moveTo(x, 0);
+        g.lineTo(x, H * dpr);
+      }
+      for (let r = 0; r <= Math.ceil(H / ch); r++) {
+        const y = Math.round(r * ch * dpr) + 0.5;
+        g.moveTo(0, y);
+        g.lineTo(W * dpr, y);
+      }
+      g.stroke();
+    }
+    var AsciiRenderer = class {
+      constructor(canvas, dark = false, gridScale = 1, gridOpacity = 0.05, wake = 1, glyphMode = "ascii") {
+        this.canvas = canvas;
+        this.dark = dark;
+        this.gridScale = gridScale;
+        this.gridOpacity = gridOpacity;
+        this.wake = wake;
+        this.glyphMode = glyphMode;
+        const ctx = canvas.getContext("2d", { alpha: true });
+        if (!ctx) throw new Error("2D canvas unavailable");
+        this.ctx = ctx;
+        this.bg = document.createElement("canvas");
+        this.setTheme(dark);
+      }
+      bodySwing = 1;
+      ctx;
+      bg;
+      dpr = 1;
+      width = 0;
+      height = 0;
+      cw = 12;
+      ch = 18;
+      cols = 0;
+      rows = 0;
+      fontFamily = "ui-monospace, Menlo, monospace";
+      rgb = [77, 107, 254];
+      eyeColor = "";
+      accents = [];
+      dotKind = new Uint8Array(0);
+      // 0 none, 1 blue, 2 green, 3 red, 4 pale
+      dotPhase = new Float32Array(0);
+      dotFreq = new Float32Array(0);
+      energy = new Float32Array(0);
+      energyTmp = new Float32Array(0);
+      heat = new Float32Array(0);
+      bucketOf = new Uint8Array(0);
+      bucketOrder = new Int32Array(0);
+      bucketCounts = new Int32Array(DOT_RGB.length * ALPHA_LEVELS + 1);
+      dotStyles = [];
+      sharkFlag = new Uint8Array(0);
+      sharkShade = new Float32Array(0);
+      sharkKey = new Uint32Array(0);
+      sharkDepth = new Float32Array(0);
+      sharkKind = new Uint8Array(0);
+      sharkGlyph = new Uint16Array(0);
+      /** Cells darkened by a shark's shadow on the seabed. */
+      sharkShadow = new Uint8Array(0);
+      spine = new Float32Array(SHARK_NODES * 2);
+      arc = new Float32Array(SHARK_NODES);
+      arcTotal = 1;
+      shape = SHAPES.classic;
+      sharkId = 0;
+      finTipLeft = 0;
+      finTipRight = 0;
+      // Scratch outputs of sampleShark(), to avoid allocating per sample.
+      hitFlag = 0;
+      hitShade = 0;
+      hitS = 0;
+      hitV = 0;
+      hitDist = 0;
+      /** Cells holding a fish this frame (frame stamp); dots skip them. */
+      fishStamp = new Uint32Array(0);
+      frameId = 0;
+      /** Fish cells bucketed by brightness, so each bucket is one fillStyle. */
+      fishBuckets = FISH_ALPHAS.map(() => []);
+      fishStyles = FISH_ALPHAS.map((a) => `rgba(230,238,255,${a})`);
+      get cellWidth() {
+        return this.cw;
+      }
+      get cellHeight() {
+        return this.ch;
+      }
+      setFontFamily(family) {
+        if (family) this.fontFamily = family;
+      }
+      setTheme(dark, gridOpacity = this.gridOpacity, wake = this.wake, color, colorfulShimmer = false, eyeColor = "primary") {
+        this.dark = dark;
+        this.gridOpacity = gridOpacity;
+        this.wake = wake;
+        if (color) this.rgb = [1, 3, 5].map((i) => parseInt(color.slice(i, i + 2), 16));
+        this.eyeColor = eyeColor === "primary" ? "" : eyeColor === "black" ? "#000000" : "#ffffff";
+        const fish = this.rgb.map((c) => Math.round(dark ? c * 0.6 + 102 : c * 0.7));
+        this.fishStyles = FISH_ALPHAS.map((a) => `rgba(${fish.join(",")},${a})`);
+        this.accents = colorfulShimmer ? COLORFUL_ACCENTS : [0, 0.2, 0.6, -0.1, 0.35, -0.2, 0.5].map((lift) => `rgb(${this.rgb.map((c) => Math.round(lift >= 0 ? c + (255 - c) * lift : c * (1 + lift))).join(",")})`);
+        this.dotStyles = [];
+        for (let c = 0; c < DOT_RGB.length; c++) for (let l = 0; l < ALPHA_LEVELS; l++) {
+          const a = DOT_BASE_ALPHA[c] * (l + 1) / ALPHA_LEVELS;
+          this.dotStyles.push(`rgba(${fish.join(",")},${a.toFixed(3)})`);
+        }
+        this.paintBackground();
+      }
+      bodyColor(level) {
+        const light = clamp((level - 120) / (level < 120 ? 120 : 135), -1, 1);
+        return `rgb(${this.rgb.map((c) => Math.round(light < 0 ? c * (1 + light) : c + (255 - c) * light)).join(",")})`;
+      }
+      resize(width, height, dpr) {
+        this.width = width;
+        this.height = height;
+        this.dpr = dpr;
+        [this.cw, this.ch] = cellSize(this.gridScale, this.glyphMode === "hanzi");
+        this.cols = Math.ceil(width / this.cw);
+        this.rows = Math.ceil(height / this.ch);
+        this.canvas.width = Math.round(width * dpr);
+        this.canvas.height = Math.round(height * dpr);
+        this.bg.width = this.canvas.width;
+        this.bg.height = this.canvas.height;
+        const n = this.cols * this.rows;
+        this.dotKind = new Uint8Array(n);
+        this.dotPhase = new Float32Array(n);
+        this.dotFreq = new Float32Array(n);
+        this.energy = new Float32Array(n);
+        this.energyTmp = new Float32Array(n);
+        this.heat = new Float32Array(n);
+        this.bucketOf = new Uint8Array(n);
+        this.bucketOrder = new Int32Array(n);
+        this.sharkFlag = new Uint8Array(n);
+        this.sharkShade = new Float32Array(n);
+        this.sharkKey = new Uint32Array(n);
+        this.sharkDepth = new Float32Array(n);
+        this.sharkKind = new Uint8Array(n);
+        this.sharkGlyph = new Uint16Array(n);
+        this.sharkShadow = new Uint8Array(n);
+        this.fishStamp = new Uint32Array(n);
+        for (let i = 0; i < n; i++) {
+          const col = i % this.cols;
+          const row = i / this.cols | 0;
+          this.dotKind[i] = 0;
+          this.dotPhase[i] = hash3(col, row, 23) * Math.PI * 2;
+          this.dotFreq[i] = 0.3 + hash3(col, row, 37) * 1.1;
+        }
+        this.paintBackground();
+      }
+      paintBackground() {
+        const g = this.bg.getContext("2d");
+        if (!g) return;
+        const { width: W, height: H, dpr, cw, ch } = this;
+        g.setTransform(dpr, 0, 0, dpr, 0, 0);
+        g.clearRect(0, 0, W, H);
+        paintGrid(g, W, H, cw, ch, dpr, this.dark, this.gridOpacity);
+      }
+      render(world, dt) {
+        const { ctx, dpr, cols, ch } = this;
+        if (cols === 0) return;
+        const t = world.time;
+        this.consumeEvents(world);
+        this.rasterizeSharks(world.sharks, t);
+        this.depositWake(world);
+        this.diffuse(dt);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        ctx.drawImage(this.bg, 0, 0);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        this.markFish(world);
+        this.drawDots(t);
+        ctx.font = `${this.glyphMode === "hanzi" ? 400 : 600} ${Math.round(ch * 0.74)}px ${this.fontFamily}`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        this.drawHeat();
+        this.drawFish();
+        this.drawSharks(t);
+      }
+      // ── simulation → field ──────────────────────────────────────────────
+      cellIndex(x, y) {
+        const c = Math.floor(x / this.cw);
+        const r = Math.floor(y / this.ch);
+        if (c < 0 || r < 0 || c >= this.cols || r >= this.rows) return -1;
+        return r * this.cols + c;
+      }
+      stamp(field, x, y, radius, amount) {
+        const c0 = Math.floor(x / this.cw);
+        const r0 = Math.floor(y / this.ch);
+        for (let r = r0 - radius; r <= r0 + radius; r++) {
+          for (let c = c0 - radius; c <= c0 + radius; c++) {
+            if (c < 0 || r < 0 || c >= this.cols || r >= this.rows) continue;
+            const d = Math.hypot(c - c0, (r - r0) * 1.4);
+            if (d > radius + 0.5) continue;
+            const i = r * this.cols + c;
+            field[i] = Math.min(1.6, field[i] + amount * (1 - d / (radius + 1)));
+          }
+        }
+      }
+      consumeEvents(world) {
+        for (const e of world.events) {
+          if (e.kind === "eat") {
+            this.stamp(this.heat, e.x, e.y, 2, 1);
+            this.stamp(this.energy, e.x, e.y, 3, 0.9);
+          } else {
+            this.stamp(this.energy, e.x, e.y, 6, 1.4);
+          }
+        }
+        world.events.length = 0;
+      }
+      depositWake(world) {
+        const { energy } = this;
+        for (const f of world.fish) {
+          if (!f.alive) continue;
+          const i = this.cellIndex(f.x, f.y);
+          if (i >= 0) energy[i] = Math.min(1.6, energy[i] + 0.012 + f.alarm * 0.03);
+        }
+        for (const sh of world.sharks) {
+          for (let k = SHARK_NODES - 6; k < SHARK_NODES; k++) {
+            const i = this.cellIndex(sh.nodes[k * 2], sh.nodes[k * 2 + 1]);
+            if (i >= 0) energy[i] = Math.min(1.6, energy[i] + 0.05 + sh.speed * 12e-4);
+          }
+        }
+        if (world.pointer.active) {
+          this.stamp(energy, world.pointer.x, world.pointer.y, 1, 0.08);
+        }
+      }
+      /** Blur + decay so wakes spread out like ripples and fade. */
+      diffuse(dt) {
+        const { cols, rows, energy, energyTmp: tmp, heat } = this;
+        const decay = Math.exp(-dt * 1.5);
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const i = r * cols + c;
+            const l = c > 0 ? energy[i - 1] : energy[i];
+            const rt = c < cols - 1 ? energy[i + 1] : energy[i];
+            const u = r > 0 ? energy[i - cols] : energy[i];
+            const d = r < rows - 1 ? energy[i + cols] : energy[i];
+            tmp[i] = (energy[i] * 4 + l + rt + u + d) * 0.125 * decay;
+          }
+        }
+        this.energy = tmp;
+        this.energyTmp = energy;
+        const heatDecay = Math.exp(-dt * 2.2);
+        for (let i = 0; i < heat.length; i++) heat[i] *= heatDecay;
+      }
+      // ── sharks ──────────────────────────────────────────────────────────
+      /**
+       * Classify one point against the current shark (spine/arc already built).
+       * Body coordinates: s along the spine (0 snout → 1 tail), v across it.
+       * Writes hit* fields and returns whether the point is on the shark.
+       */
+      sampleShark(px, py, L) {
+        const { spine, arc } = this;
+        const N = SHARK_NODES;
+        let best = Infinity;
+        let bestS = 0;
+        let bestSign = 1;
+        let bestNx = 0;
+        let bestNy = 0;
+        for (let k = 0; k < N - 1; k++) {
+          const ax = spine[k * 2];
+          const ay = spine[k * 2 + 1];
+          const sx = spine[(k + 1) * 2] - ax;
+          const sy = spine[(k + 1) * 2 + 1] - ay;
+          const len2 = sx * sx + sy * sy || 1;
+          const u2 = clamp(((px - ax) * sx + (py - ay) * sy) / len2, 0, 1);
+          const qx = ax + sx * u2;
+          const qy = ay + sy * u2;
+          const d2 = (px - qx) ** 2 + (py - qy) ** 2;
+          if (d2 < best) {
+            best = d2;
+            const len = Math.sqrt(len2);
+            bestS = (arc[k] + u2 * len) / this.arcTotal;
+            bestSign = sx * (py - ay) - sy * (px - ax) >= 0 ? 1 : -1;
+            bestNx = -sy / len * bestSign;
+            bestNy = sx / len * bestSign;
+          }
+        }
+        const a = Math.sqrt(best);
+        const s = bestS;
+        const u = s * L;
+        const shape = this.shape;
+        const w = shape.halfWidth(s) * L;
+        this.hitDist = a;
+        this.hitS = s;
+        this.hitV = a * bestSign;
+        const head = this.shape.head;
+        if (head && u < L * (head.sweep + head.depth + head.notch)) {
+          const span = L * head.span;
+          const r = a / span;
+          const front = L * head.sweep * r * r + L * head.notch * Math.max(0, 1 - r / 0.14);
+          const depth = L * head.depth * (1 - 0.2 * r * r * r * r);
+          if (r <= 1 && u >= front && u <= front + depth) {
+            this.hitFlag = r > 0.84 ? FLAG_EYE : FLAG_BODY;
+            this.hitShade = r > 0.84 ? 0 : 0.62 - 0.2 * r + (u < front + L * 0.012 ? 0.1 : 0);
+            return true;
+          }
+        }
+        if (a <= w && (shape !== humpback && shape !== orca || s <= 0.945)) {
+          const across = a / (w || 1);
+          const facing = (bestNx * -0.6 + bestNy * -0.8) * across;
+          let shade = 0.58 - across * across * 0.42 + facing * 0.26;
+          let flag = FLAG_BODY;
+          if (s > shape.dorsal[0] && s < shape.dorsal[1] && across < 0.3) {
+            flag = FLAG_RIDGE;
+            shade = 1;
+          } else if (s > shape.secondDorsal[0] && s < shape.secondDorsal[1] && across < 0.4) {
+            shade = Math.max(shade, 0.82);
+          } else if (shape.eye && s > shape.eye[0] && s < shape.eye[1] && across > 0.6) {
+            flag = FLAG_EYE;
+            shade = 0;
+          } else if (shape === orca && orcaPatch(s, across)) {
+            flag = FLAG_WHITE;
+          } else if (s > shape.gills[0] && s < shape.gills[1] && across > 0.58) {
+            if (Math.floor((s - shape.gills[0]) / (shape.gills[1] - shape.gills[0]) * 5) % 2 === 0) shade *= 0.45;
+          } else if (s < 0.05) {
+            shade = Math.max(shade, 0.7);
+          } else if (shape === SHAPES.zebra && s > 0.08 && s < 0.55 && (across < 0.1 || Math.abs(across - 0.6) < 0.08)) {
+            shade = Math.max(shade, 0.8);
+          } else if (this.marked(s, a * bestSign, L, across)) {
+            flag = FLAG_MARK;
+          }
+          this.hitFlag = flag;
+          this.hitShade = shade;
+          return true;
+        }
+        const tip = bestSign > 0 ? this.finTipRight : this.finTipLeft;
+        const [p0, p1, p2] = shape.pectoral;
+        if ((shape === humpback ? humpbackFlipper(s, a, tip) : shape === orca ? orcaFlipper(s, a, tip) : inTriangle(u, a, L * p0, 0, L * p1, 0, L * p2, tip)) && // Falcate (sickle) fins get a concave trailing edge.
+        !(shape.falcate && inTriangle(u, a, L * p1, 0, L * (p1 + (p2 - p1) * 0.33), tip * 0.55, L * p2, tip))) {
+          this.hitFlag = this.marked(s, a * bestSign, L, 0) ? FLAG_MARK : FLAG_FIN;
+          this.hitShade = 0.38 + 0.22 * (1 - clamp(a / tip, 0, 1));
+          return true;
+        }
+        const [v0, v1, v2, vr] = shape.pelvic;
+        if (vr > 0 && inTriangle(u, a, L * v0, 0, L * v1, 0, L * v2, L * vr) || // Forked caudal fin.
+        (shape === humpback || shape === orca ? whaleFlukes(s, a / L) : shape.caudal > 0 && inTriangle(u, a, L * 0.86, 0, L * 0.95, 0, L, L * shape.caudal))) {
+          this.hitFlag = FLAG_FIN;
+          this.hitShade = 0.36;
+          return true;
+        }
+        return false;
+      }
+      /** Whether a body point (s along, v across) falls on a dark marking. */
+      marked(s, v, L, across) {
+        if (this.shape === SHAPES.tiger) {
+          if (s < 0.2 || s > 0.9 || across > 0.85) return false;
+          const wobble = 0.35 * Math.sin(v / L * 25 + s * 5);
+          const bar = Math.sin(s * Math.PI * 2 * 9 + wobble);
+          return bar > 0.65 - 0.5 * smoothstep(0.2, 0.42, s) + 0.4 * smoothstep(0.8, 0.9, s);
+        }
+        if (this.shape === SHAPES.zebra) {
+          if (s < 0.07) return false;
+          const gu = s * L / (L * 0.06);
+          const gv = v / (L * 0.045);
+          const cu = Math.floor(gu);
+          const cv = Math.floor(gv);
+          const jx = hash3(cu, cv, this.sharkId) * 0.5 + 0.25;
+          const jy = hash3(cu, cv, this.sharkId + 11) * 0.5 + 0.25;
+          return (gu - cu - jx) ** 2 + (gv - cv - jy) ** 2 < 0.08;
+        }
+        return false;
+      }
+      /**
+       * Build a smooth, undulating render spine from the sim spine, then
+       * supersample every cell in the shark's bounding box against the shape.
+       * Fully covered cells become solid skin; partial cells become edge glyphs.
+       */
+      rasterizeSharks(sharks, t) {
+        const { sharkFlag, sharkShade, sharkKey, sharkDepth, sharkKind, sharkShadow, spine, arc, cw, ch, cols, rows } = this;
+        sharkFlag.fill(0);
+        sharkShadow.fill(0);
+        this.sharkGlyph.fill(0);
+        for (const sh of sharks) {
+          const L = sh.length;
+          const N = SHARK_NODES;
+          const n = sh.nodes;
+          const swim = clamp(sh.speed / 60, 0.4, 1.4);
+          this.shape = SHAPES[sh.kind];
+          this.sharkId = sh.id;
+          const kindIndex = KINDS.indexOf(sh.kind);
+          const secretCells = this.glyphMode === "hanzi" && (sh.kind === "whale" || sh.kind === "orca") && sh.id === 1 ? [-1, -1, -1, -1] : null;
+          const secretDistances = [Infinity, Infinity, Infinity, Infinity];
+          for (let k = 0; k < N; k++) {
+            const s = k / (N - 1);
+            const a = Math.max(0, k - 1);
+            const b = Math.min(N - 1, k + 1);
+            let tx = n[a * 2] - n[b * 2];
+            let ty = n[a * 2 + 1] - n[b * 2 + 1];
+            const tl = Math.hypot(tx, ty) || 1;
+            tx /= tl;
+            ty /= tl;
+            const amp = L * 0.05 * (0.1 + 0.9 * Math.pow(s, 1.8)) * swim * this.bodySwing;
+            const off = amp * Math.sin(sh.phase - s * 5.2);
+            spine[k * 2] = n[k * 2] - ty * off;
+            spine[k * 2 + 1] = n[k * 2 + 1] + tx * off;
+          }
+          arc[0] = 0;
+          for (let k = 1; k < N; k++) {
+            arc[k] = arc[k - 1] + Math.hypot(spine[k * 2] - spine[(k - 1) * 2], spine[k * 2 + 1] - spine[(k - 1) * 2 + 1]);
+          }
+          this.arcTotal = arc[N - 1] || 1;
+          const bank = clamp(sh.turn * 0.45, -0.35, 0.35);
+          const flex = 1 + 0.06 * Math.sin(sh.phase * 0.5);
+          const reachFin = this.shape.pectoral[3];
+          this.finTipRight = L * reachFin * flex * (1 - bank);
+          this.finTipLeft = L * reachFin * flex * (1 + bank);
+          let minX = Infinity;
+          let minY = Infinity;
+          let maxX = -Infinity;
+          let maxY = -Infinity;
+          for (let k = 0; k < N; k++) {
+            minX = Math.min(minX, spine[k * 2]);
+            maxX = Math.max(maxX, spine[k * 2]);
+            minY = Math.min(minY, spine[k * 2 + 1]);
+            maxY = Math.max(maxY, spine[k * 2 + 1]);
+          }
+          const reach = Math.max(L * 0.36, this.finTipLeft, this.finTipRight);
+          const c0 = Math.max(0, Math.floor((minX - reach) / cw));
+          const c1 = Math.min(cols - 1, Math.floor((maxX + reach) / cw));
+          const r0 = Math.max(0, Math.floor((minY - reach) / ch));
+          const r1 = Math.min(rows - 1, Math.floor((maxY + reach) / ch));
+          if (c0 > c1 || r0 > r1) continue;
+          const skipBeyond = reach + Math.hypot(cw, ch);
+          const shadowDc = Math.round(L * 0.035 / cw) + 1;
+          const shadowDr = Math.round(L * 0.02 / ch) + 1;
+          for (let r = r0; r <= r1; r++) {
+            for (let c = c0; c <= c1; c++) {
+              const x = c * cw;
+              const y = r * ch;
+              const centerHit = this.sampleShark(x + cw / 2, y + ch / 2, L);
+              if (!centerHit && this.hitDist > skipBeyond) continue;
+              const flag = this.hitFlag;
+              const shade = this.hitShade;
+              const s = this.hitS;
+              const v = this.hitV;
+              let hits = centerHit ? 1 : 0;
+              for (let k = 0; k < SUBSAMPLES.length; k += 2) {
+                if (this.sampleShark(x + SUBSAMPLES[k] * cw, y + SUBSAMPLES[k + 1] * ch, L)) hits++;
+              }
+              if (hits === 0) continue;
+              const coverage = hits / 5;
+              const i = r * cols + c;
+              const key = hash3(Math.round(s * 52), Math.round(v / (cw * 0.9)), sh.id) * 4294967295 >>> 0;
+              sharkKey[i] = key;
+              sharkDepth[i] = sh.depth;
+              sharkKind[i] = kindIndex;
+              if (centerHit && coverage >= 0.6) {
+                sharkFlag[i] = flag;
+                if (this.glyphMode === "hanzi" && (sh.kind === "whale" || sh.kind === "orca")) {
+                  const glyph = flag === FLAG_EYE ? "\u76EE" : flag === FLAG_FIN ? s >= 0.84 ? "\u5C3E" : "\u9CCD" : flag === FLAG_RIDGE ? "\u9CCD" : s < 0.1 ? "\u543B" : s < 0.6 && Math.abs(v) < this.shape.halfWidth(s) * L * 0.32 ? "\u80CC" : "";
+                  this.sharkGlyph[i] = glyph ? glyph.charCodeAt(0) : 0;
+                  if (secretCells && !glyph && flag === FLAG_BODY && v > 0 && s >= 0.28 && s < 0.64) {
+                    const slot = Math.min(3, Math.floor((s - 0.28) / 0.09));
+                    const distance = ((s - (0.325 + slot * 0.09)) * L) ** 2 + (v - this.shape.halfWidth(s) * L * 0.6) ** 2;
+                    if (distance < secretDistances[slot]) {
+                      secretDistances[slot] = distance;
+                      secretCells[slot] = i;
+                    }
+                  }
+                } else this.sharkGlyph[i] = 0;
+                const flicker = (hash3(c, r, Math.floor(t * 6)) - 0.5) * 0.06;
+                sharkShade[i] = clamp(shade + flicker, 0, 1);
+                const sc = c + shadowDc;
+                const sr = r + shadowDr;
+                if (sc < cols && sr < rows) sharkShadow[sr * cols + sc] = 1;
+              } else {
+                sharkFlag[i] = FLAG_EDGE;
+                this.sharkGlyph[i] = 0;
+                sharkShade[i] = coverage;
+              }
+            }
+          }
+          if (secretCells?.every((i) => i >= 0)) {
+            for (let k = 0; k < 4; k++) this.sharkGlyph[secretCells[k]] = "\u6DF1\u5EA6\u6C42\u7D22".charCodeAt(k);
+          }
+        }
+      }
+      drawSharks(t) {
+        const { ctx, cols, rows, cw, ch, sharkFlag, sharkShade, sharkKey, sharkDepth, sharkKind } = this;
+        const glyphs = GLYPHS[this.glyphMode];
+        const n = cols * rows;
+        for (let i = 0; i < n; i++) {
+          const flag = sharkFlag[i];
+          if (!flag) continue;
+          const col = i % cols;
+          const row = i / cols | 0;
+          const x = col * cw;
+          const y = row * ch;
+          const key = sharkKey[i];
+          const shade = sharkShade[i];
+          const dim = 0.7 + 0.3 * sharkDepth[i];
+          const [tr, tg, tb] = SHAPES[KINDS[sharkKind[i]]].tint;
+          const tick = Math.floor(t * 2.4 + key % 997 / 97);
+          const roll = hash3(key, tick, 7);
+          if (flag === FLAG_EDGE) {
+            const set = shade >= 0.5 ? glyphs.edgeHeavy : glyphs.edgeLight;
+            const g = (70 + shade * 80) * dim;
+            ctx.fillStyle = roll < 0.07 ? this.accents[key % this.accents.length] : this.bodyColor(g);
+            ctx.fillText(set[(key >>> 8) % set.length], x + cw / 2, y + ch / 2 + 1, Math.max(1, cw - 1));
+            continue;
+          }
+          let level;
+          let glyph;
+          if (flag === FLAG_RIDGE) {
+            level = 226;
+            glyph = glyphs.ridge[(key >>> 8) % glyphs.ridge.length];
+          } else if (flag === FLAG_EYE) {
+            level = 46 + shade * 160;
+            glyph = glyphs.eye;
+          } else if (flag === FLAG_MARK) {
+            level = 24 + shade * 22;
+            glyph = glyphs.mark[(key >>> 8) % glyphs.mark.length];
+          } else if (flag === FLAG_FIN) {
+            level = 40 + shade * 120;
+            glyph = glyphs.fin[(key >>> 8) % glyphs.fin.length];
+          } else {
+            level = 46 + shade * 160;
+            const jitter = (key >>> 4) % 3 - 1;
+            glyph = glyphs.skin[clamp(Math.floor((1 - shade) * (glyphs.skin.length - 0.01)) + jitter, 0, glyphs.skin.length - 1)];
+          }
+          level *= dim;
+          if (this.sharkGlyph[i]) glyph = String.fromCharCode(this.sharkGlyph[i]);
+          ctx.fillStyle = flag === FLAG_WHITE ? "#f5f5f0" : flag === FLAG_EYE && this.eyeColor ? this.eyeColor : this.bodyColor(level);
+          ctx.fillRect(x + 1, y + 1, cw - 1, ch - 1);
+          let color;
+          if (flag === FLAG_WHITE) color = "#181818";
+          else if (flag === FLAG_EYE && this.eyeColor) color = this.eyeColor === "#000000" ? "#ffffff" : "#181818";
+          else if (flag === FLAG_EYE) color = shade > 0.55 ? "#181818" : "#eeeeee";
+          else if (flag === FLAG_MARK) color = `rgb(${Math.round(70 * tr)},${Math.round(70 * tg)},${Math.round(70 * tb)})`;
+          else if (roll < 0.09) color = this.accents[key % this.accents.length];
+          else if (roll < 0.13) color = "#ffffff";
+          else color = shade > 0.55 ? "#181818" : "#eeeeee";
+          ctx.fillStyle = color;
+          ctx.fillText(glyph, x + cw / 2, y + ch / 2 + 1, Math.max(1, cw - 1));
+        }
+      }
+      // ── fish, dots, heat ────────────────────────────────────────────────
+      /**
+       * Snap each fish to a cell and bucket it by brightness: far fish are dim,
+       * near fish brighter, and turning or panicking fish glint. Nearer fish
+       * claim a cell first when two land in the same one.
+       */
+      markFish(world) {
+        const { fishStamp, fishBuckets, sharkFlag } = this;
+        const frame = ++this.frameId;
+        for (const bucket of fishBuckets) bucket.length = 0;
+        for (let pass = 0; pass < 2; pass++) {
+          for (const f of world.fish) {
+            if (!f.alive || (f.depth > 0.78 ? 0 : 1) !== pass) continue;
+            const i = this.cellIndex(f.x, f.y);
+            if (i < 0 || fishStamp[i] === frame || sharkFlag[i]) continue;
+            fishStamp[i] = frame;
+            const glint = clamp(Math.abs(f.turn) / 3.5, 0, 1);
+            const v = 0.3 + 0.4 * (f.depth - 0.55) / 0.45 + 0.3 * Math.max(glint, f.alarm);
+            fishBuckets[clamp(Math.floor(v * FISH_ALPHAS.length), 0, FISH_ALPHAS.length - 1)].push(i);
+          }
+        }
+      }
+      drawFish() {
+        const { ctx, cw, ch, cols, fishBuckets } = this;
+        const glyphs = GLYPHS[this.glyphMode].fish;
+        for (let b = 0; b < fishBuckets.length; b++) {
+          const bucket = fishBuckets[b];
+          if (!bucket.length) continue;
+          ctx.fillStyle = this.fishStyles[b];
+          for (const i of bucket) {
+            ctx.fillText(glyphs[i % glyphs.length], i % cols * cw + cw / 2, (i / cols | 0) * ch + ch / 2 + 1, Math.max(1, cw - 1));
+          }
+        }
+      }
+      drawHeat() {
+        const { ctx, heat, cols, cw, ch } = this;
+        for (let i = 0; i < heat.length; i++) {
+          const h = heat[i];
+          if (h < 0.08) continue;
+          const col = i % cols;
+          const row = i / cols | 0;
+          ctx.fillStyle = `rgba(${this.rgb.join(",")},${Math.min(1, h * 1.6).toFixed(2)})`;
+          ctx.fillText(h > 0.6 ? "*" : "\xB7", col * cw + cw / 2, row * ch + ch / 2 + 1, Math.max(1, cw - 1));
+        }
+      }
+      /**
+       * Every cell's dot twinkles on its own clock, is modulated by slow
+       * caustic light bands, and flares cyan where the wake field is strong.
+       * Dots are bucketed by colour/alpha so each bucket is one fillStyle.
+       */
+      drawDots(t) {
+        const { ctx, cols, rows, cw, ch, dotKind, dotPhase, dotFreq, energy, sharkFlag, sharkShadow, fishStamp, frameId } = this;
+        const { bucketOf, bucketOrder, bucketCounts } = this;
+        const n = cols * rows;
+        const SKIP = bucketCounts.length - 1;
+        bucketCounts.fill(0);
+        for (let i = 0; i < n; i++) {
+          const e = energy[i] * this.wake;
+          const kind = dotKind[i];
+          if (sharkFlag[i] || fishStamp[i] === frameId || kind === 0 && e < 0.45) {
+            bucketOf[i] = SKIP;
+            continue;
+          }
+          let bucket;
+          if (e > 0.45) {
+            const level = clamp(Math.floor((e - 0.45) * 5), 0, ALPHA_LEVELS - 1);
+            bucket = WAKE * ALPHA_LEVELS + level;
+          } else {
+            const col = i % cols;
+            const row = i / cols | 0;
+            const twinkle = 0.5 + 0.5 * Math.sin(t * dotFreq[i] + dotPhase[i]);
+            const caustic = 0.85 + 0.15 * Math.sin(col * 0.11 + t * 0.35) * Math.sin(row * 0.17 - t * 0.27);
+            let v = clamp((0.55 + 0.45 * twinkle) * caustic + e * 2, 0, 1);
+            if (sharkShadow[i]) v *= 0.2;
+            bucket = (kind - 1) * ALPHA_LEVELS + clamp(Math.floor(v * ALPHA_LEVELS), 0, ALPHA_LEVELS - 1);
+          }
+          bucketOf[i] = bucket;
+          bucketCounts[bucket]++;
+        }
+        const starts = new Int32Array(bucketCounts.length);
+        for (let b = 1; b < bucketCounts.length; b++) starts[b] = starts[b - 1] + bucketCounts[b - 1];
+        const cursor = starts.slice();
+        for (let i = 0; i < n; i++) {
+          const b = bucketOf[i];
+          if (b !== SKIP) bucketOrder[cursor[b]++] = i;
+        }
+        const small = Math.max(2, Math.round(cw * 0.19));
+        const large = small + 1;
+        for (let b = 0; b < SKIP; b++) {
+          const count = bucketCounts[b];
+          if (!count) continue;
+          ctx.fillStyle = this.dotStyles[b];
+          const size = b >= WAKE * ALPHA_LEVELS ? large : small;
+          const start = starts[b];
+          for (let k = start; k < start + count; k++) {
+            const i = bucketOrder[k];
+            const col = i % cols;
+            const row = i / cols | 0;
+            ctx.fillRect(Math.round(col * cw + cw * 0.66 - size / 2), Math.round(row * ch + ch * 0.64 - size / 2), size, size);
+          }
+        }
+      }
+    };
+      // ========================================================================
+      // 上游移植段结束
+      // ========================================================================
+
+      // ---- 引擎（改编自 vendor/ascii-sharks/engine.ts）----------------------
+
+      var STEP = 1 / 60;
+      var MAX_STEPS = 4;
+
+      /** 鲸鱼图形的固定配色：沿用 dsh-ascii-whales 的出厂默认 DeepSeek 蓝。 */
+      var WHALE_COLOR = "#4d6bfe";
+
+      /** 多鲸时逐条缩小的比例表（与上游 background.mjs 一致）。 */
+      var WHALE_SIZE_STEPS = [1, 0.7, 0.84, 0.77, 0.65, 0.9];
+
+      /**
+       * 帧率门控的容差（毫秒）。
+       * 与 field.js 的 PACE_TOLERANCE_MS 同值同义：吸收 rAF 与显示器刷新之间那点抖动，
+       * 避免「目标 30fps，实际间隔 33.1ms」被误判成还没到点。
+       */
+      var WHALE_PACE_TOLERANCE_MS = 1.5;
+
+      /**
+       * 纯函数：这一帧画不画。
+       *
+       * fps <= 0（或非有限值）表示不限帧；从没画过（lastDrawAt <= 0）一定画；
+       * 否则要求「距上次绘制 >= 一帧间隔 - 容差」。
+       * 抽成纯函数是为了能在 node 里直接断言，不必造一个 canvas。
+       *
+       * @param {{ now?: number, lastDrawAt?: number, fps?: number }} input
+       * @returns {{ draw: boolean, interval: number }}
+       */
+      function paceDecision(input) {
+        var src = input && typeof input === "object" ? input : {};
+        var fps = typeof src.fps === "number" && Number.isFinite(src.fps) ? src.fps : 0;
+        if (!(fps > 0)) return { draw: true, interval: 0 };
+        var interval = 1000 / fps;
+        var lastDrawAt =
+          typeof src.lastDrawAt === "number" && Number.isFinite(src.lastDrawAt) ? src.lastDrawAt : 0;
+        var now = typeof src.now === "number" && Number.isFinite(src.now) ? src.now : 0;
+        if (lastDrawAt <= 0) return { draw: true, interval: interval };
+        return { draw: now - lastDrawAt >= interval - WHALE_PACE_TOLERANCE_MS, interval: interval };
+      }
+
+      var OceanEngine = class {
+        constructor(canvas, sharks, speed = 1, dark = false, gridScale = 1, gridOpacity = 0.05, fishCount, wake = 1, color = WHALE_COLOR, glyphMode = "ascii", colorfulShimmer = false, eyeColor = "primary", bodySwing = 1, turnAgility = 1, tailFrequency = 1, fpsCap = 30, interact = true) {
+          this.canvas = canvas;
+          this.speed = speed;
+          // [适配 4] 帧率上限：0/负数表示不限帧。
+          this.fpsCap = typeof fpsCap === "number" && Number.isFinite(fpsCap) && fpsCap > 0 ? fpsCap : 0;
+          // [适配 5] 交互开关：false 时下面不注册 window 级指针监听。
+          this.interact = !!interact;
+          this.world = new World(sharks, fishCount);
+          // [适配 2] 原为 `glyphMode === "kanji" ? new Painter(...) : new AsciiRenderer(...)`，
+          // 并按实例类型分派 setTheme。Kanji 渲染器已整体移出，这里只剩 AsciiRenderer。
+          this.renderer = new AsciiRenderer(canvas, dark, gridScale, gridOpacity, wake, glyphMode);
+          this.renderer.setTheme(dark, gridOpacity, wake, color, colorfulShimmer, eyeColor);
+          this.renderer.bodySwing = bodySwing;
+          this.world.turnAgility = turnAgility;
+          this.world.tailFrequency = tailFrequency;
+          this.renderer.setFontFamily(getComputedStyle(canvas).fontFamily);
+          this.resizeObserver = new ResizeObserver(() => this.resize());
+          this.resizeObserver.observe(canvas);
+          this.intersectionObserver = new IntersectionObserver(([entry]) => {
+            this.visible = entry.isIntersecting;
+            this.schedule();
+          });
+          this.intersectionObserver.observe(canvas);
+          // [适配 3] 原为 reducedMotion 的 change 订阅；现在只剩可见性调度。
+          document.addEventListener("visibilitychange", this.scheduleVisibility);
+          if (this.interact) this.attachPointer();
+          this.resize();
+          document.fonts?.load(`${glyphMode !== "ascii" ? 400 : 600} 16px ${getComputedStyle(canvas).fontFamily}`, glyphMode !== "ascii" ? "鲸目鳍尾鲨鲸" : "S8@").then(() => {
+            if (this.disposed) return;
+            this.renderer.setFontFamily(getComputedStyle(canvas).fontFamily);
+          }).catch(() => {
+          });
+          this.schedule();
+        }
+
+        world;
+
+        renderer;
+
+        raf = 0;
+
+        /** 上一次真正绘制的时间（performance.now 时间轴），用于算 dt。 */
+        last = 0;
+
+        acc = 0;
+
+        visible = true;
+
+        /** [适配 4] 帧率上限（0 = 不限）。 */
+        fpsCap = 30;
+
+        /** [适配 4] 上一次通过门控的绘制时刻（performance.now 时间轴）。 */
+        lastDrawAt = 0;
+
+        /** [适配 5] 是否已安装指针监听。 */
+        pointerAttached = false;
+
+        /** [适配 5] 交互开关。 */
+        interact = false;
+
+        resizeObserver;
+
+        intersectionObserver;
+
+        disposed = false;
+
+        destroy() {
+          this.disposed = true;
+          cancelAnimationFrame(this.raf);
+          this.resizeObserver.disconnect();
+          this.intersectionObserver.disconnect();
+          // [适配 5] 指针监听可能根本没装过，detachPointer 自身幂等。
+          this.detachPointer();
+          document.removeEventListener("visibilitychange", this.scheduleVisibility);
+        }
+
+        /** [适配 5] 安装 window 级指针监听；幂等。 */
+        attachPointer() {
+          if (this.pointerAttached) return;
+          this.pointerAttached = true;
+          window.addEventListener("pointermove", this.onPointerMove, { passive: true });
+          window.addEventListener("pointerdown", this.onPointerDown, { passive: true });
+          document.documentElement.addEventListener("pointerleave", this.onPointerLeave);
+          window.addEventListener("blur", this.onPointerLeave);
+        }
+
+        /** [适配 5] 拆除指针监听，并把指针状态归零（否则鱼群会一直朝最后一次位置聚）。 */
+        detachPointer() {
+          if (!this.pointerAttached) return;
+          this.pointerAttached = false;
+          window.removeEventListener("pointermove", this.onPointerMove);
+          window.removeEventListener("pointerdown", this.onPointerDown);
+          document.documentElement.removeEventListener("pointerleave", this.onPointerLeave);
+          window.removeEventListener("blur", this.onPointerLeave);
+          this.world.pointer.active = false;
+        }
+
+        /** [适配 5] 运行期切换交互：幂等，不重建引擎。 */
+        setInteract(value) {
+          const next = !!value;
+          if (next === this.interact) return;
+          this.interact = next;
+          if (next) this.attachPointer();
+          else this.detachPointer();
+        }
+
+        /** [适配 4] 运行期改帧率上限：只影响下一帧的门控判定，不重建引擎。 */
+        setFpsCap(value) {
+          const next = typeof value === "number" && Number.isFinite(value) ? value : 0;
+          this.fpsCap = next > 0 ? next : 0;
+        }
+
+        setAppearance(speed, dark, gridOpacity = 0.05, wake = 1, color = WHALE_COLOR, colorfulShimmer = false, eyeColor = "primary", bodySwing = 1, turnAgility = 1, tailFrequency = 1) {
+          this.speed = speed;
+          this.renderer.bodySwing = bodySwing;
+          this.world.turnAgility = turnAgility;
+          this.world.tailFrequency = tailFrequency;
+          this.renderer.setTheme(dark, gridOpacity, wake, color, colorfulShimmer, eyeColor);
+        }
+
+        scheduleVisibility = () => this.schedule();
+
+        resize() {
+          const rect = this.canvas.getBoundingClientRect();
+          if (rect.width < 1 || rect.height < 1) return;
+          const dpr = Math.min(window.devicePixelRatio || 1, 2);
+          this.renderer.resize(rect.width, rect.height, dpr);
+          this.world.resize(rect.width, rect.height, this.renderer.cellWidth, this.renderer.cellHeight);
+        }
+
+        schedule() {
+          cancelAnimationFrame(this.raf);
+          // [适配 3] 去掉了 reducedMotion 判定。
+          if (this.disposed || !this.visible || document.hidden) return;
+          this.last = performance.now();
+          this.raf = requestAnimationFrame(this.frame);
+        }
+
+        frame = (now) => {
+          // [适配 4] 帧率门控：不到点就只续 rAF，不绘制也不推进累加器。
+          // 注意这里**不更新 this.last**，于是被跳过的时长会在下一次真正绘制时进入 dt，
+          // 运动按真实时间推进 —— 降帧只会减少绘制次数，不会让鲸鱼游得更慢。
+          if (!paceDecision({ now, lastDrawAt: this.lastDrawAt, fps: this.fpsCap }).draw) {
+            this.raf = requestAnimationFrame(this.frame);
+            return;
+          }
+          this.lastDrawAt = now;
+          const dt = Math.min(0.1, (now - this.last) / 1e3);
+          this.last = now;
+          this.acc += dt * this.speed;
+          let steps = 0;
+          const maxSteps = Math.ceil(MAX_STEPS * Math.max(1, this.speed));
+          while (this.acc >= STEP && steps < maxSteps) {
+            this.world.step(STEP, STEP * 0.65 / this.speed);
+            this.acc -= STEP;
+            steps++;
+          }
+          if (steps === maxSteps) this.acc = 0;
+          this.render(dt * this.speed);
+          this.raf = requestAnimationFrame(this.frame);
+        };
+
+        render(dt) {
+          this.renderer.render(this.world, dt);
+        }
+
+        toLocal(e) {
+          const rect = this.canvas.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          const inside = x >= 0 && y >= 0 && x <= rect.width && y <= rect.height;
+          return { x, y, inside };
+        }
+
+        onPointerMove = (e) => {
+          // [适配 5] 双保险：监听只在 interact 时安装，这里再挡一次，避免拆卸瞬间的排队事件。
+          if (!this.interact) return;
+          const { x, y, inside } = this.toLocal(e);
+          const p = this.world.pointer;
+          p.x = x;
+          p.y = y;
+          p.active = inside && e.pointerType !== "touch";
+        };
+
+        onPointerDown = (e) => {
+          if (!this.interact) return;
+          const { x, y, inside } = this.toLocal(e);
+          if (inside) this.world.splash(x, y);
+        };
+
+        onPointerLeave = () => {
+          this.world.pointer.active = false;
+        };
+      };
+
+      /** 把 1–20 收紧成整数（归一化层已经做过一次，这里是防御性兜底）。 */
+      function whaleCount(value) {
+        const raw = typeof value === "number" && Number.isFinite(value) ? value : 1;
+        return Math.min(20, Math.max(1, Math.round(raw)));
+      }
+
+      /**
+       * 建一个鲸鱼引擎。
+       *
+       * @param {HTMLCanvasElement} canvas 已插入 DOM、尺寸由 CSS 决定
+       * @param {object} options
+       * @param {string} [options.species] "humpback" | "orca"
+       * @param {number} [options.count] 鲸鱼条数
+       * @param {number} [options.size] 单条鲸鱼的基准大小
+       * @param {number} [options.speed] 时钟倍率
+       * @param {boolean} [options.dark] 深色主题
+       * @param {number} [options.gridScale] 字符栅格倍率
+       * @param {number} [options.gridOpacity] 底纹网格透明度
+       * @param {number} [options.fishCount] 小鱼数量
+       * @param {number} [options.wake] 尾迹强度
+       * @param {number} [options.bodySwing] 身体摆动幅度
+       * @param {number} [options.turnAgility] 转弯灵活度
+       * @param {number} [options.tailFrequency] 摆尾频率
+       * @param {number} [options.fps] 帧率上限（0 = 不限）
+       * @param {boolean} [options.interact] 是否响应鼠标
+       * @returns {InstanceType<typeof OceanEngine>}
+       */
+      function create(canvas, options) {
+        const src = options && typeof options === "object" ? options : {};
+        const kind = src.species === "orca" ? "orca" : "whale";
+        const baseSize = typeof src.size === "number" && Number.isFinite(src.size) ? src.size : 1;
+        const whales = [];
+        const count = whaleCount(src.count);
+        for (let index = 0; index < count; index += 1) {
+          whales.push({ kind, size: baseSize * WHALE_SIZE_STEPS[index % WHALE_SIZE_STEPS.length] });
+        }
+        return new OceanEngine(
+          canvas,
+          whales,
+          src.speed,
+          !!src.dark,
+          src.gridScale,
+          src.gridOpacity,
+          src.fishCount,
+          src.wake,
+          WHALE_COLOR,
+          "ascii",
+          false,
+          "primary",
+          src.bodySwing,
+          src.turnAgility,
+          src.tailFrequency,
+          src.fps,
+          src.interact,
+        );
+      }
+
+      return { create, paceDecision, STEP, MAX_STEPS, WHALE_PACE_TOLERANCE_MS, OceanEngine };
+    })();
+
+
+    // ---- src/whale-field.js ----
+    /**
+     * dsh-signal-field · 鲸鱼图层适配器（v0.4.0）
+     *
+     * 职责边界：只做「DOM 图层 + 引擎生命周期 + 设置差异比对」，
+     * 不碰页面判定（在 page.js）、不碰动画算法（在 whale-engine.js）。
+     *
+     * 为什么需要这一层而不是直接在 stage.js 里 new 引擎：
+     *   1. 引擎的构造参数有 17 个，签名比对必须集中在一处，散在 stage 里极易漏项；
+     *   2. 引擎构造可能失败（Canvas2D 不可用、ResizeObserver 缺失），
+     *      失败的兜底与「不影响信号场/标题」的承诺必须在一个 try/catch 里兑现。
+     *
+     * 重建策略沿用 dsh-ascii-whales：改变「种群参数」才重建引擎
+     * （鱼群与鲸鱼的实例、尺寸、栅格都绑在构造期），
+     * 其余「观感参数」走 setAppearance 热更新，避免拖滑块时整片海洋重播。
+     */
+
+    // 构建时本行被剥离；产物里 WHALE_ENGINE 由前面的 src/whale-engine.js 提供。
+
+    /** 内嵌字体族名，必须与 styles.js 的 @font-face 一致。 */
+    const WHALE_FONT_FAMILY = '"Whales Mono", ui-monospace, Menlo, monospace';
+
+    /** 鲸鱼等宽字体的字重（Geist Mono 600 子集）。 */
+    const WHALE_FONT_WEIGHT = "600";
+
+    /**
+     * 创建一个鲸鱼图层控制器。
+     *
+     * @param {HTMLElement} layer 已插入内容面的 `<div data-mui-whale>`
+     * @param {object} options 见 update()
+     * @returns {{ update(options: object): void, destroy(): void }}
+     */
+    function createWhaleField(layer, options) {
+      const host = layer && typeof layer === "object" ? layer : null;
+      // 拿不到宿主就返回空实现：调用方（stage.js）不必到处判空。
+      if (!host) return { update() {}, destroy() {} };
+
+      const doc = host.ownerDocument || (typeof document === "undefined" ? null : document);
+      let canvas = null;
+      let engine = null;
+      let disposed = false;
+      /** 构造失败过就不再重试：反复抛错只会每帧刷一次控制台。 */
+      let failed = false;
+      /** 种群签名：变了要重建引擎。 */
+      let population = "";
+      /** 观感签名：变了走 setAppearance。 */
+      let appearance = "";
+      /** 上一次推送的帧率上限；-1 表示尚未推送。 */
+      let lastFps = -1;
+      /** 上一次推送的交互开关；null 表示尚未推送。 */
+      let lastInteract = null;
+      /** 上一次写入的透明度；-1 表示尚未写入。 */
+      let lastOpacity = -1;
+
+      /** 取一个安全对象，用于读取可能缺失的选项。 */
+      function read(input) {
+        return input && typeof input === "object" ? input : {};
+      }
+
+      /** 把任意值收紧成有限数，取不到就用 fallback。 */
+      function finite(value, fallback) {
+        return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+      }
+
+      function createCanvas() {
+        if (canvas) return canvas;
+        canvas = doc.createElement("canvas");
+        canvas.setAttribute("aria-hidden", "true");
+        // 字体写在内联样式上而不是只靠 CSS：引擎要读 getComputedStyle(canvas).fontFamily
+        // 去等字体就绪并烘焙字形，内联值不依赖样式表是否已经生效。
+        canvas.style.fontFamily = WHALE_FONT_FAMILY;
+        canvas.style.fontWeight = WHALE_FONT_WEIGHT;
+        host.append(canvas);
+        return canvas;
+      }
+
+      /**
+       * 局部更新。可重复调用，内部做签名比对。
+       *
+       * @param {object} input
+       * @param {boolean} [input.dark]
+       * @param {string} [input.species] "humpback" | "orca"
+       * @param {number} [input.count]
+       * @param {number} [input.size]
+       * @param {number} [input.speed]
+       * @param {number} [input.bodySwing]
+       * @param {number} [input.turnAgility]
+       * @param {number} [input.tailFrequency]
+       * @param {number} [input.gridScale]
+       * @param {number} [input.gridOpacity]
+       * @param {number} [input.fishCount]
+       * @param {number} [input.wake]
+       * @param {number} [input.opacity]
+       * @param {number} [input.fps]
+       * @param {boolean} [input.interact]
+       */
+      function update(input) {
+        if (disposed || failed) return;
+        const src = read(input);
+        const dark = !!src.dark;
+        const species = src.species === "orca" ? "orca" : "humpback";
+        const count = finite(src.count, 1);
+        const size = finite(src.size, 1);
+        const speed = finite(src.speed, 1);
+        const bodySwing = finite(src.bodySwing, 1);
+        const turnAgility = finite(src.turnAgility, 1);
+        const tailFrequency = finite(src.tailFrequency, 1);
+        const gridScale = finite(src.gridScale, 1);
+        const gridOpacity = finite(src.gridOpacity, 0.05);
+        const fishCount = finite(src.fishCount, 170);
+        const wake = finite(src.wake, 1);
+        const opacity = finite(src.opacity, 1);
+        const fps = finite(src.fps, 0);
+        const interact = src.interact !== false;
+
+        // 透明度只是图层的一件事，写在变量上；判重避免每帧重写 style。
+        if (opacity !== lastOpacity) {
+          lastOpacity = opacity;
+          host.style.setProperty("--mui-whale-opacity", String(opacity));
+        }
+
+        // 种群签名：只有这些决定「有几个实体、多大、格子多细」，改动必须重建引擎。
+        const nextPopulation = `${species}|${count}|${size}|${gridScale}|${fishCount}`;
+        // 观感签名：其余能热更新的参数，外加主题。
+        const nextAppearance = `${speed}|${bodySwing}|${turnAgility}|${tailFrequency}|${dark}|${gridOpacity}|${wake}`;
+
+        if (engine && nextPopulation !== population) {
+          engine.destroy();
+          engine = null;
+        }
+
+        if (!engine) {
+          try {
+            const element = createCanvas();
+            engine = WHALE_ENGINE.create(element, {
+              dark,
+              species,
+              count,
+              size,
+              speed,
+              bodySwing,
+              turnAgility,
+              tailFrequency,
+              gridScale,
+              gridOpacity,
+              fishCount,
+              wake,
+              fps,
+              interact,
+            });
+          } catch (error) {
+            // 兜底：鲸鱼画不出来不该拖垮信号场、标题、毛玻璃。
+            // 属性写在图层上，样式层据此可选地降级（当前只是留痕，便于排查）。
+            failed = true;
+            engine = null;
+            host.setAttribute("data-whale-fallback", "");
+            return;
+          }
+          population = nextPopulation;
+          appearance = nextAppearance;
+          lastFps = fps;
+          lastInteract = interact;
+          return;
+        }
+
+        if (appearance !== nextAppearance) {
+          appearance = nextAppearance;
+          engine.setAppearance(
+            speed,
+            dark,
+            gridOpacity,
+            wake,
+            "#4d6bfe",
+            false,
+            "primary",
+            bodySwing,
+            turnAgility,
+            tailFrequency,
+          );
+        }
+        if (fps !== lastFps) {
+          lastFps = fps;
+          engine.setFpsCap(fps);
+        }
+        if (interact !== lastInteract) {
+          lastInteract = interact;
+          engine.setInteract(interact);
+        }
+      }
+
+      /** 销毁引擎与画布，把签名重置成初始值（下次 update 会重新建）。 */
+      function destroy() {
+        if (disposed) return;
+        disposed = true;
+        if (engine) {
+          engine.destroy();
+          engine = null;
+        }
+        if (canvas) {
+          canvas.remove();
+          canvas = null;
+        }
+        population = "";
+        appearance = "";
+        lastFps = -1;
+        lastInteract = null;
+        lastOpacity = -1;
+      }
+
+      // 首次调用即建引擎；失败会被 update 内部的 try/catch 兜住。
+      update(options);
+
+      return { update, destroy };
+    }
+
+
     // ---- src/styles.js ----
     /**
      * dsh-signal-field · 注入样式
@@ -2387,6 +4625,9 @@ window.__ModuleLoader__.load({
      *   - 页面作用域用 `<html>` 上的属性开关，避免影响未勾选的页面；
      *   - 所有选择器都挂在插件自有属性 / 自有类名上，卸载时随 <style> 一起消失。
      */
+
+    // v0.4.0：鲸鱼等宽字体的内嵌 data URI。构建时本行被剥离，
+    // 产物里 WHALE_MONO_URI 由前面的 src/whale-fonts.js 提供（ORDER 保证顺序）。
 
     const STYLE_ATTR = 'data-plugin';
     const STYLE_ID = 'dsh-signal-field:styles';
@@ -2432,6 +4673,26 @@ window.__ModuleLoader__.load({
       background:
         radial-gradient(120% 90% at 50% 38%, color-mix(in srgb, var(--mui-field-wave) 42%, transparent), transparent 68%),
         var(--mui-field-bg);
+    }
+
+    /* ===== 鲸鱼图层（v0.4.0，从 dsh-ascii-whales 迁移）=====
+       与信号场一样挂在内容面内部、同为 z-index:-1：两者都在内容面自身底色之上、正文之下，
+       谁在上只取决于插入顺序（信号场先插入、鲸鱼后插入，所以鲸鱼压在信号场之上）。
+       鲸鱼画布是透明的（alpha:true + clearRect），因此叠加时是「鲸鱼游在抖动天空前」，
+       不会像自带底色的图层那样把信号场整片盖掉。
+       字体在这里声明：Whale Mono 是内嵌子集，data URI 由 whale-fonts.js 提供。 */
+    @font-face{
+      font-family:"Whales Mono";
+      src:url("${WHALE_MONO_URI}") format("woff");
+      font-style:normal;font-weight:600;font-display:swap;
+    }
+    [data-mui-whale]{
+      position:absolute;inset:0;z-index:-1;pointer-events:none;overflow:hidden;
+      opacity:var(--mui-whale-opacity,1);
+    }
+    [data-mui-whale] > canvas{
+      position:absolute;inset:0;display:block;width:100%;height:100%;
+      font-family:"Whales Mono",ui-monospace,Menlo,monospace;font-weight:600;
     }
 
     /* ===== 蓝图标题 =====
@@ -2618,12 +4879,47 @@ window.__ModuleLoader__.load({
       flex:none;min-width:40px;text-align:right;font-variant-numeric:tabular-nums;
       font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);
     }
+    /* 分段选择（v0.4.0，用于「鲸鱼种类」）。
+       自绘成两个并排按钮而不是用 select：选项只有 2 个，按钮一眼可见当前值，
+       且 aria-pressed 的读屏语义比 select 更贴近「在这几个里选一个」。 */
+    .mui-seg{flex:none;display:flex;gap:6px;flex-wrap:wrap}
+    .mui-seg-item{
+      border:1px solid var(--dsw-alias-border-l2);background:transparent;cursor:pointer;
+      color:var(--dsw-alias-label-primary);border-radius:8px;padding:3px 12px;
+      font-size:12px;line-height:18px;font-family:inherit;
+      transition:background .15s var(--ds-ease-in-out, ease);
+    }
+    .mui-seg-item:hover{background:color-mix(in srgb, var(--dsw-alias-label-primary) 7%, transparent)}
+    .mui-seg-item[aria-pressed="true"]{
+      background:var(--dsw-alias-brand-primary);border-color:var(--dsw-alias-brand-primary);color:#fff;
+    }
+    .mui-seg-item:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
+    .mui-seg-item:disabled{opacity:.5;cursor:not-allowed}
+    /* 两列数字输入网格（v0.4.0，鲸鱼的 11 个数值项）。
+       为什么不用 .mui-row：11 条单列行会把设置页拉得很长，而这些都是「一个数」的短参数，
+       两列并排更省纵向空间。minmax(220px,1fr) 让窄窗口自动折成一列。 */
+    .mui-numgrid{
+      display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+      gap:4px 24px;padding:2px 0 4px;
+    }
+    .mui-num{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;padding:4px 0}
+    .mui-num-label{
+      font-size:13px;line-height:20px;color:var(--dsw-alias-label-primary);
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    }
+    .mui-num-input{
+      flex:none;width:88px;height:26px;padding:0 8px;border-radius:8px;
+      border:1px solid var(--dsw-alias-border-l2);background:transparent;
+      color:var(--dsw-alias-label-primary);font-family:inherit;font-size:12px;line-height:24px;
+      font-variant-numeric:tabular-nums;text-align:right;
+    }
+    .mui-num-input:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}
+    .mui-num-input:disabled{opacity:.5;cursor:not-allowed}
     .mui-note{
       display:flex;gap:8px;align-items:flex-start;margin:0;padding:8px 10px;border-radius:8px;
       font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);
       background:color-mix(in srgb, var(--dsw-alias-label-primary) 5%, transparent);
-    }
-    .mui-note[data-tone="warn"]{
+    }.mui-note[data-tone="warn"]{
       color:var(--dsw-alias-state-warn-primary);
       background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 12%, transparent);
     }
@@ -2740,6 +5036,9 @@ window.__ModuleLoader__.load({
 
       let layerEl = null;
       let field = null;
+      /** 鲸鱼图层（v0.4.0）：与信号场同宿主的第二个图层，插在信号场之后 → 压在它之上。 */
+      let whaleEl = null;
+      let whaleField = null;
       let titleEl = null;
       let title = null;
       let titleParent = null;
@@ -2988,6 +5287,90 @@ window.__ModuleLoader__.load({
         layerEl.setAttribute("data-on", "");
       }
 
+      // ---- 鲸鱼图层（v0.4.0）-------------------------------------------------
+
+      /**
+       * 把设置摊平成鲸鱼适配器要的形状。
+       *
+       * fps 与 interact 刻意取 background 那两项：这是本轮的产品决策——
+       * 帧率上限与鼠标交互都复用既有的全局开关，不新增第二套概念。
+       */
+      function whaleOptions(state, dark) {
+        const whale = state.whale && typeof state.whale === "object" ? state.whale : {};
+        return {
+          dark: !!dark,
+          species: whale.species,
+          count: whale.count,
+          size: whale.size,
+          speed: whale.speed,
+          bodySwing: whale.bodySwing,
+          turnAgility: whale.turnAgility,
+          tailFrequency: whale.tailFrequency,
+          gridScale: whale.gridScale,
+          gridOpacity: whale.gridOpacity,
+          fishCount: whale.fishCount,
+          wake: whale.wake,
+          opacity: whale.opacity,
+          fps: state.background ? state.background.fps : 0,
+          interact: state.background ? state.background.interact : false,
+        };
+      }
+
+      /** 拆掉鲸鱼图层：引擎、画布、图层节点、指针监听一起没。 */
+      function destroyWhale() {
+        if (whaleField) {
+          whaleField.destroy();
+          whaleField = null;
+        }
+        if (whaleEl) {
+          whaleEl.remove();
+          whaleEl = null;
+        }
+      }
+
+      /**
+       * 同步鲸鱼图层。
+       *
+       * 判定收敛在 resolveWhaleTarget()（纯函数、可单测）；这里只做三件事：
+       * 该有时把图层挂进内容面、该没时整层销毁、其余情况把设置推给适配器做增量更新。
+       *
+       * 为什么整层销毁而不是像信号场那样「留着但不画」：
+       * 鲸鱼只在新增会话页出现，离开这一页就没有再复用的机会；
+       * 而且它的引擎持有 ResizeObserver / IntersectionObserver / window 指针监听，
+       * 留着不画比拆掉更费，也更容易在切页后留下幽灵监听。
+       */
+      function syncWhale(state, dark) {
+        const wanted = resolveWhaleTarget({
+          page,
+          heroPage: state.pages ? state.pages.hero : false,
+          master: state.enabled,
+          whaleEnabled: state.whale ? state.whale.enabled : false,
+        });
+        const surface = wanted ? resolveSurface() : null;
+        if (!wanted || !surface) {
+          destroyWhale();
+          return;
+        }
+
+        // 内容面被重建过（切页、重挂）时旧图层已脱离文档，必须整层重建：
+        // 引擎绑的是旧 canvas 的尺寸观察器，搬过去也不会重新量。
+        if (whaleEl && whaleEl.parentElement !== surface) {
+          destroyWhale();
+        }
+
+        if (!whaleEl) {
+          whaleEl = doc.createElement("div");
+          whaleEl.setAttribute("data-mui-whale", "");
+          whaleEl.setAttribute("aria-hidden", "true");
+          // 追加到末尾：与信号场同为 z-index:-1，DOM 顺序决定谁在上，后插入者在上。
+          surface.append(whaleEl);
+        }
+
+        const options = whaleOptions(state, dark);
+        if (!whaleField) whaleField = createWhaleField(whaleEl, options);
+        else whaleField.update(options);
+      }
+
       // ---- 清理（离开作用范围 / 关闭总开关）----------------------------------
 
       /** 撤掉全部作用域标记与 CSS 变量，让 `<html>` 回到 DSH 原生外观。 */
@@ -3019,6 +5402,8 @@ window.__ModuleLoader__.load({
           field.destroy();
           field = null;
         }
+        // v0.4.0：鲸鱼图层与信号场同宿主，离开作用范围时一起拆。
+        destroyWhale();
         destroyHudBackdrop();
         if (layerEl) {
           layerEl.remove();
@@ -3682,6 +6067,8 @@ window.__ModuleLoader__.load({
 
         syncRoot(state, dark);
         syncField(state, dark);
+        // 必须排在 syncField 之后：鲸鱼图层靠「后插入」取得高于信号场的层叠位置。
+        syncWhale(state, dark);
         syncHudBackdrop(state, dark);
 
         if (titleWanted(state)) mountTitle(state);
@@ -3763,9 +6150,33 @@ window.__ModuleLoader__.load({
      *   2. 「动效」——动效本身（标题、标题动画速度、背景、背景强度、背景动画速度、毛玻璃、重绘帧率上限）
      * 总开关单独一行放在两个模块之前。
      *
-     * 只做三件事：把设置渲染成开关/滑块、把改动写回 store、在必要时说明降级状态。
+     * v0.4.0：鲸鱼动画的 13 项设置**并入「动效」模块末尾**（不新增模块、不新增分割线）。
+     * 行标题统一加「鲸鱼」前缀，否则「透明度」「游动速度」会和上面的「背景强度」「背景动画速度」混淆。
+     *
+     * 只做三件事：把设置渲染成开关/滑块/分段/数字框、把改动写回 store、在必要时说明降级状态。
      * 不依赖 DSH 的 Client 组件包（按插件实践要求自绘控件，只用主题 token 取色）。
      */
+
+    /**
+     * 鲸鱼的 11 个数值项（v0.4.0）。
+     *
+     * 顺序 = 设置页显示顺序（两列网格逐行铺开，所以前两项在第一行）。
+     * 范围与步长镜像 settings.js 的 WHALE_RANGES；这里写常量而不是 import，
+     * 是因为设置页测试会剥掉 import 行后再渲染组件（同 rowFps / rowTitleSpeed 的既有做法）。
+     */
+    const WHALE_NUMBERS = [
+      { key: "count", row: "rowWhaleCount", min: 1, max: 20, step: 1 },
+      { key: "speed", row: "rowWhaleSpeed", min: 0.1, max: 10, step: 0.05 },
+      { key: "bodySwing", row: "rowWhaleBodySwing", min: 0, max: 3, step: 0.05 },
+      { key: "turnAgility", row: "rowWhaleTurnAgility", min: 0.1, max: 3, step: 0.05 },
+      { key: "tailFrequency", row: "rowWhaleTailFrequency", min: 0.1, max: 5, step: 0.05 },
+      { key: "size", row: "rowWhaleSize", min: 0.1, max: 10, step: 0.1 },
+      { key: "opacity", row: "rowWhaleOpacity", min: 0, max: 1, step: 0.05 },
+      { key: "gridScale", row: "rowWhaleGridScale", min: 0.1, max: 10, step: 0.05 },
+      { key: "gridOpacity", row: "rowWhaleGridOpacity", min: 0, max: 1, step: 0.01 },
+      { key: "fishCount", row: "rowWhaleFishCount", min: 0, max: 1000, step: 1 },
+      { key: "wake", row: "rowWhaleWake", min: 0, max: 10, step: 0.1 },
+    ];
 
     /** 未提供状态源时的空实现，保证 hook 调用顺序稳定。 */
     const NO_STATUS = {
@@ -3833,6 +6244,36 @@ window.__ModuleLoader__.load({
       );
     }
 
+    /**
+     * 分段选择（v0.4.0，用于「鲸鱼种类」）。
+     *
+     * 为什么是按钮组而不是原生 radio：选项只有 2 个且都是中文名，
+     * aria-pressed 的读屏语义与视觉都与插件其它控件一致，不需要额外画 radio 的圆点。
+     */
+    function Segmented(props) {
+      return h(
+        "div",
+        { className: "mui-seg", role: "group", "aria-label": props.label },
+        props.options.map((option) =>
+          h(
+            "button",
+            {
+              key: option.value,
+              type: "button",
+              className: "mui-seg-item",
+              "aria-pressed": props.value === option.value ? "true" : "false",
+              disabled: props.disabled ? true : undefined,
+              onClick: () => {
+                if (props.disabled) return;
+                props.onChange(option.value);
+              },
+            },
+            option.label,
+          ),
+        ),
+      );
+    }
+
     /** 设置页主体。props: { store, status?, t, close? } */
     function SettingsPage(props) {
       const store = props.store;
@@ -3842,6 +6283,9 @@ window.__ModuleLoader__.load({
       const runtime = useStore(status);
       const [toast, setToast] = React.useState("");
       const off = !state.enabled;
+      // v0.4.0：鲸鱼分组可能缺席（测试直接塞了裸状态、或存档还没写过 whale 键）。
+      // 这里只保证读属性不炸，真正的默认值由 settings.js 的 normalize() 兜。
+      const whale = state.whale && typeof state.whale === "object" ? state.whale : {};
 
       const set = (partial) => store.update(partial);
 
@@ -4029,6 +6473,63 @@ window.__ModuleLoader__.load({
                 disabled: off,
                 onChange: (value) => set({ background: { fps: value } }),
               }),
+            ),
+            // ===== v0.4.0：鲸鱼动画（从 dsh-ascii-whales 迁移）=====
+            // 并入本模块末尾，不另起模块：它和上面几项一样是「动效本身」的一部分。
+            h(
+              Row,
+              { label: t("rowWhaleEnabled"), hint: t("rowWhaleEnabledHint") },
+              h(Switch, {
+                label: t("rowWhaleEnabled"),
+                checked: whale.enabled,
+                disabled: off,
+                onChange: (value) => set({ whale: { enabled: value } }),
+              }),
+            ),
+            // 字符风格固定 ASCII，故这里只有「种类」一个分段选择，没有字形切换。
+            h(
+              Row,
+              { label: t("rowWhaleSpecies"), hint: t("rowWhaleSpeciesHint") },
+              h(Segmented, {
+                label: t("rowWhaleSpecies"),
+                value: whale.species,
+                disabled: off,
+                options: [
+                  { value: "humpback", label: t("whaleHumpback") },
+                  { value: "orca", label: t("whaleOrca") },
+                ],
+                onChange: (value) => set({ whale: { species: value } }),
+              }),
+            ),
+            h("p", { className: "mui-row-hint" }, t("whaleNumbersHint")),
+            h(
+              "div",
+              { className: "mui-numgrid" },
+              WHALE_NUMBERS.map((field) =>
+                h(
+                  "label",
+                  { key: field.key, className: "mui-num" },
+                  h("span", { className: "mui-num-label" }, t(field.row)),
+                  h("input", {
+                    type: "number",
+                    className: "mui-num-input",
+                    "aria-label": t(field.row),
+                    min: field.min,
+                    max: field.max,
+                    step: field.step,
+                    value: whale[field.key] === undefined ? "" : whale[field.key],
+                    disabled: off ? true : undefined,
+                    onChange: (event) => {
+                      // 清空输入框时不要写回：valueAsNumber 会变成 NaN，
+                      // 而归一化会把非法值换回默认，等于「一删就跳回默认」，手感很糟。
+                      const next = event.target.valueAsNumber;
+                      if (event.target.value !== "" && Number.isFinite(next)) {
+                        set({ whale: { [field.key]: next } });
+                      }
+                    },
+                  }),
+                ),
+              ),
             ),
           ),
         ),

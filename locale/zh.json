@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "UI 动效",
-    "description": "为新增会话页与聊天会话页加入抖动信号场背景，在新增会话页加入蓝图标题，并给会话输入框加上毛玻璃；全部效果都能在「设置 → UI 动画」逐项开关。"
+    "description": "为新增会话页与聊天会话页加入抖动信号场背景，在新增会话页加入蓝图标题与 ASCII 鲸鱼动画，并给会话输入框加上毛玻璃；全部效果都能在「设置 → UI 动画」逐项开关。"
   },
   "runtime": {
     "title": "UI 动画",
@@ -31,8 +31,26 @@
     "rowIntensityHint": "只影响信号场的浓淡，不改变动画速度；默认 30%。",
     "rowBackgroundSpeed": "背景动画速度",
     "rowBackgroundSpeedHint": "整片背景的流动快慢：波形、涟漪摆动与扩散一起变，涟漪存续也随之缩短；1× 即当前观感。与重绘帧率独立，高速度配低帧率会显得一顿一顿。",
-    "rowFps": "重绘帧率上限",
-    "rowFpsHint": "限制信号场的重绘频率，越低越省电；窗口失焦时自动降到 8 fps，指针交互时临时回到屏幕帧率。",
+    "rowFps": "动画重绘帧率上限",
+    "rowFpsHint": "限制信号场与鲸鱼的重绘频率，越低越省电；窗口失焦时信号场自动降到 8 fps，指针交互时临时回到屏幕帧率。",
+    "rowWhaleEnabled": "鲸鱼动效",
+    "rowWhaleEnabledHint": "在新建会话页叠一层 ASCII 鲸鱼。它压在信号场之上，两者开关独立：关掉鲸鱼，信号场照常。",
+    "rowWhaleSpecies": "鲸鱼种类",
+    "rowWhaleSpeciesHint": "座头鲸胸鳍更长、尾鳍更宽；虎鲸体型略小并带白色斑纹。",
+    "whaleHumpback": "座头鲸",
+    "whaleOrca": "虎鲸",
+    "whaleNumbersHint": "以下参数即时生效。改动「种类 / 数量 / 大小 / 字符栅格 / 小鱼数量」会重建整片海洋；其余参数是热更新，不会重播。",
+    "rowWhaleCount": "鲸鱼数量",
+    "rowWhaleSpeed": "鲸鱼游动速度",
+    "rowWhaleBodySwing": "鲸鱼身体摆动幅度",
+    "rowWhaleTurnAgility": "鲸鱼转弯灵活度",
+    "rowWhaleTailFrequency": "鲸鱼摆尾频率",
+    "rowWhaleSize": "鲸鱼大小",
+    "rowWhaleOpacity": "鲸鱼透明度",
+    "rowWhaleGridScale": "鲸鱼字符栅格（倍）",
+    "rowWhaleGridOpacity": "鲸鱼底纹网格透明度",
+    "rowWhaleFishCount": "鲸鱼小鱼数量",
+    "rowWhaleWake": "鲸鱼尾迹强度",
     "reducedMotion": "系统开启了「减少动效」，动画与鼠标交互已默认关闭；需要时可在此手动打开。",
     "reset": "恢复默认",
     "resetDone": "已恢复默认设置",

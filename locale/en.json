@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "UI Motion",
-    "description": "Adds a dithered signal-field backdrop to the new-session and chat pages, a blueprint headline on the new-session page, and frosted glass for the composer — every effect toggles independently under Settings → UI Motion."
+    "description": "Adds a dithered signal-field backdrop to the new-session and chat pages, a blueprint headline plus ASCII whale animation on the new-session page, and frosted glass for the composer — every effect toggles independently under Settings → UI Motion."
   },
   "runtime": {
     "title": "UI motion",
@@ -31,8 +31,26 @@
     "rowIntensityHint": "Only changes how dense the signal field is, not its speed; 30% by default.",
     "rowBackgroundSpeed": "Backdrop animation speed",
     "rowBackgroundSpeedHint": "Flow speed of the whole backdrop: wave drift, ripple wobble and ripple spread all scale together, and ripples live correspondingly shorter; 1× is the current feel. Independent of the redraw cap — high speed with a low cap looks steppy.",
-    "rowFps": "Redraw frame-rate cap",
-    "rowFpsHint": "Caps how often the signal field redraws; lower saves more power. It drops to 8 fps while the window is unfocused and returns to the display rate during pointer interaction.",
+    "rowFps": "Animation redraw cap",
+    "rowFpsHint": "Caps how often the signal field and whales redraw; lower saves more power. The field drops to 8 fps while the window is unfocused and returns to the display rate during pointer interaction.",
+    "rowWhaleEnabled": "Whale animation",
+    "rowWhaleEnabledHint": "Stacks an ASCII whale layer on the new-session page. It sits above the signal field, and the two switches are independent: turning whales off leaves the field untouched.",
+    "rowWhaleSpecies": "Whale species",
+    "rowWhaleSpeciesHint": "Humpback has longer flippers and wider flukes; orca is slightly smaller with white markings.",
+    "whaleHumpback": "Humpback",
+    "whaleOrca": "Orca",
+    "whaleNumbersHint": "These apply immediately. Changing species, whale count, size, cell size or fish count rebuilds the whole ocean; the rest update in place without replaying.",
+    "rowWhaleCount": "Whale count",
+    "rowWhaleSpeed": "Whale swim speed",
+    "rowWhaleBodySwing": "Whale body swing",
+    "rowWhaleTurnAgility": "Whale turn agility",
+    "rowWhaleTailFrequency": "Whale tail frequency",
+    "rowWhaleSize": "Whale size",
+    "rowWhaleOpacity": "Whale opacity",
+    "rowWhaleGridScale": "Whale cell size (x)",
+    "rowWhaleGridOpacity": "Whale grid opacity",
+    "rowWhaleFishCount": "Whale fish count",
+    "rowWhaleWake": "Whale wake intensity",
     "reducedMotion": "The system asks for reduced motion, so animation and pointer interaction are off by default; you can still switch them on here.",
     "reset": "Reset to defaults",
     "resetDone": "Defaults restored",

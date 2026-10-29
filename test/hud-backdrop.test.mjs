@@ -89,9 +89,11 @@ test('样式: 补场去掉淡入，内容区仍保留 0.5s 过渡', () => {
   assert.match(base.body, /transition:\s*opacity \.5s/, '内容区的 0.5s 淡入必须保留');
 });
 
-test('设置: 本轮不新增设置项，语言包仍为 33 个 runtime 键且中英同序', async () => {
+test('设置: v0.3.1 的「33 个 runtime 键」基线仍成立，其后只做过加法', async () => {
   const zh = JSON.parse(await readFile(new URL('../locale/zh.json', import.meta.url), 'utf8')).runtime;
   const en = JSON.parse(await readFile(new URL('../locale/en.json', import.meta.url), 'utf8')).runtime;
-  assert.equal(Object.keys(zh).length, 33);
+  // v0.3.1 收尾时是 33；v0.4.0 加入鲸鱼 18 键 → 51。这里钉住总数与中英同序，
+  // 任何一侧漏译或顺序错位都会红。
+  assert.equal(Object.keys(zh).length, 51);
   assert.deepEqual(Object.keys(zh), Object.keys(en));
 });

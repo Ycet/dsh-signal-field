@@ -53,6 +53,8 @@ test('defaults: 不再有 surfaces 结构，模糊半径固定 14', () => {
     'pages',
     'title',
     'version',
+    // v0.4.0：鲸鱼动画分组
+    'whale',
   ]);
 });
 

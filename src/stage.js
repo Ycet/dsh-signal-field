@@ -16,8 +16,9 @@
  */
 
 import { createField } from "./field.js";
-import { PAGE_CHAT, PAGE_HERO, PAGE_NONE, resolvePageKind, resolvePanelTargets } from "./page.js";
+import { PAGE_CHAT, PAGE_HERO, PAGE_NONE, resolvePageKind, resolvePanelTargets, resolveWhaleTarget } from "./page.js";
 import { createTechText, measureTitle } from "./techtext.js";
+import { createWhaleField } from "./whale-field.js";
 
 /** 标题文案（需求固定）。 */
 export const TITLE_TEXT = "DEEPSEEK HARNESS";
@@ -86,6 +87,9 @@ export function createStage(options) {
 
   let layerEl = null;
   let field = null;
+  /** 鲸鱼图层（v0.4.0）：与信号场同宿主的第二个图层，插在信号场之后 → 压在它之上。 */
+  let whaleEl = null;
+  let whaleField = null;
   let titleEl = null;
   let title = null;
   let titleParent = null;
@@ -334,6 +338,90 @@ export function createStage(options) {
     layerEl.setAttribute("data-on", "");
   }
 
+  // ---- 鲸鱼图层（v0.4.0）-------------------------------------------------
+
+  /**
+   * 把设置摊平成鲸鱼适配器要的形状。
+   *
+   * fps 与 interact 刻意取 background 那两项：这是本轮的产品决策——
+   * 帧率上限与鼠标交互都复用既有的全局开关，不新增第二套概念。
+   */
+  function whaleOptions(state, dark) {
+    const whale = state.whale && typeof state.whale === "object" ? state.whale : {};
+    return {
+      dark: !!dark,
+      species: whale.species,
+      count: whale.count,
+      size: whale.size,
+      speed: whale.speed,
+      bodySwing: whale.bodySwing,
+      turnAgility: whale.turnAgility,
+      tailFrequency: whale.tailFrequency,
+      gridScale: whale.gridScale,
+      gridOpacity: whale.gridOpacity,
+      fishCount: whale.fishCount,
+      wake: whale.wake,
+      opacity: whale.opacity,
+      fps: state.background ? state.background.fps : 0,
+      interact: state.background ? state.background.interact : false,
+    };
+  }
+
+  /** 拆掉鲸鱼图层：引擎、画布、图层节点、指针监听一起没。 */
+  function destroyWhale() {
+    if (whaleField) {
+      whaleField.destroy();
+      whaleField = null;
+    }
+    if (whaleEl) {
+      whaleEl.remove();
+      whaleEl = null;
+    }
+  }
+
+  /**
+   * 同步鲸鱼图层。
+   *
+   * 判定收敛在 resolveWhaleTarget()（纯函数、可单测）；这里只做三件事：
+   * 该有时把图层挂进内容面、该没时整层销毁、其余情况把设置推给适配器做增量更新。
+   *
+   * 为什么整层销毁而不是像信号场那样「留着但不画」：
+   * 鲸鱼只在新增会话页出现，离开这一页就没有再复用的机会；
+   * 而且它的引擎持有 ResizeObserver / IntersectionObserver / window 指针监听，
+   * 留着不画比拆掉更费，也更容易在切页后留下幽灵监听。
+   */
+  function syncWhale(state, dark) {
+    const wanted = resolveWhaleTarget({
+      page,
+      heroPage: state.pages ? state.pages.hero : false,
+      master: state.enabled,
+      whaleEnabled: state.whale ? state.whale.enabled : false,
+    });
+    const surface = wanted ? resolveSurface() : null;
+    if (!wanted || !surface) {
+      destroyWhale();
+      return;
+    }
+
+    // 内容面被重建过（切页、重挂）时旧图层已脱离文档，必须整层重建：
+    // 引擎绑的是旧 canvas 的尺寸观察器，搬过去也不会重新量。
+    if (whaleEl && whaleEl.parentElement !== surface) {
+      destroyWhale();
+    }
+
+    if (!whaleEl) {
+      whaleEl = doc.createElement("div");
+      whaleEl.setAttribute("data-mui-whale", "");
+      whaleEl.setAttribute("aria-hidden", "true");
+      // 追加到末尾：与信号场同为 z-index:-1，DOM 顺序决定谁在上，后插入者在上。
+      surface.append(whaleEl);
+    }
+
+    const options = whaleOptions(state, dark);
+    if (!whaleField) whaleField = createWhaleField(whaleEl, options);
+    else whaleField.update(options);
+  }
+
   // ---- 清理（离开作用范围 / 关闭总开关）----------------------------------
 
   /** 撤掉全部作用域标记与 CSS 变量，让 `<html>` 回到 DSH 原生外观。 */
@@ -365,6 +453,8 @@ export function createStage(options) {
       field.destroy();
       field = null;
     }
+    // v0.4.0：鲸鱼图层与信号场同宿主，离开作用范围时一起拆。
+    destroyWhale();
     destroyHudBackdrop();
     if (layerEl) {
       layerEl.remove();
@@ -1028,6 +1118,8 @@ export function createStage(options) {
 
     syncRoot(state, dark);
     syncField(state, dark);
+    // 必须排在 syncField 之后：鲸鱼图层靠「后插入」取得高于信号场的层叠位置。
+    syncWhale(state, dark);
     syncHudBackdrop(state, dark);
 
     if (titleWanted(state)) mountTitle(state);

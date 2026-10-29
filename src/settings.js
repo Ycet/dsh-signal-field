@@ -46,6 +46,48 @@ export const FPS_RANGE = Object.freeze({ min: 15, max: 60, step: 5 });
 export const SPEED_RANGE = Object.freeze({ min: 0.25, max: 2, step: 0.25 });
 
 /**
+ * 鲸鱼动画的取值范围（v0.4.0，从 dsh-ascii-whales 迁移后重新标定）。
+ *
+ * 与上游的区别只在步长：上游对 <1 的小数用 0.05、其余用区间步长，
+ * 于是 bodySwing 的区间步长 0.1 会把 0.75 吸成 0.8、fishCount 的 10 会把 188 吸成 190。
+ * 这里统一取「能精确命中全部默认值的最小步长」，所以 0.75 / 0.85 / 188 都原样保留。
+ * 逐项默认值与含义见 README 的鲸鱼章节。
+ */
+export const WHALE_RANGES = Object.freeze({
+  count: Object.freeze({ min: 1, max: 20, step: 1 }),
+  speed: Object.freeze({ min: 0.1, max: 10, step: 0.05 }),
+  bodySwing: Object.freeze({ min: 0, max: 3, step: 0.05 }),
+  turnAgility: Object.freeze({ min: 0.1, max: 3, step: 0.05 }),
+  tailFrequency: Object.freeze({ min: 0.1, max: 5, step: 0.05 }),
+  size: Object.freeze({ min: 0.1, max: 10, step: 0.1 }),
+  opacity: Object.freeze({ min: 0, max: 1, step: 0.05 }),
+  gridScale: Object.freeze({ min: 0.1, max: 10, step: 0.05 }),
+  gridOpacity: Object.freeze({ min: 0, max: 1, step: 0.01 }),
+  fishCount: Object.freeze({ min: 0, max: 1000, step: 1 }),
+  wake: Object.freeze({ min: 0, max: 10, step: 0.1 }),
+});
+
+/** 鲸鱼种类的合法取值：座头鲸 / 虎鲸。 */
+export const WHALE_SPECIES = Object.freeze(['humpback', 'orca']);
+
+/** whale 分组里可由 patch() 合并的键（顺序与设置页行序不同，这里只是键表）。 */
+const WHALE_KEYS = Object.freeze([
+  'enabled',
+  'species',
+  'count',
+  'speed',
+  'bodySwing',
+  'turnAgility',
+  'tailFrequency',
+  'size',
+  'opacity',
+  'gridScale',
+  'gridOpacity',
+  'fishCount',
+  'wake',
+]);
+
+/**
  * 归一化一个速度倍率：非有限值一律回落 1×，其余钳到 SPEED_RANGE。
  *
  * 与 num() 的区别：这里**不做步长吸附**，因为运行时也要用它把外部传进来的
@@ -78,16 +120,20 @@ export function scaleStep(amount, speed) {
 }
 
 /**
- * 默认设置（v0.2.9 结构 + v0.2.11 的 background.fps + v0.3.0 的两个 speed）：
+ * 默认设置（v0.2.9 结构 + v0.2.11 的 background.fps + v0.3.0 的两个 speed
+ * + v0.4.0 的 whale 分组）：
  *   pages      —— 哪些页面展示动效（设置页模块「页面」）
  *   title      —— 标题默认动效 / 鼠标交互 / 动画速度（默认 1×）
  *   background —— 背景默认动效 / 鼠标交互 / 强度（默认 30%）/ 帧率上限（默认 30fps）/ 速度（默认 1×）
  *   glass      —— 输入框毛玻璃总开关；blur 固定 14px，已不再提供滑块
+ *   whale      —— 鲸鱼动画（v0.4.0 从 dsh-ascii-whales 迁移）：开关 + 种类 + 11 个数值项。
+ *                 默认值 = 迁移当时用户的实际取值，不是上游出厂默认（差异见 README）。
  * HUD 面板毛玻璃没有独立开关：它跟随「聊天会话页面」开关（详见 README 设置页章节）。
  *
  * 逐版只往已有分组里**加键**，因此一直**不升 SCHEMA_VERSION**：
  * normalize() 对缺失键填默认值、对未知键直接丢弃，
  * 旧存档读出来就是新默认，旧版本读到新存档只是丢掉不认识的键，两个方向都不会坏。
+ * v0.4.0 同样是加分组：旧存档没有 whale 键，读出来就是上表默认。
  */
 export function defaults() {
   return {
@@ -97,6 +143,21 @@ export function defaults() {
     title: { idle: true, interact: true, speed: 1 },
     background: { idle: true, interact: true, intensity: 0.3, fps: 30, speed: 1 },
     glass: { enabled: true, blur: 14 },
+    whale: {
+      enabled: true,
+      species: 'humpback',
+      count: 1,
+      speed: 0.5,
+      bodySwing: 0.75,
+      turnAgility: 0.8,
+      tailFrequency: 0.85,
+      size: 1.5,
+      opacity: 0.5,
+      gridScale: 0.5,
+      gridOpacity: 0.1,
+      fishCount: 188,
+      wake: 1,
+    },
   };
 }
 
@@ -157,6 +218,7 @@ export function normalize(input) {
   const title = group(src.title);
   const background = group(src.background);
   const glass = group(src.glass);
+  const whale = group(src.whale);
 
   // 旧结构恰用旧默认强度时，跟着新默认一起变淡；手调过的值原样保留。
   const rawIntensity = background.intensity;
@@ -185,6 +247,22 @@ export function normalize(input) {
     glass: {
       enabled: legacy ? legacy.glass : bool(glass.enabled, base.glass.enabled),
       blur: num(glass.blur, BLUR_RANGE, base.glass.blur),
+    },
+    // v0.4.0：鲸鱼动画。species 走白名单，其余走 num() 的钳位 + 步长吸附。
+    whale: {
+      enabled: bool(whale.enabled, base.whale.enabled),
+      species: WHALE_SPECIES.includes(whale.species) ? whale.species : base.whale.species,
+      count: num(whale.count, WHALE_RANGES.count, base.whale.count),
+      speed: num(whale.speed, WHALE_RANGES.speed, base.whale.speed),
+      bodySwing: num(whale.bodySwing, WHALE_RANGES.bodySwing, base.whale.bodySwing),
+      turnAgility: num(whale.turnAgility, WHALE_RANGES.turnAgility, base.whale.turnAgility),
+      tailFrequency: num(whale.tailFrequency, WHALE_RANGES.tailFrequency, base.whale.tailFrequency),
+      size: num(whale.size, WHALE_RANGES.size, base.whale.size),
+      opacity: num(whale.opacity, WHALE_RANGES.opacity, base.whale.opacity),
+      gridScale: num(whale.gridScale, WHALE_RANGES.gridScale, base.whale.gridScale),
+      gridOpacity: num(whale.gridOpacity, WHALE_RANGES.gridOpacity, base.whale.gridOpacity),
+      fishCount: num(whale.fishCount, WHALE_RANGES.fishCount, base.whale.fishCount),
+      wake: num(whale.wake, WHALE_RANGES.wake, base.whale.wake),
     },
   };
 }
@@ -220,6 +298,7 @@ export function patch(state, partial) {
       'speed',
     ]),
     glass: mergeGroup(base.glass, src.glass, ['enabled', 'blur']),
+    whale: mergeGroup(base.whale, src.whale, WHALE_KEYS),
   };
   return normalize(next);
 }

@@ -25,6 +25,11 @@ const ORDER = [
   'src/glsl.js',
   'src/field.js',
   'src/techtext.js',
+  // v0.4.0 鲸鱼动画：字体 URI 必须先于 styles.js（那份 CSS 里要插值它），
+  // 引擎必须先于适配器（适配器引用 WHALE_ENGINE），适配器必须先于 stage.js。
+  'src/whale-fonts.js',
+  'src/whale-engine.js',
+  'src/whale-field.js',
   'src/styles.js',
   'src/stage.js',
   'src/settings-page.js',

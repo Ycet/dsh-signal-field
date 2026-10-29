@@ -394,3 +394,25 @@ v0.2.5 按面板外扩 24px 铺，实机上露出两个问题：
 - `stage.diagnose()` 与设置页 inject 上的 `diagnose` **保留**：界面不再展示，但仍可在需要时通过注入面调用。
 - README 增加「演示」区，素材在 v0.2.10 内调整过两次：先是用 H.264 MP4，随后替换为 `docs/demo.gif`（原始录屏 1470×864 / 78MB 压缩为 720×423 / 12fps / 25MB），最终改为两张静态截图 `docs/screenshot-hero.png`（新增会话页）与 `docs/screenshot-chat.png`（聊天会话页）；GIF 与 MP4 均已移出仓库。（v0.3.0 起「演示」区再次改为两张主题动图 `docs/light_mode_preview.gif` 与 `docs/dark_mode_preview.gif`；上文的静态截图已不再被 README 引用，但文件仍保留在 `docs/` 作为历史素材。）
 - 截图处理：原图 2378×1708 RGBA（alpha 全 255）转 RGB 后仅做 `optimize`，282 KB / 422 KB。**不要降采样**——抖动细颗粒被重采样成噪点状灰阶后反而涨到 700 KB～1 MB，原尺寸保留硬边抖动图案压缩率更高。
+
+## 18. 鲸鱼图层（v0.4.0 新增）
+
+迁移自 `dsh-ascii-whales@0.1.5` 的鲸鱼动画，作为**第二个绝对定位图层**与信号场同宿主：
+
+| 项 | 值 |
+| --- | --- |
+| 宿主 | `[data-conversation-content]`（与信号场同一个内容面） |
+| 图层节点 | `div[data-mui-whale][aria-hidden="true"]`，内含一个 `canvas` |
+| 插入位置 | `surface.append(whaleEl)` —— 追加为内容面**最后一个子节点** |
+| 层叠 | 与信号场同为 `z-index:-1`；DOM 顺序决定上下，后插入者在**上**，于是「信号场在下、鲸鱼在上」 |
+| 画布 | `alpha:true` + 每帧 `clearRect`，**不铺底色**，所以叠加时是「鲸鱼游在抖动天空前」而不是盖住信号场 |
+| 尺寸 | `position:absolute;inset:0`，实际像素由 `ResizeObserver` + `dpr`（上限 2）决定 |
+| 字体 | `@font-face` 的 `Whales Mono`（`src/whale-fonts.js` 的 data URI），画布内联 `font-family` 保证引擎读到的 `getComputedStyle` 不依赖样式表生效时机 |
+
+- **可见性判定**收敛在 `src/page.js` 的 `resolveWhaleTarget({ page, heroPage, master, whaleEnabled })`：总开关 × 「新建会话页面」× 鲸鱼开关 × `page === hero` 四者全真才为 `true`。聊天会话页与非会话页一律为 `false`。
+- **生命周期**：不需要时**整层销毁**（引擎 + canvas + 图层 + 指针监听），不像信号场那样「留着但不画」。原因是鲸鱼只在 hero 出现、没有复用机会，而引擎持有 `ResizeObserver` / `IntersectionObserver` / window 指针监听，留着比拆掉更费。
+- **内容面被重建**（切页、重挂）时靠 `whaleEl.parentElement !== surface` 识别，整层重建：引擎绑的是旧 canvas 的观察器，搬过去也不会重新量。
+- **帧率**复用 `background.fps`（同一滑块），门控在引擎 `frame()` 开头：不到点只续 rAF、不绘制、**不更新 `this.last`**，于是跳过的时长会在下次真正绘制时进入累加器，运动按真实时间推进。
+- **鼠标交互**复用 `background.interact`：关闭时 `detachPointer()` 把这 5 个监听全部摘掉并把 `world.pointer.active` 归零（否则鱼群会一直朝最后位置聚）。
+- **降级**：`getContext("2d")` 为空、`ResizeObserver`/`IntersectionObserver` 缺失等任何构造期异常都被 `src/whale-field.js` 的 `try/catch` 兜住，图层保留并打上 `data-whale-fallback`，不冒泡、不影响信号场与标题。
+- **移植边界**：上游代码整段包在 `src/whale-engine.js` 的 IIFE 里，只导出 `WHALE_ENGINE`。这不是洁癖——`src/stage.js` 已有顶层 `clamp`，与移植块的 `var clamp` 同处一个闭包会互相覆盖。`test/whale-source.test.mjs` 钉住这个边界、五处适配标注与「Kanji / prefers-reduced-motion 不得回来」。
