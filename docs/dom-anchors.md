@@ -416,3 +416,36 @@ v0.2.5 按面板外扩 24px 铺，实机上露出两个问题：
 - **鼠标交互**复用 `background.interact`：关闭时 `detachPointer()` 把这 5 个监听全部摘掉并把 `world.pointer.active` 归零（否则鱼群会一直朝最后位置聚）。
 - **降级**：`getContext("2d")` 为空、`ResizeObserver`/`IntersectionObserver` 缺失等任何构造期异常都被 `src/whale-field.js` 的 `try/catch` 兜住，图层保留并打上 `data-whale-fallback`，不冒泡、不影响信号场与标题。
 - **移植边界**：上游代码整段包在 `src/whale-engine.js` 的 IIFE 里，只导出 `WHALE_ENGINE`。这不是洁癖——`src/stage.js` 已有顶层 `clamp`，与移植块的 `var clamp` 同处一个闭包会互相覆盖。`test/whale-source.test.mjs` 钉住这个边界、五处适配标注与「Kanji / prefers-reduced-motion 不得回来」。
+
+## 19. 设置页卡片化（v0.4.0）
+
+§16 记录的是 **v0.2.9 的「两个模块 + 一条分割线」结构**，其**行序已失效**（见下）；那一节里的「行 → 设置字段」绑定表仍然有效（字段名没变）。当前结构以本节为准。
+
+### 为什么卡片必须自绘
+
+DSH Web 前端用的是 **CSS Modules 哈希类名**。抽取 `app.asar` 内的
+`node_modules/@deepseek-ai/dsh-web-frontend/dist/assets/index-BNyAYEM7.css`（77,471 B）核对：
+341 个类选择器全部形如 `_divider_6nhg2_39` / `_root_1alm6_1` / `_section_…`，**不存在** `set*` / `card` / `group` 这类语义类名。
+
+由此两点结论：
+
+- `dsh-ascii-whales` 里写的 `className: "setCard setCardOpen"` **不是 DSH 的类**，在那里等于没生效（那块观感全靠它自己的内联样式）；
+- 本插件只能自绘卡片，用官方**主题 token**（不是官方类名）来保证深浅主题一致。
+
+### 当前结构
+
+| 层级 | 类名 | 说明 |
+| --- | --- | --- |
+| 页面 | `.mui-page` | 纵向 flex，`gap:16px` |
+| 卡片 | `.mui-card` | `border:1px solid var(--dsw-alias-border-l2)`、`border-radius:12px`、`padding:14px 16px`、**透明底** |
+| 卡片标题 | `.mui-card-title` | 13px / 600 / `var(--dsw-alias-label-primary)` |
+| 分组小标题 | `.mui-group-title` | 12px / 600 / `var(--dsw-alias-label-secondary)` |
+| 分组分割线 | `.mui-divider` | 1px，`margin:6px 0 2px`；**只在动效卡片内部出现** |
+
+- 三张卡片：总开关（`groupMaster`）/ 页面（`groupPages`）/ 动效（`groupEffects`）。**卡片之间不放分割线**，边框即分隔。
+- 动效卡片内五组（`groupBackground` / `groupHeadline` / `groupWhale` / `groupInput` / `groupFps`），**4 条分割线**；第一组上方不画线（卡片标题已经隔开）。
+- 辅助函数：`card(title, children)` 与 `group(title, first, ...rows)`。`group` 用**可变参数**而不是数组传行，避免 React 的「数组元素缺 key」警告。
+- 行序（v0.4.0 起）：总开关 1 行 → 页面 2 行 → 背景 4 行 → 标题 3 行 → 鲸鱼 2 行（+ 11 个数字框网格）→ 输入框 1 行 → 帧率 1 行。
+- 数字框网格 `.mui-numgrid` 固定两列 `repeat(2, minmax(0,1fr))`，`max-width:560px` 以下折成单列。
+- 两组文案去掉了「鲸鱼」前缀：`rowWhaleFishCount` = 小鱼数量 / Fish count，`rowWhaleGridOpacity` = 底纹网格透明度 / Grid opacity；其余 9 项保留前缀。
+- 结构由 `test/settings-page.test.mjs` 锁：卡片顺序、分组顺序、分割线**恰好 4 条**、完整行序、11 个数字框标签顺序，以及两组改名后的文案（防回退）。

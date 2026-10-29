@@ -219,16 +219,31 @@ html[data-mui-scope][data-mui-hud-glass][data-mui-dark] .hud-panel::before{
   }
 }
 
-/* ===== 「UI 动画」设置页 ===== */.mui-page{display:flex;flex-direction:column;gap:20px;padding:2px 0 24px;font-size:13px;line-height:20px;color:var(--dsw-alias-label-primary)}
+/* ===== 「UI 动画」设置页 ===== */.mui-page{display:flex;flex-direction:column;gap:16px;padding:2px 0 24px;font-size:13px;line-height:20px;color:var(--dsw-alias-label-primary)}
 .mui-lead{margin:0;color:var(--dsw-alias-label-secondary);font-size:13px;line-height:20px}
-.mui-section{display:flex;flex-direction:column;gap:4px;border:0;padding:0;margin:0;min-width:0}
-.mui-section-title{
-  margin:0 0 4px;font-size:12px;line-height:18px;font-weight:600;letter-spacing:.02em;
-  text-transform:none;color:var(--dsw-alias-label-secondary);
+/* 卡片（v0.4.0）：每个模块一张。只用主题 token 的**描边式**卡片（圆角 + 1px 边 + 透明底），
+   不引入新色块：浅色主题下用底色区分容易与页面底色接近而看不出边界，描边最稳。
+   注意：DSH Web 前端用的是 CSS Modules 哈希类名（_divider_6nhg2_39 这种），
+   没有可复用的官方卡片类，所以这里必须自绘——与插件「自绘控件」的既有做法一致。 */
+.mui-card{
+  display:flex;flex-direction:column;gap:2px;min-width:0;
+  padding:14px 16px;border:1px solid var(--dsw-alias-border-l2);border-radius:12px;
+  background:transparent;
 }
-/* 两个模块之间的分割线（v0.2.9）：视觉上沿用原 page-group 的 7% 细线，但留出更明显的间距。 */
+/* 卡片标题：比卡内行文字更大更重，用来与分组小标题拉开一级。 */
+.mui-card-title{
+  margin:0 0 6px;font-size:13px;line-height:20px;font-weight:600;
+  color:var(--dsw-alias-label-primary);
+}
+/* 分组小标题（v0.4.0）：动效卡片内部五组（背景 / 标题 / 鲸鱼 / 输入框 / 帧率）的抬头，
+   与卡片标题拉开二级：更小、更淡。 */
+.mui-group-title{
+  margin:8px 0 2px;font-size:12px;line-height:18px;font-weight:600;letter-spacing:.02em;
+  color:var(--dsw-alias-label-secondary);
+}
+/* 分组之间的分割线（v0.4.0 起只出现在动效卡片内部；卡片之间靠卡片边框分隔）。 */
 .mui-divider{
-  height:1px;margin:-4px 0;border:0;
+  height:1px;margin:6px 0 2px;border:0;
   background:color-mix(in srgb, var(--dsw-alias-label-primary) 9%, transparent);
 }
 .mui-row{display:flex;align-items:flex-start;gap:16px;padding:8px 0;min-width:0}
@@ -281,9 +296,14 @@ html[data-mui-scope][data-mui-hud-glass][data-mui-dark] .hud-panel::before{
    为什么不用 .mui-row：11 条单列行会把设置页拉得很长，而这些都是「一个数」的短参数，
    两列并排更省纵向空间。minmax(220px,1fr) 让窄窗口自动折成一列。 */
 .mui-numgrid{
-  display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  /* v0.4.0：固定两列（与最初选「数字输入框」时的两列排布一致）。
+     之前是 auto-fit，卡片不限宽后宽窗口会排到 3–4 列，与既定排布不符。
+     minmax(0,1fr) 保证长标签不会把列撑破（标签另有 ellipsis）。 */
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
   gap:4px 24px;padding:2px 0 4px;
 }
+/* 极窄视口下折成单列：两列会把标签与输入框挤在一起。 */
+@media (max-width:560px){.mui-numgrid{grid-template-columns:1fr}}
 .mui-num{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;padding:4px 0}
 .mui-num-label{
   font-size:13px;line-height:20px;color:var(--dsw-alias-label-primary);

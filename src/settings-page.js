@@ -154,16 +154,35 @@ export function SettingsPage(props) {
     onChange: (value) => set({ pages: { [key]: value } }),
   });
 
-  const section = (title, children) =>
+  /**
+   * 一张卡片（v0.4.0）。三个模块各一张，卡片之间不再放分割线——卡片边框本身就是分隔。
+   * 卡片标题比卡内分组小标题高一级：13px 半粗主色 vs 12px 次色。
+   */
+  const card = (title, children) =>
     h(
       "section",
-      { className: "mui-section" },
-      h("h3", { className: "mui-section-title" }, title),
+      { className: "mui-card" },
+      h("h3", { className: "mui-card-title" }, title),
       children,
     );
 
-  /** 两个模块之间的分割线（纯样式，不参与交互）。 */
-  const divider = () => h("div", { className: "mui-divider", role: "separator" });
+  /**
+   * 动效卡片里的一个分组（v0.4.0）。
+   *
+   * first 为真时**不**画分割线：卡片标题已经把这组与上面隔开，
+   * 再加一条线会变成「卡片标题 + 线 + 小标题」的三层堆叠。
+   *
+   * rows 用可变参数而不是数组，是为了让 React 看到多个 children 而不是数组，
+   * 免掉「数组元素缺 key」的警告。
+   */
+  const group = (title, first, ...rows) =>
+    h(
+      React.Fragment,
+      null,
+      first ? null : h("div", { className: "mui-divider", role: "separator" }),
+      h("h4", { className: "mui-group-title" }, title),
+      ...rows,
+    );
 
   const heroPage = pageSwitch("hero");
   const chatPage = pageSwitch("chat");
@@ -179,7 +198,7 @@ export function SettingsPage(props) {
     h("p", { className: "mui-lead" }, t("lead")),
 
     // 总开关
-    section(
+    card(
       t("groupMaster"),
       h(
         Row,
@@ -200,7 +219,7 @@ export function SettingsPage(props) {
       : null,
 
     // 模块 1：页面
-    section(
+    card(
       t("groupPages"),
       h(
         React.Fragment,
@@ -218,175 +237,194 @@ export function SettingsPage(props) {
       ),
     ),
 
-    divider(),
-
-    // 模块 2：动效本身
-    section(
+    // 模块 2：动效 → 动效卡片（v0.4.0）：卡内再分五组，组间用分割线 + 小标题
+    card(
       t("groupEffects"),
       h(
         React.Fragment,
         null,
-        h(
-          Row,
-          { label: t("rowTitleIdle"), hint: t("rowTitleIdleHint") },
-          h(Switch, {
-            label: t("rowTitleIdle"),
-            checked: state.title.idle,
-            disabled: off,
-            onChange: (value) => set({ title: { idle: value } }),
-          }),
+        group(
+          t("groupBackground"),
+          true,
+          h(
+            Row,
+            { label: t("rowBackgroundIdle"), hint: t("rowBackgroundIdleHint") },
+            h(Switch, {
+              label: t("rowBackgroundIdle"),
+              checked: state.background.idle,
+              disabled: off,
+              onChange: (value) => set({ background: { idle: value } }),
+            }),
+          ),
+          h(
+            Row,
+            { label: t("rowBackgroundInteract"), hint: t("rowBackgroundInteractHint") },
+            h(Switch, {
+              label: t("rowBackgroundInteract"),
+              checked: state.background.interact,
+              disabled: off,
+              onChange: (value) => set({ background: { interact: value } }),
+            }),
+          ),
+          h(
+            Row,
+            { label: t("rowIntensity"), hint: t("rowIntensityHint") },
+            h(Range, {
+              label: t("rowIntensity"),
+              value: state.background.intensity,
+              min: 0,
+              max: 1,
+              step: 0.05,
+              display: `${Math.round(state.background.intensity * 100)}%`,
+              disabled: off,
+              onChange: (value) => set({ background: { intensity: value } }),
+            }),
+          ),
+          // v0.3.0：背景动画速度（整片背景的时钟倍率，含涟漪）。与帧率上限完全独立。
+          h(
+            Row,
+            { label: t("rowBackgroundSpeed"), hint: t("rowBackgroundSpeedHint") },
+            h(Range, {
+              label: t("rowBackgroundSpeed"),
+              value: state.background.speed,
+              min: 0.25,
+              max: 2,
+              step: 0.25,
+              display: `${state.background.speed}×`,
+              disabled: off,
+              onChange: (value) => set({ background: { speed: value } }),
+            }),
+          ),
         ),
-        h(
-          Row,
-          { label: t("rowTitleInteract"), hint: t("rowTitleInteractHint") },
-          h(Switch, {
-            label: t("rowTitleInteract"),
-            checked: state.title.interact,
-            disabled: off,
-            onChange: (value) => set({ title: { interact: value } }),
-          }),
+        group(
+          t("groupHeadline"),
+          false,
+          h(
+            Row,
+            { label: t("rowTitleIdle"), hint: t("rowTitleIdleHint") },
+            h(Switch, {
+              label: t("rowTitleIdle"),
+              checked: state.title.idle,
+              disabled: off,
+              onChange: (value) => set({ title: { idle: value } }),
+            }),
+          ),
+          h(
+            Row,
+            { label: t("rowTitleInteract"), hint: t("rowTitleInteractHint") },
+            h(Switch, {
+              label: t("rowTitleInteract"),
+              checked: state.title.interact,
+              disabled: off,
+              onChange: (value) => set({ title: { interact: value } }),
+            }),
+          ),
+          // v0.3.0：标题动画速度。范围与步长镜像 settings.js 的 SPEED_RANGE；
+          // 这里写常量而不是 import，是因为设置页测试会剥掉 import 行后再渲染组件。
+          h(
+            Row,
+            { label: t("rowTitleSpeed"), hint: t("rowTitleSpeedHint") },
+            h(Range, {
+              label: t("rowTitleSpeed"),
+              value: state.title.speed,
+              min: 0.25,
+              max: 2,
+              step: 0.25,
+              display: `${state.title.speed}×`,
+              disabled: off,
+              onChange: (value) => set({ title: { speed: value } }),
+            }),
+          ),
         ),
-        // v0.3.0：标题动画速度。范围与步长镜像 settings.js 的 SPEED_RANGE；
-        // 这里写常量而不是 import，是因为设置页测试会剥掉 import 行后再渲染组件。
-        h(
-          Row,
-          { label: t("rowTitleSpeed"), hint: t("rowTitleSpeedHint") },
-          h(Range, {
-            label: t("rowTitleSpeed"),
-            value: state.title.speed,
-            min: 0.25,
-            max: 2,
-            step: 0.25,
-            display: `${state.title.speed}×`,
-            disabled: off,
-            onChange: (value) => set({ title: { speed: value } }),
-          }),
-        ),
-        h(
-          Row,
-          { label: t("rowBackgroundIdle"), hint: t("rowBackgroundIdleHint") },
-          h(Switch, {
-            label: t("rowBackgroundIdle"),
-            checked: state.background.idle,
-            disabled: off,
-            onChange: (value) => set({ background: { idle: value } }),
-          }),
-        ),
-        h(
-          Row,
-          { label: t("rowBackgroundInteract"), hint: t("rowBackgroundInteractHint") },
-          h(Switch, {
-            label: t("rowBackgroundInteract"),
-            checked: state.background.interact,
-            disabled: off,
-            onChange: (value) => set({ background: { interact: value } }),
-          }),
-        ),
-        h(
-          Row,
-          { label: t("rowGlass"), hint: t("rowGlassHint") },
-          h(Switch, { label: t("rowGlass"), ...glassEnabled }),
-        ),
-        h(
-          Row,
-          { label: t("rowIntensity"), hint: t("rowIntensityHint") },
-          h(Range, {
-            label: t("rowIntensity"),
-            value: state.background.intensity,
-            min: 0,
-            max: 1,
-            step: 0.05,
-            display: `${Math.round(state.background.intensity * 100)}%`,
-            disabled: off,
-            onChange: (value) => set({ background: { intensity: value } }),
-          }),
-        ),
-        // v0.3.0：背景动画速度（整片背景的时钟倍率，含涟漪）。与帧率上限完全独立。
-        h(
-          Row,
-          { label: t("rowBackgroundSpeed"), hint: t("rowBackgroundSpeedHint") },
-          h(Range, {
-            label: t("rowBackgroundSpeed"),
-            value: state.background.speed,
-            min: 0.25,
-            max: 2,
-            step: 0.25,
-            display: `${state.background.speed}×`,
-            disabled: off,
-            onChange: (value) => set({ background: { speed: value } }),
-          }),
-        ),
-        // v0.2.11：重绘帧率上限。范围与步长镜像 settings.js 的 FPS_RANGE，
-        // 这里写常量而不是 import，是因为设置页测试会剥掉 import 行后再渲染组件。
-        h(
-          Row,
-          { label: t("rowFps"), hint: t("rowFpsHint") },
-          h(Range, {
-            label: t("rowFps"),
-            value: state.background.fps,
-            min: 15,
-            max: 60,
-            step: 5,
-            display: `${state.background.fps} fps`,
-            disabled: off,
-            onChange: (value) => set({ background: { fps: value } }),
-          }),
-        ),
-        // ===== v0.4.0：鲸鱼动画（从 dsh-ascii-whales 迁移）=====
-        // 并入本模块末尾，不另起模块：它和上面几项一样是「动效本身」的一部分。
-        h(
-          Row,
-          { label: t("rowWhaleEnabled"), hint: t("rowWhaleEnabledHint") },
-          h(Switch, {
-            label: t("rowWhaleEnabled"),
-            checked: whale.enabled,
-            disabled: off,
-            onChange: (value) => set({ whale: { enabled: value } }),
-          }),
-        ),
-        // 字符风格固定 ASCII，故这里只有「种类」一个分段选择，没有字形切换。
-        h(
-          Row,
-          { label: t("rowWhaleSpecies"), hint: t("rowWhaleSpeciesHint") },
-          h(Segmented, {
-            label: t("rowWhaleSpecies"),
-            value: whale.species,
-            disabled: off,
-            options: [
-              { value: "humpback", label: t("whaleHumpback") },
-              { value: "orca", label: t("whaleOrca") },
-            ],
-            onChange: (value) => set({ whale: { species: value } }),
-          }),
-        ),
-        h("p", { className: "mui-row-hint" }, t("whaleNumbersHint")),
-        h(
-          "div",
-          { className: "mui-numgrid" },
-          WHALE_NUMBERS.map((field) =>
-            h(
-              "label",
-              { key: field.key, className: "mui-num" },
-              h("span", { className: "mui-num-label" }, t(field.row)),
-              h("input", {
-                type: "number",
-                className: "mui-num-input",
-                "aria-label": t(field.row),
-                min: field.min,
-                max: field.max,
-                step: field.step,
-                value: whale[field.key] === undefined ? "" : whale[field.key],
-                disabled: off ? true : undefined,
-                onChange: (event) => {
-                  // 清空输入框时不要写回：valueAsNumber 会变成 NaN，
-                  // 而归一化会把非法值换回默认，等于「一删就跳回默认」，手感很糟。
-                  const next = event.target.valueAsNumber;
-                  if (event.target.value !== "" && Number.isFinite(next)) {
-                    set({ whale: { [field.key]: next } });
-                  }
-                },
-              }),
+        group(
+          t("groupWhale"),
+          false,
+          // ===== v0.4.0：鲸鱼动画（从 dsh-ascii-whales 迁移）=====
+          // 独立成一个分组而不是并进背景组：两者是互不相干的渲染管线，
+          // 而且这组有 13 行，混进背景组会把上面 4 行彻底淹没。
+          h(
+            Row,
+            { label: t("rowWhaleEnabled"), hint: t("rowWhaleEnabledHint") },
+            h(Switch, {
+              label: t("rowWhaleEnabled"),
+              checked: whale.enabled,
+              disabled: off,
+              onChange: (value) => set({ whale: { enabled: value } }),
+            }),
+          ),
+          // 字符风格固定 ASCII，故这里只有「种类」一个分段选择，没有字形切换。
+          h(
+            Row,
+            { label: t("rowWhaleSpecies"), hint: t("rowWhaleSpeciesHint") },
+            h(Segmented, {
+              label: t("rowWhaleSpecies"),
+              value: whale.species,
+              disabled: off,
+              options: [
+                { value: "humpback", label: t("whaleHumpback") },
+                { value: "orca", label: t("whaleOrca") },
+              ],
+              onChange: (value) => set({ whale: { species: value } }),
+            }),
+          ),
+          h("p", { className: "mui-row-hint" }, t("whaleNumbersHint")),
+          h(
+            "div",
+            { className: "mui-numgrid" },
+            WHALE_NUMBERS.map((field) =>
+              h(
+                "label",
+                { key: field.key, className: "mui-num" },
+                h("span", { className: "mui-num-label" }, t(field.row)),
+                h("input", {
+                  type: "number",
+                  className: "mui-num-input",
+                  "aria-label": t(field.row),
+                  min: field.min,
+                  max: field.max,
+                  step: field.step,
+                  value: whale[field.key] === undefined ? "" : whale[field.key],
+                  disabled: off ? true : undefined,
+                  onChange: (event) => {
+                    // 清空输入框时不要写回：valueAsNumber 会变成 NaN，
+                    // 而归一化会把非法值换回默认，等于「一删就跳回默认」，手感很糟。
+                    const next = event.target.valueAsNumber;
+                    if (event.target.value !== "" && Number.isFinite(next)) {
+                      set({ whale: { [field.key]: next } });
+                    }
+                  },
+                }),
+              ),
             ),
+          ),
+        ),
+        group(
+          t("groupInput"),
+          false,
+          h(
+            Row,
+            { label: t("rowGlass"), hint: t("rowGlassHint") },
+            h(Switch, { label: t("rowGlass"), ...glassEnabled }),
+          ),
+        ),
+        group(
+          t("groupFps"),
+          false,
+          // v0.2.11：重绘帧率上限。范围与步长镜像 settings.js 的 FPS_RANGE，
+          // 这里写常量而不是 import，是因为设置页测试会剥掉 import 行后再渲染组件。
+          h(
+            Row,
+            { label: t("rowFps"), hint: t("rowFpsHint") },
+            h(Range, {
+              label: t("rowFps"),
+              value: state.background.fps,
+              min: 15,
+              max: 60,
+              step: 5,
+              display: `${state.background.fps} fps`,
+              disabled: off,
+              onChange: (value) => set({ background: { fps: value } }),
+            }),
           ),
         ),
       ),

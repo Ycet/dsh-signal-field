@@ -138,18 +138,26 @@ test('locale: 两侧都声明了作用范围，且描述不再宣传已移出的
   assert.equal(/plugin manager|scheduled-task/i.test(en.meta.description), false);
 });
 
-test('settings page: 两个模块 + 一条分割线，旧的按页效果行已下线', async () => {
+test('settings page: 三张卡片 + 动效卡内五组，旧的按页效果行已下线', async () => {
   const source = await readFile(join(ROOT, 'src', 'settings-page.js'), 'utf8');
-  // 模块 1「页面」与模块 2「动效」都必须在，且中间有分割线
-  assert.equal(source.includes('t("groupPages")'), true, '缺少「页面」模块');
-  assert.equal(source.includes('t("groupEffects")'), true, '缺少「动效」模块');
-  assert.equal(source.includes('"mui-divider"'), true, '缺少分割线的样式类');
-  assert.equal(source.includes('divider(),'), true, '缺少分割线的实际调用');
-  // 位置关系看 JSX 里的调用点，而不是帮助函数的定义位置
-  const dividerAt = source.indexOf('divider(),');
-  assert.ok(source.indexOf('t("groupPages")') < dividerAt, '分割线必须在「页面」之后');
-  assert.ok(dividerAt < source.indexOf('t("groupEffects")'), '分割线必须在「动效」之前');
-  // 模块 2 的六项（5 个开关 + 强度滑块）一个不少
+  // v0.4.0：模块改成卡片。三张卡：总开关 / 页面 / 动效
+  assert.equal(source.includes('t("groupMaster")'), true, '缺少「总开关」卡片');
+  assert.equal(source.includes('t("groupPages")'), true, '缺少「页面」卡片');
+  assert.equal(source.includes('t("groupEffects")'), true, '缺少「动效」卡片');
+  assert.equal(source.includes('"mui-card"'), true, '缺少卡片的样式类');
+  assert.equal(source.includes('"mui-card-title"'), true, '缺少卡片标题的样式类');
+  assert.equal(source.includes('card('), true, '缺少卡片的实际调用');
+  // 动效卡内五组：分割线 + 小标题
+  for (const key of ['groupBackground', 'groupHeadline', 'groupWhale', 'groupInput', 'groupFps']) {
+    assert.equal(source.includes(`t("${key}")`), true, `缺少分组小标题：${key}`);
+  }
+  assert.equal(source.includes('"mui-group-title"'), true, '缺少分组小标题的样式类');
+  assert.equal(source.includes('"mui-divider"'), true, '缺少分组分割线的样式类');
+  // 旧结构残留检查：v0.2.9 的 section 级样式与模块间的那一条 divider() 调用都该消失
+  assert.equal(source.includes('"mui-section"'), false, '卡片化后不应再有 mui-section');
+  assert.equal(source.includes('"mui-section-title"'), false, '卡片化后不应再有 mui-section-title');
+  assert.equal(source.includes('divider(),'), false, '模块间不再调用 divider()（卡片边框即分隔）');
+  // 动效卡片的六项（4 个开关 + 2 个滑块）一个不少
   for (const key of [
     'rowTitleIdle',
     'rowTitleInteract',
@@ -158,7 +166,7 @@ test('settings page: 两个模块 + 一条分割线，旧的按页效果行已�
     'rowGlass',
     'rowIntensity',
   ]) {
-    assert.equal(source.includes(`t("${key}")`), true, `模块 2 缺少：${key}`);
+    assert.equal(source.includes(`t("${key}")`), true, `动效卡片缺少：${key}`);
   }
   // 已下线的行：HUD 独立开关、模糊半径滑块、按页效果行
   for (const gone of ['rowHudGlass', 'rowBlur', 'rowHeroTitle', 'rowHeroGlass', 'rowChatGlass']) {

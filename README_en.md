@@ -9,6 +9,9 @@
 
 An animated-UI plugin for DeepSeek Harness (DSH) on Web and desktop: it brings a dithered signal-field backdrop, a blueprint headline type effect, frosted-glass composer surfaces and an ASCII whale animation to the new-session page and chat sessions, and extends the same backdrop and glass to the HUD panel — each toggleable under Settings → UI Motion.
 
+> [!TIP]
+> The whale animation in this plugin is based on **[dsh-ascii-whales](https://github.com/Chael-Chael/dsh-ascii-whales)** — thanks to its author **Chael-Chael** for open-sourcing it. Full upstream attribution, licences and the list of adaptations are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
 > [!NOTE]
 > The scope is exactly two kinds of page: the **new session** page and the **chat session** page. The plugin manager, the scheduled-task page and any other panel page keep the stock DSH look: since v0.1.1 the plugin creates no layer, writes no scope attribute and injects nothing there, and it destroys an existing layer and canvas when you navigate away.
 >
@@ -54,15 +57,26 @@ v0.2.6 fixes two remaining artefacts: the layer used to be laid out as "panel re
 
 ## Settings page
 
-Settings → UI Motion (a `settings.section` entry with id `signal-field`, order 58). Since v0.2.9 the page has two modules separated by a divider:
+Settings → UI Motion (a `settings.section` entry with id `signal-field`, order 58). Since v0.4.0 the page is **three cards** with no divider between them (the card border does that job); the **Effects** card is then split into five groups by a divider plus a small heading.
 
-| Module | Rows |
+| Card | Content |
 | --- | --- |
-| Master (above both modules) | Enable all effects |
+| **Master** | Enable all effects (switch, plus a one-line hint) |
 | **Pages** | New session page / Chat session page (each with a one-line hint) |
-| **Effects** | Headline default motion / Headline pointer interaction / Headline animation speed (slider, **1×** by default) / Backdrop default motion / Backdrop pointer interaction / Composer frosted glass / Backdrop intensity (slider, **30%** by default) / Backdrop animation speed (slider, **1×** by default) / Animation redraw cap (slider, **30 fps** by default) / **Whale animation** / Whale species (segmented: humpback / orca) / 11 whale number fields (number inputs) |
+| **Effects** | see the five groups below |
 
-- **1 master switch + 8 switches + 4 sliders + 1 segmented control + 11 number inputs**: module 1 chooses which pages show the effects, module 2 tunes the effects themselves.
+The five groups inside the **Effects** card, top to bottom:
+
+| Group | Rows | Controls |
+| --- | --- | --- |
+| **Backdrop** | Backdrop default motion / Backdrop pointer interaction / Backdrop intensity (**30%**) / Backdrop animation speed (**1×**) | switch / switch / slider / slider |
+| **Headline** | Headline default motion / Headline pointer interaction / Headline animation speed (**1×**) | switch / switch / slider |
+| **Whales** | Whale animation / Whale species (humpback / orca) / 11 number fields (two-column number inputs) | switch / segmented / number |
+| **Composer** | Composer frosted glass | switch |
+| **Frame rate** | Animation redraw cap (**30 fps**, shared by the field and the whales) | slider |
+
+- **1 master switch + 8 switches + 4 sliders + 1 segmented control + 11 number inputs**: the master card is global, the pages card chooses where the effects run, the effects card tunes them.
+- **Row order changed in v0.4.0**: it used to be headline → backdrop → composer → frame rate → whales; it now follows the five groups above (backdrop → headline → whales → composer → frame rate).
 - Turning a page off disables everything on that page (signal field, whales, blueprint headline, composer glass) and returns it to the stock DSH look; with "New session page" off neither the headline nor the whales appear.
 - Whales are subordinate to the page switches: the master switch, "New session page" and "Whale animation" must **all** be on before anything is rendered.
 - **The HUD panel has no switch of its own**: it follows the "Chat session page" switch, so turning the chat page off also reverts the panel; it is *not* controlled by "Composer frosted glass" (that switch only governs the composer card).
@@ -70,8 +84,8 @@ Settings → UI Motion (a `settings.section` entry with id `signal-field`, order
 - **Animation redraw cap** (new in v0.2.11; 15–60 fps, step 5, **30** by default) limits how many times per second the **signal field and the whales** redraw in order to save power (since v0.4.0 the whales obey it too, which is why the row was renamed from "Redraw frame-rate cap"). It is **independent of image quality**: grain size, glass strength, colours and canvas size are unchanged — only the draw rate moves. While the window is unfocused (another app in front) it drops to 8 fps and returns to the configured value the moment the window regains focus; while the pointer moves or clicks on the field it is temporarily uncapped for about 1.2 s so trails never show steps. Default 30 fps halves redraws on a 60 Hz display and quarters them on a 120 Hz one. The whales advance on **wall-clock time**, so a lower cap only draws them less often — it never makes them swim slower.
 - **Headline animation speed** (new in v0.3.0; 0.25×–2×, step 0.25, **1×** by default) sets how fast the sweep runner, the reveal lens and the hover-to-outline transition run; **1× is the original feel**. It applies live while dragging: the headline never flickers, never replays, and its glyph textures are never re-baked. Pointer following and drag spring-back deliberately ignore it, otherwise the feel would degrade as you slow it down.
 - **Backdrop animation speed** (new in v0.3.0; 0.25×–2×, step 0.25, **1×** by default) is a single multiplier for the whole backdrop: wave drift, ripple wobble and ripple spread all scale together, and **ripples live correspondingly shorter** (1.6s ÷ factor) — that follows from using one unified multiplier. The HUD panel's backing field follows the same factor. It is fully independent of the redraw cap: high speed with a low cap looks steppy, and that trade-off is yours to make.
-- The headline only exists on the new session page, so the two headline rows are effectively hero-only.
-- A static note at the bottom of module 1 repeats that effects only run on the new session and chat pages; the plugin manager and automation pages keep the stock DSH look.
+- The headline only exists on the new session page, so the three rows in the **Headline** group are effectively hero-only.
+- Scope: the effects run only on the new session and chat pages; the plugin manager, the automation page and any other panel page keep the stock DSH look. That rule is expressed by the plugin's behaviour and by this document — since v0.2.10 the settings page **no longer** shows a static note about it.
 - Stored in browser `localStorage` under `dsh-signal-field:v1` and restored after a restart; "Restore defaults" clears it. The old per-page × per-effect structure is mapped semantically onto the new model (an old default intensity of 55% follows the new 30% default; hand-tuned values are kept).
 - Turning the master switch off destroys the canvas, stops animation and removes every injected scope attribute, restoring the stock DSH look.
 
@@ -170,7 +184,7 @@ The plugin only reads the host and never mutates DSH state, but it does depend o
 9. Drag the headline to the page corners and over the composer: it stays visible and springs back on release.
 10. Regression: backdrops/headline/composer glass on both pages, light/dark switching, every switch and slider applying immediately and surviving a refresh; the plugin manager and scheduled-task page still keep the stock DSH look.
 11. With the master switch off: no `data-mui*` attribute remains on `document.documentElement`, and `<style data-plugin="dsh-signal-field:styles">` is gone.
-12. Settings structure (v0.2.9): only the "Pages" and "Effects" modules plus one divider; turning "Chat session page" off returns the chat page to the stock look and the HUD panel loses its glass too; backdrop intensity shows 30% by default.
+12. Settings structure (v0.4.0): three rounded, outlined cards (Master / Pages / Effects) with **no** horizontal rules between them; inside the Effects card the five groups each have a small heading and there are exactly 4 rules between them; the order is backdrop → headline → whales → composer → frame rate (different from before, so it takes re-learning); the whale group has a fixed two-column number grid whose rows "Fish count" and "Grid opacity" no longer carry a "Whale" prefix. Turning "Chat session page" off returns the chat page to the stock look and the HUD panel loses its glass too; backdrop intensity shows 30% by default.
 13. Power regression (v0.2.11): at the default "30 fps" cap the picture should be visually indistinguishable from 60 fps; focus another app and come back — the backdrop resumes seamlessly with no jump and no freeze; flick the pointer quickly across the field and the trail still tracks the cursor (the cap is lifted during interaction). The `--- performance ---` block at the end of the self-check text reports measured `fps` / `avgRenderMs` / `renders` / `skips` for direct comparison.
 14. Speed regression (v0.3.0): at the default 1× on both sliders the look must match v0.2.11 exactly. Dragging "Headline animation speed" should speed the sweep up and down smoothly **without the runner jumping position**, and the headline must **not flicker or replay**; dragging "Backdrop animation speed" should move wave, ripple wobble and ripple spread together, with the HUD backing field following. Crank the backdrop speed to 2× while capping redraws at 15 fps — choppiness is acceptable, tearing or a frozen picture is not. The `speeds: title=…x background=…x` line in the self-check text must match the slider values.
 15. HUD backing-field regression (v0.3.1): opening a chat session must show the strip behind the panel **at full strength immediately**, with no "flat colour first, then a reveal spreading out from the centre" delay; the content area keeps its 1.8 s reveal and 0.5 s fade (the two looking different is intentional). Sweeping across the strip should leave a trail and clicking should ripple; turning "Backdrop pointer interaction" off must stop both the strip and the content area at once; while the panel has no geometry (just opened, zero size) the strip must pause rather than keep animating.

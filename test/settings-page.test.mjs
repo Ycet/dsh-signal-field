@@ -73,9 +73,17 @@ const newState = () => ({
   },
 });
 
-/** 深度遍历：收集模块标题与行标签，保持出现顺序。 */
+/**
+ * 深度遍历：收集卡片标题、分组小标题、行标签，保持出现顺序。
+ *
+ * v0.4.0：设置页从「两个模块」改成「三张卡片 + 动效卡内五组」，
+ * 于是原来的 titles（mui-section-title）拆成两级：
+ *   cards  —— 卡片标题（总开关 / 页面 / 动效）
+ *   groups —— 卡内分组小标题（背景 / 标题 / 鲸鱼 / 输入框 / 帧率）
+ */
 function collect(tree) {
-  const titles = [];
+  const cards = [];
+  const groups = [];
   const rows = [];
   const numbers = [];
   const dividers = [];
@@ -85,7 +93,8 @@ function collect(tree) {
     const cls = node.props && node.props.className;
     // createElement 的子节点是数组，文本标签取第一个即可
     const text = Array.isArray(node.children) ? node.children[0] : node.children;
-    if (cls === 'mui-section-title') titles.push(text);
+    if (cls === 'mui-card-title') cards.push(text);
+    if (cls === 'mui-group-title') groups.push(text);
     if (cls === 'mui-row-label') rows.push(text);
     // v0.4.0：两列数字网格里的标签是单独一类，不能混进 rows（否则行序断言失去意义）
     if (cls === 'mui-num-label') numbers.push(text);
@@ -94,41 +103,56 @@ function collect(tree) {
     if (Array.isArray(node.children)) node.children.forEach(walk);
   };
   walk(tree);
-  return { titles, rows, numbers, dividers };
+  return { cards, groups, rows, numbers, dividers };
 }
 
-test('设置页: 总开关之后是「页面」与「动效」两个模块', async () => {
-  const { titles } = collect(await renderPage(newState()));
-  assert.deepEqual(titles, ['groupMaster', 'groupPages', 'groupEffects']);
+test('设置页: 三张卡片——总开关 / 页面 / 动效', async () => {
+  const { cards } = collect(await renderPage(newState()));
+  // 总开关单独一张卡，其余两张按「页面 → 动效」排列
+  assert.deepEqual(cards, ['groupMaster', 'groupPages', 'groupEffects']);
 });
 
-test('设置页: 两个模块之间恰好一条分割线', async () => {
+test('设置页: 动效卡片内五个分组，顺序为背景→标题→鲸鱼→输入框→帧率', async () => {
+  const { groups } = collect(await renderPage(newState()));
+  assert.deepEqual(groups, [
+    'groupBackground',
+    'groupHeadline',
+    'groupWhale',
+    'groupInput',
+    'groupFps',
+  ]);
+});
+
+test('设置页: 卡片之间没有分割线，动效卡内恰好 4 条（5 组之间的 4 个间隙）', async () => {
   const { dividers } = collect(await renderPage(newState()));
-  assert.equal(dividers.length, 1, '只允许一条分割线');
-  assert.equal(dividers[0].role, 'separator');
+  assert.equal(dividers.length, 4, '只允许动效卡内的 4 条分组分割线');
+  for (const props of dividers) assert.equal(props.role, 'separator');
 });
 
-test('设置页: 行顺序符合需求（页面两行 + 动效十项 + 鲸鱼两行）', async () => {
+test('设置页: 行顺序符合卡片分组（总开关 1 + 页面 2 + 动效 12）', async () => {
   const { rows } = collect(await renderPage(newState()));
   assert.deepEqual(rows, [
+    // 卡片 1：总开关
     'master',
+    // 卡片 2：页面
     'rowHeroPage',
     'rowChatPage',
-    'rowTitleIdle',
-    'rowTitleInteract',
-    // v0.3.0：标题动画速度紧跟标题交互行
-    'rowTitleSpeed',
+    // 卡片 3：动效 —— 分组 1「背景」
     'rowBackgroundIdle',
     'rowBackgroundInteract',
-    'rowGlass',
     'rowIntensity',
-    // v0.3.0：背景动画速度插在强度与帧率之间
     'rowBackgroundSpeed',
-    // v0.2.11 新增：重绘帧率上限
-    'rowFps',
-    // v0.4.0：鲸鱼两行（开关 + 种类）追加在「动效」模块末尾，不新增模块与分割线
+    // 分组 2「标题」
+    'rowTitleIdle',
+    'rowTitleInteract',
+    'rowTitleSpeed',
+    // 分组 3「鲸鱼」（11 个数字项在网格里，由下面的 numbers 断言负责）
     'rowWhaleEnabled',
     'rowWhaleSpecies',
+    // 分组 4「输入框」
+    'rowGlass',
+    // 分组 5「帧率」
+    'rowFps',
   ]);
 });
 
@@ -176,6 +200,32 @@ test('设置页: 鲸鱼数字项都是 number 输入且带 min/max/step', async 
     assert.equal(typeof props.max, 'number', `${props['aria-label']} 缺少 max`);
     assert.equal(typeof props.step, 'number', `${props['aria-label']} 缺少 step`);
     assert.equal(typeof props.onChange, 'function');
+  }
+});
+
+test('设置页: 小鱼数量 / 底纹网格透明度 不带「鲸鱼」前缀，其余 9 项保留', async () => {
+  const zh = JSON.parse(await readFile(join(ROOT, 'locale', 'zh.json'), 'utf8')).runtime;
+  const en = JSON.parse(await readFile(join(ROOT, 'locale', 'en.json'), 'utf8')).runtime;
+  // v0.4.0：这两项按需求去掉了前缀
+  assert.equal(zh.rowWhaleFishCount, '小鱼数量');
+  assert.equal(zh.rowWhaleGridOpacity, '底纹网格透明度');
+  assert.equal(en.rowWhaleFishCount, 'Fish count');
+  assert.equal(en.rowWhaleGridOpacity, 'Grid opacity');
+  // 其余 9 项仍保留「鲸鱼」前缀（本轮只改点名的那两项）
+  for (const key of [
+    'rowWhaleEnabled',
+    'rowWhaleSpecies',
+    'rowWhaleCount',
+    'rowWhaleSpeed',
+    'rowWhaleBodySwing',
+    'rowWhaleTurnAgility',
+    'rowWhaleTailFrequency',
+    'rowWhaleSize',
+    'rowWhaleOpacity',
+    'rowWhaleGridScale',
+    'rowWhaleWake',
+  ]) {
+    assert.ok(zh[key].startsWith('鲸鱼'), `${key} 应保留「鲸鱼」前缀，实际：${zh[key]}`);
   }
 });
 

@@ -92,8 +92,8 @@ test('样式: 补场去掉淡入，内容区仍保留 0.5s 过渡', () => {
 test('设置: v0.3.1 的「33 个 runtime 键」基线仍成立，其后只做过加法', async () => {
   const zh = JSON.parse(await readFile(new URL('../locale/zh.json', import.meta.url), 'utf8')).runtime;
   const en = JSON.parse(await readFile(new URL('../locale/en.json', import.meta.url), 'utf8')).runtime;
-  // v0.3.1 收尾时是 33；v0.4.0 加入鲸鱼 18 键 → 51。这里钉住总数与中英同序，
-  // 任何一侧漏译或顺序错位都会红。
-  assert.equal(Object.keys(zh).length, 51);
+  // v0.3.1 收尾时是 33；v0.4.0 加入鲸鱼 18 键 → 51；同日补 5 个分组小标题 → 56。
+  // 这里钉住总数与中英同序，任何一侧漏译或顺序错位都会红。
+  assert.equal(Object.keys(zh).length, 56);
   assert.deepEqual(Object.keys(zh), Object.keys(en));
 });
