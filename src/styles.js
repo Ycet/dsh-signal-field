@@ -287,8 +287,15 @@ html[data-mui-scope][data-mui-hud-glass][data-mui-dark] .hud-panel::before{
   transition:background .15s var(--ds-ease-in-out, ease);
 }
 .mui-seg-item:hover{background:color-mix(in srgb, var(--dsw-alias-label-primary) 7%, transparent)}
+/* v0.4.1 修复：这里原本把前景写死成白色（#fff），深色主题下就成了「白底白字」（对比度约 1.0:1）。
+   成因是 brand-primary 并非蓝色强调色，而是**主题内对比度最高的中性色**：
+   浅色 = neutral-bluish-1000(#0f1115)、深色 = neutral-bluish-50(#f9fafb)；
+   与之配对的前景令牌是 label-primary-foreground（浅 #fff / 深 #0f1115，即恒为主题反色）。
+   因此凡是拿 brand-primary 当背景的规则，前景必须用该令牌，不得写死颜色。
+   约束由 test/theme-contrast.test.mjs 守住。 */
 .mui-seg-item[aria-pressed="true"]{
-  background:var(--dsw-alias-brand-primary);border-color:var(--dsw-alias-brand-primary);color:#fff;
+  background:var(--dsw-alias-brand-primary);border-color:var(--dsw-alias-brand-primary);
+  color:var(--dsw-alias-label-primary-foreground);
 }
 .mui-seg-item:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
 .mui-seg-item:disabled{opacity:.5;cursor:not-allowed}

@@ -392,7 +392,7 @@ v0.2.5 按面板外扩 24px 铺，实机上露出两个问题：
 
 - 设置页移除三处界面内容：「动效仅在新增会话页与聊天会话页生效…」作用范围说明、「与 dsh-ascii-whales 同时开启时…」共存说明、以及整块「自检信息」（连同样式与语言键）。
 - `stage.diagnose()` 与设置页 inject 上的 `diagnose` **保留**：界面不再展示，但仍可在需要时通过注入面调用。
-- README 增加「演示」区，素材在 v0.2.10 内调整过两次：先是用 H.264 MP4，随后替换为 `docs/demo.gif`（原始录屏 1470×864 / 78MB 压缩为 720×423 / 12fps / 25MB），最终改为两张静态截图 `docs/screenshot-hero.png`（新增会话页）与 `docs/screenshot-chat.png`（聊天会话页）；GIF 与 MP4 均已移出仓库。（v0.3.0 起「演示」区再次改为两张主题动图 `docs/light_mode_preview.gif` 与 `docs/dark_mode_preview.gif`；上文的静态截图已不再被 README 引用，但文件仍保留在 `docs/` 作为历史素材。）
+- README 增加「演示」区，素材在 v0.2.10 内调整过两次：先是用 H.264 MP4，随后替换为 `docs/demo.gif`（原始录屏 1470×864 / 78MB 压缩为 720×423 / 12fps / 25MB），最终改为两张静态截图 `docs/screenshot-hero.png`（新增会话页）与 `docs/screenshot-chat.png`（聊天会话页）；GIF 与 MP4 均已移出仓库。（v0.3.0 起「演示」区再次改为两张主题动图 `docs/light_mode_preview.gif` 与 `docs/dark_mode_preview.gif`；上文的静态截图已不再被 README 引用，并已随演示动图更新一并从 `docs/` 删除。）
 - 截图处理：原图 2378×1708 RGBA（alpha 全 255）转 RGB 后仅做 `optimize`，282 KB / 422 KB。**不要降采样**——抖动细颗粒被重采样成噪点状灰阶后反而涨到 700 KB～1 MB，原尺寸保留硬边抖动图案压缩率更高。
 
 ## 18. 鲸鱼图层（v0.4.0 新增）
@@ -449,3 +449,21 @@ DSH Web 前端用的是 **CSS Modules 哈希类名**。抽取 `app.asar` 内的
 - 数字框网格 `.mui-numgrid` 固定两列 `repeat(2, minmax(0,1fr))`，`max-width:560px` 以下折成单列。
 - 两组文案去掉了「鲸鱼」前缀：`rowWhaleFishCount` = 小鱼数量 / Fish count，`rowWhaleGridOpacity` = 底纹网格透明度 / Grid opacity；其余 9 项保留前缀。
 - 结构由 `test/settings-page.test.mjs` 锁：卡片顺序、分组顺序、分割线**恰好 4 条**、完整行序、11 个数字框标签顺序，以及两组改名后的文案（防回退）。
+
+## 20. 设置页分段控件的主题前景色（v0.4.1）
+
+「设置 → UI 动画 → 鲸鱼种类」的自绘分段控件（`.mui-seg-item[aria-pressed="true"]`）在 v0.4.0 里把前景写死成 `#fff`，深色主题下呈现「白底白字」，选中项文字完全不可见（对比度约 1.0:1）。
+
+**根因**：DSH 的 `--dsw-alias-brand-primary` **不是蓝色强调色**，而是「主题内对比度最高的中性色」。定义取自 `app.asar` 内的 `@deepseek-ai/dsh-client-ui-theme/lib/client.js`：
+
+| 令牌 | 浅色主题 | 深色主题 |
+| --- | --- | --- |
+| `--dsw-alias-brand-primary` | `--dsw-static-neutral-bluish-1000` = `#0f1115` | `--dsw-static-neutral-bluish-50` = `#f9fafb` |
+| `--dsw-alias-label-primary-foreground` | `#fff` | `#0f1115` |
+| `--dsw-alias-label-primary` | `#0f1115` | `#f9fafb` |
+
+浅色下「黑底白字」碰巧正确；深色下背景翻成近白，写死的 `#fff` 便与背景同色。修复是把前景换成配对的 `--dsw-alias-label-primary-foreground`（恒为主题反色）：深色 `#0f1115` on `#f9fafb` ≈ 18.1:1，浅色 `#fff` on `#0f1115` ≈ 18.9:1。
+
+- **约定**：凡以 `brand-primary` 作背景的规则，前景一律用 `label-primary-foreground`，不写死颜色。同一令牌用作 `outline` / `accent-color` 时不受此限（不承载文字）。
+- **未受影响的同类控件**：`.mui-switch` 选中态用 `brand-primary` 作轨道、`bg-layer-1` 作旋钮，深色主题下实测轨道 `#f9fafb`、旋钮 `#232324`，对比正常，故未改动；分段控件的未选中态与滑块 `accent-color` 也保持原样。
+- **回归测试**：`test/theme-contrast.test.mjs` 三条断言——(1) 以 `brand-primary` 作底的规则若声明 `color`，必须是配对令牌或 `inherit` / `currentColor`（完全不声明 `color` 视为合法，继承上层主文字色即安全）；(2) 全 CSS 的 `color` 声明不得出现 `#fff` / `#ffffff` / `white` / `rgba(255,255,255,…)`，只查 `color` 本身，玻璃高光里的 `rgba(255,255,255,…)` 属设计意图不受限；(3) 锁定分段控件选中态那一条规则本身。三条均以「把 `color` 改回 `#fff` 再跑」的方式验证过会失败，不是空断言。

@@ -1,9 +1,9 @@
-# dsh-signal-field v0.4.0
+# dsh-signal-field v0.4.1
 
 [![中文](https://img.shields.io/badge/简体中文-red?style=for-the-badge)](README.md)
 [![EN](https://img.shields.io/badge/English-blue?style=for-the-badge)](README_en.md)
 
-![version](https://img.shields.io/badge/version-v0.4.0-blue?style=for-the-badge)
+![version](https://img.shields.io/badge/version-v0.4.1-blue?style=for-the-badge)
 ![license](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
 ![platform](https://img.shields.io/badge/platform-DSH%20Web%20%2F%20Desktop-informational?style=for-the-badge)
 
@@ -183,7 +183,7 @@ plugin_manager remove_bundle  target=dsh-signal-field
 9. 拖动标题到页面四角与输入框上方：文字是否始终可见、松手是否回弹。
 10. 回归：两页背景/标题/输入框毛玻璃、明暗主题切换、设置页各项开关与滑块即时生效并刷新后保持；插件管理页与自动化任务页仍保持 DSH 原生外观。
 11. 总开关关闭后：`document.documentElement` 上不应残留 `data-mui*` 属性，`<style data-plugin="dsh-signal-field:styles">` 应被移除。
-12. 设置页结构（v0.4.0）：三张带圆角描边的卡片（总开关 / 页面 / 动效），卡片之间**没有**横线；动效卡片内五个分组各有小标题、组间共 4 条横线；行序为 背景 → 标题 → 鲸鱼 → 输入框 → 帧率（此前的顺序不同，需要重新熟悉）；鲸鱼组固定两列数字框，其中两项行标题为「小鱼数量」「底纹网格透明度」。关掉「聊天会话页面」后聊天页回原生外观、HUD 面板同步失去毛玻璃；背景强度默认显示 30%。
+12. 设置页结构（v0.4.0）：三张带圆角描边的卡片（总开关 / 页面 / 动效），卡片之间**没有**横线；动效卡片内五个分组各有小标题、组间共 4 条横线；行序为 背景 → 标题 → 鲸鱼 → 输入框 → 帧率（此前的顺序不同，需要重新熟悉）；鲸鱼组固定两列数字框，其中两项行标题为「小鱼数量」「底纹网格透明度」。关掉「聊天会话页面」后聊天页回原生外观、HUD 面板同步失去毛玻璃；背景强度默认显示 30%。**深色主题下「鲸鱼种类」的选中项文字必须清晰可见**（v0.4.1 修过一次白底白字）。
 13. 省电回归（v0.2.11）：默认「重绘帧率上限 30 fps」下，画面观感应与 60 fps 无可见差别；切到别的应用再切回来，背景应无缝恢复、不跳帧也不静止；在信号场上快速划动指针，轨迹应仍然跟手（交互期临时取消限帧）。自检文本末尾的 `--- performance ---` 段会输出实测 `fps` / `avgRenderMs` / `renders` / `skips`，可直接对照。
 14. 速度回归（v0.3.0）：两个速度滑块默认 1× 时观感应与 v0.2.11 完全一致。拖动「标题动画速度」时，扫光应平滑地变快/变慢且**位置不跳**、标题**不闪不重播**；拖动「背景动画速度」时波形、涟漪摆动与扩散应同步变速，HUD 补场同步；把背景速度拉满并同时把帧率压到 15 fps，允许变顿但不允许画面撕裂或静止。自检文本的 `speeds: title=…x background=…x` 一行应与滑块值一致。
 15. 补场回归（v0.3.1）：进入聊天会话页时，**面板背后那条竖带应立即满强度出现**，不再有「先纯色、再从中心向外扩散」的几秒等待；内容区仍保留 1.8s 揭示与 0.5s 淡入（两者观感不同是刻意的）。指针扫过补场条带应有拖尾、点击应有涟漪；关掉「背景鼠标交互」后补场与内容区应同时停止响应；面板没有几何（如刚打开、尺寸为 0）时补场应暂停而不是继续空转。
