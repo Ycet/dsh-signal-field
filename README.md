@@ -142,6 +142,18 @@ node scripts/build.mjs        # 重新生成 client.js
 plugin_manager remove_bundle  target=dsh-signal-field
 ```
 
+### 从 GitHub / Release 安装（无需 npm 账号）
+
+```sh
+# 方式一：GitHub 依赖（锁定版本 tag，需本机有 git）
+dsh plugin --profile web add "github:Ycet/dsh-signal-field#v0.4.1"
+
+# 方式二：Release 资产 tarball（无需 git）
+dsh plugin --profile web add "https://github.com/Ycet/dsh-signal-field/releases/download/v0.4.1/dsh-signal-field-0.4.1.tgz"
+
+# 桌面端把 --profile web 换成 --profile desktop（使用桌面端自带 CLI）
+```
+
 ---
 
 ## 已知限制与版本耦合

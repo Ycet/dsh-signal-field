@@ -143,6 +143,18 @@ node scripts/build.mjs        # regenerate client.js
 plugin_manager remove_bundle  target=dsh-signal-field
 ```
 
+### Install from GitHub / a Release asset (no npm account)
+
+```sh
+# Option 1: GitHub dependency (pinned to a release tag; requires git)
+dsh plugin --profile web add "github:Ycet/dsh-signal-field#v0.4.1"
+
+# Option 2: Release asset tarball (no git required)
+dsh plugin --profile web add "https://github.com/Ycet/dsh-signal-field/releases/download/v0.4.1/dsh-signal-field-0.4.1.tgz"
+
+# Desktop: replace --profile web with --profile desktop (using the desktop-bundled CLI)
+```
+
 ---
 
 ## Known limits and version coupling
