@@ -371,6 +371,8 @@ v0.2.5 按面板外扩 24px 铺，实机上露出两个问题：
 
 ## 16. 设置页结构（v0.2.9 重组）
 
+> 历史结构：v0.5.0 起设置页改为「总开关 / 新建会话页 / 聊天会话页」三张卡片并带折叠区，见 §21。
+
 设置页由 `src/settings-page.js` 渲染，v0.2.9 起固定为「总开关 → 模块 1『页面』→ 分割线 → 模块 2『动效』」：
 
 | 模块 | 行 | 绑定的设置字段 |
@@ -418,6 +420,8 @@ v0.2.5 按面板外扩 24px 铺，实机上露出两个问题：
 - **移植边界**：上游代码整段包在 `src/whale-engine.js` 的 IIFE 里，只导出 `WHALE_ENGINE`。这不是洁癖——`src/stage.js` 已有顶层 `clamp`，与移植块的 `var clamp` 同处一个闭包会互相覆盖。`test/whale-source.test.mjs` 钉住这个边界、五处适配标注与「Kanji / prefers-reduced-motion 不得回来」。
 
 ## 19. 设置页卡片化（v0.4.0）
+
+> 历史结构：v0.5.0 起卡片改为按页面组织，见 §21。
 
 §16 记录的是 **v0.2.9 的「两个模块 + 一条分割线」结构**，其**行序已失效**（见下）；那一节里的「行 → 设置字段」绑定表仍然有效（字段名没变）。当前结构以本节为准。
 
@@ -467,3 +471,70 @@ DSH Web 前端用的是 **CSS Modules 哈希类名**。抽取 `app.asar` 内的
 - **约定**：凡以 `brand-primary` 作背景的规则，前景一律用 `label-primary-foreground`，不写死颜色。同一令牌用作 `outline` / `accent-color` 时不受此限（不承载文字）。
 - **未受影响的同类控件**：`.mui-switch` 选中态用 `brand-primary` 作轨道、`bg-layer-1` 作旋钮，深色主题下实测轨道 `#f9fafb`、旋钮 `#232324`，对比正常，故未改动；分段控件的未选中态与滑块 `accent-color` 也保持原样。
 - **回归测试**：`test/theme-contrast.test.mjs` 三条断言——(1) 以 `brand-primary` 作底的规则若声明 `color`，必须是配对令牌或 `inherit` / `currentColor`（完全不声明 `color` 视为合法，继承上层主文字色即安全）；(2) 全 CSS 的 `color` 声明不得出现 `#fff` / `#ffffff` / `white` / `rgba(255,255,255,…)`，只查 `color` 本身，玻璃高光里的 `rgba(255,255,255,…)` 属设计意图不受限；(3) 锁定分段控件选中态那一条规则本身。三条均以「把 `color` 改回 `#fff` 再跑」的方式验证过会失败，不是空断言。
+
+## 21. 设置页按页面重组与折叠区（v0.5.0）
+
+设置结构从「页面开关 × 全局效果参数」（v2）改成「按页面组织」（v3）：每个效果都有自己的 `enabled`，背景与标题的参数也按页各存一份。设置页随之改成三张卡片——**总开关 / 新建会话页 / 聊天会话页**，帧率滑块从「动效」卡片移入「总开关」卡片。
+
+**结构契约**
+
+- 卡片内每个「效果块」= 一行效果开关 + 一行默认折叠的「…动效设置」。折叠标题用自绘 `button.mui-disclosure`（`aria-expanded` + `aria-controls`），详情是 `div.mui-detail`。
+- **详情始终渲染**，收起时加 `hidden` 属性。这样做有两个原因：结构测试不需要模拟 React 状态就能断言行序；后续给折叠加过渡也不用改成条件渲染。注意作者样式会盖掉浏览器对 `[hidden]` 的默认 `display:none`，所以 CSS 里必须显式写 `.mui-detail[hidden]{display:none}`。
+- 为什么不用原生 `<details>/<summary>`：效果开关就在折叠行上方，若把开关塞进 `<summary>`，点开关会连带开合详情；独立按钮才能把「开效果」与「看参数」分开。
+- 折叠状态只存在组件内（`useState`），**不写 localStorage**：需求是每次进入都折叠。
+- 上级开关关着时折叠区仍可展开，内部控件 `disabled` 并在顶部显示 `.mui-detail-note`；页面总开关与全局总开关自身**不禁用**，否则关掉就再也打不开。
+- 说明文字（`.mui-row-hint`）v0.5.0 起改用 `--dsw-alias-label-tertiary`（比 `--dsw-alias-label-secondary` 更淡），未新增硬编码色。
+
+**数据与闸门**
+
+- 结构：`{ version: 3, enabled, frame: { fps }, glass: { blur }, pages: { hero: { enabled, background, title, whale, glass }, chat: { enabled, background, glass } } }`。
+- 升级语义：旧存档除 `enabled` 与 `background.fps`（搬进 `frame.fps`）外**一律回默认**；旧 `pages.hero` 是布尔，`group()` 会把它当空对象，于是自然回落到默认 `true`。毛玻璃半径只在当前结构版本的存档里读取，旧结构一律回默认 14px。
+- 闸门（`src/stage.js` 的 `pageScopeOf` / `backgroundScopeOf` / `titleScopeOf` / `whaleScopeOf` / `frameFpsOf`）：
+  - 信号场 = 全局总开关 + 该页总开关 + 该页背景开关；
+  - 标题 / 鲸鱼 = 全局 + 新建会话页总开关 + 各自开关；
+  - 输入框玻璃 = 全局 + 该页总开关 + 该页玻璃开关；
+  - HUD 补场与面板玻璃 = 全局 + 当前页在作用范围 + **当前所在页的总开关 + 当前所在页的背景开关**（新建页用新建页的、聊天页用聊天页的；参数也取当前页那一份，保证补场与所在页的信号场是同一片观感；「输入框毛玻璃」不影响面板）。
+- 降级到 v0.4.x：旧读取器把 `pages.hero` 当布尔兜底成 `true`、丢弃新键，表现为「全部开启 + 默认参数」，不会崩也不会写坏数据。
+
+**回归测试**
+
+- `test/settings-page.test.mjs`：三卡片顺序、7 条分割线、完整行序、四个折叠区默认收起（`aria-expanded=false` + `hidden`）、点击展开/收起、锁定态置灰与提示、两页同名开关互不影响、帧率写回顶层 `frame`。
+- `test/settings.test.mjs`：v3 默认值、旧存档重置语义、深合并 patch、两页隔离。
+- `test/page.test.mjs` / `test/whale-view.test.mjs`：HUD 双闸门与鲸鱼四道闸门的真值表。
+
+## 22. 会话内视图（轨迹 / 统计）的底色（v0.5.0）
+
+聊天页顶部的「对话 / 轨迹 / 统计」不是三个页面，而是同一个会话容器里切换的三个 `conversation.view`：宿主（`@deepseek-ai/dsh-client-ui-conversation`）的 `ConversationRoot` 渲染 `[data-conversation-content] > [data-conversation-scroll] > [data-slot="conversation.session"] > [class*=viewArea]`，当前视图通过 `renderSlot("conversation.view", …, { only: viewId })` 挂进 `viewArea`。因此**三种视图下 `[data-conversation-content]` 都存在**，插件的页面判定与图层挂载点不受影响。
+
+真正的问题是**视图根自带底色**：
+
+| 视图 | 视图根标记 | 底色 |
+| --- | --- | --- |
+| 对话（`dsh-client-ui-chat`） | 无 | 透明（消息卡片自己带底） |
+| 轨迹（`dsh-client-ui-trajectory`） | `data-conversation-composer-overlay` | `background: var(--dsw-alias-bg-layer-1)`（不透明） |
+| 统计（`dsh-experimental-client-ui-stats`） | `data-conversation-composer-overlay` | 无（透明） |
+
+信号场图层是 `[data-conversation-content]` 的第一个子节点（`z-index:-1` + 父级 `isolation:isolate`），只能盖在**内容面自身底色之上、其它子节点底色之下**。轨迹视图根一上白底，整片场就被盖住——这就是「对话页有背景、轨迹页没有、统计页正常」的原因。
+
+**修复**：宿主给这类视图根统一打了 `data-conversation-composer-overlay` 标记（SSR 侧用它写 `:has([data-conversation-composer-overlay])` 让输入框转为绝对定位覆盖）。但只清根节点**不够**——轨迹视图内部还有两层各写 `background: var(--dsw-alias-bg-layer-1)` 的容器，少清一层整片场仍被盖住：
+
+| 层 | 选择依据 | 背景 |
+| --- | --- | --- |
+| 视图根 | `[data-conversation-composer-overlay]` | `bg-layer-1` |
+| 分栏容器（`.rh_gBW_split`） | 它唯一的滚动子节点带 `data-trajectory-scroll` → `:has(> [data-trajectory-scroll])` | `bg-layer-1` |
+| 表格本体（`<table class="rh_gBW_table">`） | 视图根内的 `table` 标签 | `bg-layer-1` |
+
+```css
+html[data-mui-active] [data-conversation-content] [data-conversation-composer-overlay],
+html[data-mui-active] [data-conversation-content] [data-conversation-composer-overlay] :has(> [data-trajectory-scroll]),
+html[data-mui-active] [data-conversation-content] [data-conversation-composer-overlay] table{background-color:transparent}
+```
+
+- 只用 `background-color`，不用 `background` 简写：不误伤视图自定义的渐变或背景图。
+- `table` 限定在视图根内部，不影响聊天正文里的 Markdown 表格。
+- 表头 `th`（`--dsw-specific-sidebar-fill`）、时间线图块（`bg-layer-2`）、工具栏属于「控件自有底色」，保持原样。
+
+- 只用 `background-color`，不用 `background` 简写：不误伤视图自定义的渐变或背景图。
+- 选择器带 `html[data-mui-active]` 前缀，插件关闭（清掉作用域属性）后自动失效。
+- 视图内部自带底色的控件（轨迹工具栏、时间线图块等）**保持原样**，与聊天页的消息卡片一致，不做进一步穿透。
+- 回归测试：`test/parity.test.mjs` 锁定该规则存在、且只声明 `background-color`。

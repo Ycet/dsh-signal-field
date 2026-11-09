@@ -9,41 +9,37 @@ window.__ModuleLoader__.load({
     var SIGNAL_FIELD_DICTS = {
       "zh": {
         "title": "UI 动画",
-        "lead": "先选在哪些页面展示动效，再调各项动效本身。改动即时生效，保存在本机浏览器存储中。",
+        "lead": "按页面分开设置：新建会话页与聊天会话页各自一套开关，改动即时生效，保存在本机浏览器存储中。",
         "groupMaster": "总开关",
         "master": "启用全部动效",
         "masterHint": "关闭后不创建画布、不运行动画、不注入样式，界面恢复 DSH 原生外观。",
-        "groupPages": "页面",
-        "rowHeroPage": "新建会话页面",
-        "rowHeroPageHint": "关闭后新建会话页恢复 DSH 原生外观（标题、背景、输入框毛玻璃一并停用）。",
-        "rowChatPage": "聊天会话页面",
-        "rowChatPageHint": "关闭后聊天会话页恢复 DSH 原生外观，HUD 面板毛玻璃也一并关闭。",
-        "groupEffects": "动效",
-        "groupBackground": "背景",
-        "groupHeadline": "标题",
-        "groupWhale": "鲸鱼",
-        "groupInput": "输入框",
-        "groupFps": "帧率",
+        "rowFps": "动画重绘帧率上限",
+        "rowFpsHint": "限制信号场与鲸鱼的重绘频率，越低越省电；窗口失焦时信号场自动降到 8 fps，指针交互时临时回到屏幕帧率。",
+        "groupHeroPage": "新建会话页",
+        "groupChatPage": "聊天会话页",
+        "pageMaster": "UI动效总开关",
+        "pageHeroHint": "关闭后新建会话页恢复 DSH 原生外观（背景、标题、鲸鱼、输入框毛玻璃与 HUD 面板补场一并停用）。",
+        "pageChatHint": "关闭后聊天会话页恢复 DSH 原生外观（背景、输入框毛玻璃与 HUD 面板补场一并停用）。",
+        "rowBackground": "背景",
+        "rowBackgroundHint": "该页是否显示信号场；关闭后这一页不再显示背景，HUD 面板区域的补场与面板毛玻璃也随之关闭（标题、鲸鱼、输入框毛玻璃不受影响）。",
+        "rowBackgroundIdle": "背景默认动效",
+        "rowBackgroundIdleHint": "噪声波自走流动；关闭后信号场静止（仍然可见）。",
+        "rowBackgroundInteract": "背景鼠标交互",
+        "rowBackgroundInteractHint": "光标擦除（亮色）/ 点亮（暗色）与点击涟漪。",
+        "rowIntensity": "背景强度",
+        "rowIntensityHint": "只影响信号场的浓淡，不改变动画速度；默认 30%。",
+        "rowBackgroundSpeed": "背景动画速度",
+        "rowBackgroundSpeedHint": "整片背景的流动快慢：波形、涟漪摆动与扩散一起变，涟漪存续也随之缩短；1× 即当前观感。与重绘帧率独立，高速度配低帧率会显得一顿一顿。",
+        "rowTitle": "标题文字",
+        "rowTitleHint": "用蓝图标题替换 DSH 原生标题文字；关闭后回到原生标题。",
         "rowTitleIdle": "标题文字默认动效",
         "rowTitleIdleHint": "入场逐字揭示与扫光；关闭后标题静态显示。",
         "rowTitleInteract": "标题文字鼠标交互",
         "rowTitleInteractHint": "指针靠近时字形转为虚线轮廓，可拖动字块；关闭后不响应指针。",
         "rowTitleSpeed": "标题动画速度",
         "rowTitleSpeedHint": "扫光跑马灯、揭示镜头与悬停转虚线的快慢；1× 即当前观感。拖动即时生效，不会重播。",
-        "rowBackgroundIdle": "背景默认动效",
-        "rowBackgroundIdleHint": "噪声波自走流动；关闭后信号场静止。",
-        "rowBackgroundInteract": "背景鼠标交互",
-        "rowBackgroundInteractHint": "光标擦除（亮色）/ 点亮（暗色）与点击涟漪。",
-        "rowGlass": "输入框毛玻璃效果",
-        "rowGlassHint": "输入框卡片与背板的毛玻璃；模糊半径固定 14px。",
-        "rowIntensity": "背景强度",
-        "rowIntensityHint": "只影响信号场的浓淡，不改变动画速度；默认 30%。",
-        "rowBackgroundSpeed": "背景动画速度",
-        "rowBackgroundSpeedHint": "整片背景的流动快慢：波形、涟漪摆动与扩散一起变，涟漪存续也随之缩短；1× 即当前观感。与重绘帧率独立，高速度配低帧率会显得一顿一顿。",
-        "rowFps": "动画重绘帧率上限",
-        "rowFpsHint": "限制信号场与鲸鱼的重绘频率，越低越省电；窗口失焦时信号场自动降到 8 fps，指针交互时临时回到屏幕帧率。",
-        "rowWhaleEnabled": "鲸鱼动效",
-        "rowWhaleEnabledHint": "在新建会话页叠一层 ASCII 鲸鱼。它压在信号场之上，两者开关独立：关掉鲸鱼，信号场照常。",
+        "rowWhale": "鲸鱼",
+        "rowWhaleHint": "在新建会话页叠一层 ASCII 鲸鱼，压在信号场之上。",
         "rowWhaleSpecies": "鲸鱼种类",
         "rowWhaleSpeciesHint": "座头鲸胸鳍更长、尾鳍更宽；虎鲸体型略小并带白色斑纹。",
         "whaleHumpback": "座头鲸",
@@ -60,6 +56,12 @@ window.__ModuleLoader__.load({
         "rowWhaleGridOpacity": "底纹网格透明度",
         "rowWhaleFishCount": "小鱼数量",
         "rowWhaleWake": "鲸鱼尾迹强度",
+        "rowGlass": "输入框毛玻璃效果",
+        "rowGlassHint": "输入框卡片与背板的毛玻璃；模糊半径固定 14px。",
+        "detailBackground": "背景动效设置",
+        "detailTitle": "标题文字动效设置",
+        "detailWhale": "鲸鱼动效设置",
+        "detailLocked": "先打开上方开关，这些参数才会生效。",
         "reducedMotion": "系统开启了「减少动效」，动画与鼠标交互已默认关闭；需要时可在此手动打开。",
         "reset": "恢复默认",
         "resetDone": "已恢复默认设置",
@@ -67,41 +69,37 @@ window.__ModuleLoader__.load({
       },
       "en": {
         "title": "UI motion",
-        "lead": "Pick which pages show the effects, then tune the effects themselves. Changes apply instantly and are stored in this browser.",
+        "lead": "Settings are per page: the new-session page and the chat page each have their own switches. Changes apply instantly and are stored in this browser.",
         "groupMaster": "Master switch",
         "master": "Enable all effects",
         "masterHint": "When off, no canvas, no animation loop and no injected styles: the UI returns to the stock DSH look.",
-        "groupPages": "Pages",
-        "rowHeroPage": "New session page",
-        "rowHeroPageHint": "When off, the new session page returns to the stock DSH look (headline, backdrop and composer glass all stop).",
-        "rowChatPage": "Chat session page",
-        "rowChatPageHint": "When off, the chat page returns to the stock DSH look, and the HUD panel glass turns off with it.",
-        "groupEffects": "Effects",
-        "groupBackground": "Backdrop",
-        "groupHeadline": "Headline",
-        "groupWhale": "Whales",
-        "groupInput": "Composer",
-        "groupFps": "Frame rate",
+        "rowFps": "Animation redraw cap",
+        "rowFpsHint": "Caps how often the signal field and whales redraw; lower saves more power. The field drops to 8 fps while the window is unfocused and returns to the display rate during pointer interaction.",
+        "groupHeroPage": "New session page",
+        "groupChatPage": "Chat session page",
+        "pageMaster": "UI motion master switch",
+        "pageHeroHint": "When off, the new session page returns to the stock DSH look (backdrop, headline, whales, composer glass and the HUD panel backing field all stop).",
+        "pageChatHint": "When off, the chat page returns to the stock DSH look (backdrop, composer glass and the HUD panel backing field all stop).",
+        "rowBackground": "Backdrop",
+        "rowBackgroundHint": "Whether this page shows the signal field; when off this page shows no backdrop, and the HUD panel's backing field and glass turn off with it (headline, whales and composer glass are unaffected).",
+        "rowBackgroundIdle": "Backdrop default motion",
+        "rowBackgroundIdleHint": "The noise wave drifts on its own; when off the signal field is static but still visible.",
+        "rowBackgroundInteract": "Backdrop pointer interaction",
+        "rowBackgroundInteractHint": "Cursor erase (light theme) / light-up (dark theme) and click ripples.",
+        "rowIntensity": "Backdrop intensity",
+        "rowIntensityHint": "Only changes how dense the signal field is, not its speed; 30% by default.",
+        "rowBackgroundSpeed": "Backdrop animation speed",
+        "rowBackgroundSpeedHint": "Flow speed of the whole backdrop: wave drift, ripple wobble and ripple spread all scale together, and ripples live correspondingly shorter; 1× is the current feel. Independent of the redraw cap — high speed with a low cap looks steppy.",
+        "rowTitle": "Headline",
+        "rowTitleHint": "Replaces the stock DSH headline with the blueprint headline; when off the stock text returns.",
         "rowTitleIdle": "Headline default motion",
         "rowTitleIdleHint": "Letter-by-letter reveal and sweep on entry; when off the headline is static.",
         "rowTitleInteract": "Headline pointer interaction",
         "rowTitleInteractHint": "Glyphs turn into dashed outlines near the pointer and can be dragged; when off it ignores the pointer.",
         "rowTitleSpeed": "Headline animation speed",
         "rowTitleSpeedHint": "How fast the sweep runner, reveal lens and hover-to-outline transitions run; 1× is the current feel. Applies live while dragging, with no replay.",
-        "rowBackgroundIdle": "Backdrop default motion",
-        "rowBackgroundIdleHint": "The noise wave drifts on its own; when off the signal field is static.",
-        "rowBackgroundInteract": "Backdrop pointer interaction",
-        "rowBackgroundInteractHint": "Cursor erase (light theme) / light-up (dark theme) and click ripples.",
-        "rowGlass": "Composer frosted glass",
-        "rowGlassHint": "Frosted glass on the composer card and its backing; the blur radius is fixed at 14px.",
-        "rowIntensity": "Backdrop intensity",
-        "rowIntensityHint": "Only changes how dense the signal field is, not its speed; 30% by default.",
-        "rowBackgroundSpeed": "Backdrop animation speed",
-        "rowBackgroundSpeedHint": "Flow speed of the whole backdrop: wave drift, ripple wobble and ripple spread all scale together, and ripples live correspondingly shorter; 1× is the current feel. Independent of the redraw cap — high speed with a low cap looks steppy.",
-        "rowFps": "Animation redraw cap",
-        "rowFpsHint": "Caps how often the signal field and whales redraw; lower saves more power. The field drops to 8 fps while the window is unfocused and returns to the display rate during pointer interaction.",
-        "rowWhaleEnabled": "Whale animation",
-        "rowWhaleEnabledHint": "Stacks an ASCII whale layer on the new-session page. It sits above the signal field, and the two switches are independent: turning whales off leaves the field untouched.",
+        "rowWhale": "Whales",
+        "rowWhaleHint": "Stacks an ASCII whale layer on the new-session page, above the signal field.",
         "rowWhaleSpecies": "Whale species",
         "rowWhaleSpeciesHint": "Humpback has longer flippers and wider flukes; orca is slightly smaller with white markings.",
         "whaleHumpback": "Humpback",
@@ -118,6 +116,12 @@ window.__ModuleLoader__.load({
         "rowWhaleGridOpacity": "Grid opacity",
         "rowWhaleFishCount": "Fish count",
         "rowWhaleWake": "Whale wake intensity",
+        "rowGlass": "Composer frosted glass",
+        "rowGlassHint": "Frosted glass on the composer card and its backing; the blur radius is fixed at 14px.",
+        "detailBackground": "Backdrop motion settings",
+        "detailTitle": "Headline motion settings",
+        "detailWhale": "Whale motion settings",
+        "detailLocked": "Turn the switch above on for these settings to take effect.",
         "reducedMotion": "The system asks for reduced motion, so animation and pointer interaction are off by default; you can still switch them on here.",
         "reset": "Reset to defaults",
         "resetDone": "Defaults restored",
@@ -131,6 +135,17 @@ window.__ModuleLoader__.load({
      * 这里只放纯函数：默认值、归一化、局部合并、存储读写。
      * 之所以把它们与 DOM/React 代码分开，是为了让 `node --test` 能直接导入本文件做单元测试
      * （构建脚本会把本文件原样拼进 client.js，因此不依赖任何浏览器 API）。
+     *
+     * v0.5.0 起设置结构升到 v3：**按页面组织**。
+     *   enabled      —— 全局总开关（「设置 → UI 动画」第一张卡片）
+     *   frame.fps    —— 全局面板帧率上限（v0.5.0 从 background.fps 提到顶层）
+     *   glass.blur   —— 毛玻璃半径（固定 14px，不暴露给界面）
+     *   pages.hero   —— 新建会话页：页总开关 + 背景（含参数）+ 标题 + 鲸鱼 + 毛玻璃
+     *   pages.chat   —— 聊天会话页：页总开关 + 背景（含参数）+ 毛玻璃
+     *
+     * 为什么每个效果都带一个自己的 `enabled`：设置页按页分卡片后，
+     * 「背景（开/关）」表示该页是否显示背景层（关闭即整层不创建），
+     * 而「背景默认动效（自走/静止）」下沉到折叠区，两者是不同的概念。
      */
 
     /** 语言资源命名空间。 */
@@ -145,8 +160,8 @@ window.__ModuleLoader__.load({
      */
     const LEGACY_STORAGE_KEY = 'dsh-motion-ui:v1';
 
-    /** 当前设置结构版本。v2 = v0.2.9 起的「页面开关 × 全局效果」结构。 */
-    const SCHEMA_VERSION = 2;
+    /** 当前设置结构版本。v3 = v0.5.0 起的「按页面组织」结构。 */
+    const SCHEMA_VERSION = 3;
 
     /** 背景强度的取值范围（滑块的钳位与步长）。 */
     const INTENSITY_RANGE = Object.freeze({ min: 0, max: 1, step: 0.05 });
@@ -197,7 +212,7 @@ window.__ModuleLoader__.load({
     /** 鲸鱼种类的合法取值：座头鲸 / 虎鲸。 */
     const WHALE_SPECIES = Object.freeze(['humpback', 'orca']);
 
-    /** whale 分组里可由 patch() 合并的键（顺序与设置页行序不同，这里只是键表）。 */
+    /** whale 分组里可由 patch() 合并的键。 */
     const WHALE_KEYS = Object.freeze([
       'enabled',
       'species',
@@ -213,6 +228,16 @@ window.__ModuleLoader__.load({
       'fishCount',
       'wake',
     ]);
+
+    /** background 分组里可由 patch() 合并的键。 */
+    const BACKGROUND_KEYS = Object.freeze(['enabled', 'idle', 'interact', 'intensity', 'speed']);
+
+    /** title 分组里可由 patch() 合并的键。 */
+    const TITLE_KEYS = Object.freeze(['enabled', 'idle', 'interact', 'speed']);
+
+    /** 两张页面卡片各自的子键（chat 没有 title / whale）。 */
+    const HERO_KEYS = Object.freeze(['enabled', 'background', 'title', 'whale', 'glass']);
+    const CHAT_KEYS = Object.freeze(['enabled', 'background', 'glass']);
 
     /**
      * 归一化一个速度倍率：非有限值一律回落 1×，其余钳到 SPEED_RANGE。
@@ -246,44 +271,67 @@ window.__ModuleLoader__.load({
       return value * speedValue(speed);
     }
 
+    /** 一页背景的默认值（两页各自独立一份，避免共享引用）。 */
+    function backgroundDefaults() {
+      return { enabled: true, idle: true, interact: true, intensity: 0.3, speed: 1 };
+    }
+
+    /** 新建会话页标题的默认值。 */
+    function titleDefaults() {
+      return { enabled: true, idle: true, interact: true, speed: 1 };
+    }
+
     /**
-     * 默认设置（v0.2.9 结构 + v0.2.11 的 background.fps + v0.3.0 的两个 speed
-     * + v0.4.0 的 whale 分组）：
-     *   pages      —— 哪些页面展示动效（设置页模块「页面」）
-     *   title      —— 标题默认动效 / 鼠标交互 / 动画速度（默认 1×）
-     *   background —— 背景默认动效 / 鼠标交互 / 强度（默认 30%）/ 帧率上限（默认 30fps）/ 速度（默认 1×）
-     *   glass      —— 输入框毛玻璃总开关；blur 固定 14px，已不再提供滑块
-     *   whale      —— 鲸鱼动画（v0.4.0 从 dsh-ascii-whales 迁移）：开关 + 种类 + 11 个数值项。
-     *                 默认值 = 迁移当时用户的实际取值，不是上游出厂默认（差异见 README）。
-     * HUD 面板毛玻璃没有独立开关：它跟随「聊天会话页面」开关（详见 README 设置页章节）。
+     * 鲸鱼默认值（v0.4.0 从 dsh-ascii-whales 迁移）：
+     * 默认值 = 迁移当时用户的实际取值，不是上游出厂默认（差异见 README）。
+     */
+    function whaleDefaults() {
+      return {
+        enabled: true,
+        species: 'humpback',
+        count: 1,
+        speed: 0.5,
+        bodySwing: 0.75,
+        turnAgility: 0.8,
+        tailFrequency: 0.85,
+        size: 1.5,
+        opacity: 0.5,
+        gridScale: 0.5,
+        gridOpacity: 0.1,
+        fishCount: 188,
+        wake: 1,
+      };
+    }
+
+    /**
+     * 默认设置（v0.5.0 / 结构 v3）。
      *
-     * 逐版只往已有分组里**加键**，因此一直**不升 SCHEMA_VERSION**：
-     * normalize() 对缺失键填默认值、对未知键直接丢弃，
+     * 逐版只往已有分组里**加键**：normalize() 对缺失键填默认值、对未知键直接丢弃，
      * 旧存档读出来就是新默认，旧版本读到新存档只是丢掉不认识的键，两个方向都不会坏。
-     * v0.4.0 同样是加分组：旧存档没有 whale 键，读出来就是上表默认。
+     *
+     * v0.5.0 的破例：结构从「全局效果」改成「按页效果」，旧存档里的效果参数**不再映射**，
+     * 除总开关与帧率外一律回默认（产品决策，README 升级说明里明写）。
      */
     function defaults() {
       return {
         version: SCHEMA_VERSION,
         enabled: true,
-        pages: { hero: true, chat: true },
-        title: { idle: true, interact: true, speed: 1 },
-        background: { idle: true, interact: true, intensity: 0.3, fps: 30, speed: 1 },
-        glass: { enabled: true, blur: 14 },
-        whale: {
-          enabled: true,
-          species: 'humpback',
-          count: 1,
-          speed: 0.5,
-          bodySwing: 0.75,
-          turnAgility: 0.8,
-          tailFrequency: 0.85,
-          size: 1.5,
-          opacity: 0.5,
-          gridScale: 0.5,
-          gridOpacity: 0.1,
-          fishCount: 188,
-          wake: 1,
+        frame: { fps: 30 },
+        // 毛玻璃半径固定 14px，只作为 CSS 变量的单一来源，不提供界面控件
+        glass: { blur: 14 },
+        pages: {
+          hero: {
+            enabled: true,
+            background: backgroundDefaults(),
+            title: titleDefaults(),
+            whale: whaleDefaults(),
+            glass: true,
+          },
+          chat: {
+            enabled: true,
+            background: backgroundDefaults(),
+            glass: true,
+          },
         },
       };
     }
@@ -307,89 +355,104 @@ window.__ModuleLoader__.load({
       return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
     }
 
-    /**
-     * 识别 v0.2.8 及更早的「按页 × 按效果」结构，并映射成新的「页面开关 × 全局效果」。
-     * 只认 `surfaces`：新结构（version 2 / 有 pages）一律返回 null，保证迁移只发生一次。
-     * @param {object} src 已确认是对象的输入
-     * @returns {null | { hero: boolean, chat: boolean, glass: boolean }}
-     */
-    function migrateSurfaces(src) {
-      if (src.version === SCHEMA_VERSION) return null;
-      const surfaces = src.surfaces;
-      if (!surfaces || typeof surfaces !== 'object' || Array.isArray(surfaces)) return null;
-      const hero = group(surfaces.hero);
-      const chat = group(surfaces.chat);
-      // 旧结构里每页每项都是独立开关：任一效果开着就认为该页仍在展示动效。
-      const heroOn =
-        bool(hero.title, true) || bool(hero.background, true) || bool(hero.glass, true);
-      const chatOn = bool(chat.background, true) || bool(chat.glass, true);
-      // 旧结构有「两页各自的毛玻璃」：任一页开着就视为全局玻璃开启。
-      const glassOn = bool(hero.glass, true) || bool(chat.glass, true);
-      return { hero: heroOn, chat: chatOn, glass: glassOn };
+    /** 归一化背景分组。 */
+    function normalizeBackground(value, base) {
+      const src = group(value);
+      return {
+        enabled: bool(src.enabled, base.enabled),
+        idle: bool(src.idle, base.idle),
+        interact: bool(src.interact, base.interact),
+        intensity: num(src.intensity, INTENSITY_RANGE, base.intensity),
+        speed: num(src.speed, SPEED_RANGE, base.speed),
+      };
     }
 
-    /** v0.2.8 及更早的强度默认值；迁移时把「恰好是旧默认」的值换成新默认 30%。 */
-    const LEGACY_DEFAULT_INTENSITY = 0.55;
+    /** 归一化标题分组。 */
+    function normalizeTitle(value, base) {
+      const src = group(value);
+      return {
+        enabled: bool(src.enabled, base.enabled),
+        idle: bool(src.idle, base.idle),
+        interact: bool(src.interact, base.interact),
+        speed: num(src.speed, SPEED_RANGE, base.speed),
+      };
+    }
+
+    /** 归一化鲸鱼分组：species 走白名单，其余走 num() 的钳位 + 步长吸附。 */
+    function normalizeWhale(value, base) {
+      const src = group(value);
+      return {
+        enabled: bool(src.enabled, base.enabled),
+        species: WHALE_SPECIES.includes(src.species) ? src.species : base.species,
+        count: num(src.count, WHALE_RANGES.count, base.count),
+        speed: num(src.speed, WHALE_RANGES.speed, base.speed),
+        bodySwing: num(src.bodySwing, WHALE_RANGES.bodySwing, base.bodySwing),
+        turnAgility: num(src.turnAgility, WHALE_RANGES.turnAgility, base.turnAgility),
+        tailFrequency: num(src.tailFrequency, WHALE_RANGES.tailFrequency, base.tailFrequency),
+        size: num(src.size, WHALE_RANGES.size, base.size),
+        opacity: num(src.opacity, WHALE_RANGES.opacity, base.opacity),
+        gridScale: num(src.gridScale, WHALE_RANGES.gridScale, base.gridScale),
+        gridOpacity: num(src.gridOpacity, WHALE_RANGES.gridOpacity, base.gridOpacity),
+        fishCount: num(src.fishCount, WHALE_RANGES.fishCount, base.fishCount),
+        wake: num(src.wake, WHALE_RANGES.wake, base.wake),
+      };
+    }
+
+    /** 归一化新建会话页：页总开关 + 背景 + 标题 + 鲸鱼 + 毛玻璃。 */
+    function normalizeHero(value, base) {
+      const src = group(value);
+      return {
+        enabled: bool(src.enabled, base.enabled),
+        background: normalizeBackground(src.background, base.background),
+        title: normalizeTitle(src.title, base.title),
+        whale: normalizeWhale(src.whale, base.whale),
+        glass: bool(src.glass, base.glass),
+      };
+    }
+
+    /** 归一化聊天会话页：页总开关 + 背景 + 毛玻璃（该页没有标题与鲸鱼）。 */
+    function normalizeChat(value, base) {
+      const src = group(value);
+      return {
+        enabled: bool(src.enabled, base.enabled),
+        background: normalizeBackground(src.background, base.background),
+        glass: bool(src.glass, base.glass),
+      };
+    }
 
     /**
      * 把任意输入归一化为一份合法设置。
      * 未知键丢弃、类型错误回默认、数值钳位，损坏的 JSON 或旧结构都不会让 UI 崩掉。
+     *
+     * 兼容性说明（v0.5.0）：
+     *   - 旧版 `pages.hero` 是布尔值 → group() 得空对象 → 该页总开关回默认 true（重置语义）；
+     *   - 旧版全局 `background` / `title` / `whale` / `glass.enabled` 全部忽略（重置语义）；
+     *   - 唯一保留的旧值是帧率：新路径 `frame.fps` 优先，缺失时回落到旧 `background.fps`；
+     *   - 毛玻璃半径只在**当前结构版本**的存档里读取：旧结构没有这个可调项，
+     *     按「升级即重置」的决策一律回默认 14px。
+     *
      * @param {unknown} input 已解析的设置对象（可为 null/undefined/垃圾值）。
      * @returns {ReturnType<typeof defaults>} 全新对象，永不与输入共享引用。
      */
     function normalize(input) {
       const base = defaults();
       const src = group(input);
-      const legacy = migrateSurfaces(src);
+      const frame = group(src.frame);
+      const legacyBackground = group(src.background);
       const pages = group(src.pages);
-      const title = group(src.title);
-      const background = group(src.background);
-      const glass = group(src.glass);
-      const whale = group(src.whale);
-
-      // 旧结构恰用旧默认强度时，跟着新默认一起变淡；手调过的值原样保留。
-      const rawIntensity = background.intensity;
-      const migratedIntensity =
-        legacy && rawIntensity === LEGACY_DEFAULT_INTENSITY ? base.background.intensity : rawIntensity;
+      const isCurrent = src.version === SCHEMA_VERSION;
+      // 帧率是唯一跨版本保留的旧值：v0.2.11 起它一直在 background.fps。
+      const fpsInput = frame.fps === undefined ? legacyBackground.fps : frame.fps;
+      const blurInput = isCurrent ? group(src.glass).blur : undefined;
 
       return {
         version: SCHEMA_VERSION,
         enabled: bool(src.enabled, base.enabled),
+        frame: { fps: num(fpsInput, FPS_RANGE, base.frame.fps) },
+        glass: { blur: num(blurInput, BLUR_RANGE, base.glass.blur) },
         pages: {
-          hero: legacy ? legacy.hero : bool(pages.hero, base.pages.hero),
-          chat: legacy ? legacy.chat : bool(pages.chat, base.pages.chat),
-        },
-        title: {
-          idle: bool(title.idle, base.title.idle),
-          interact: bool(title.interact, base.title.interact),
-          speed: num(title.speed, SPEED_RANGE, base.title.speed),
-        },
-        background: {
-          idle: bool(background.idle, base.background.idle),
-          interact: bool(background.interact, base.background.interact),
-          intensity: num(migratedIntensity, INTENSITY_RANGE, base.background.intensity),
-          fps: num(background.fps, FPS_RANGE, base.background.fps),
-          speed: num(background.speed, SPEED_RANGE, base.background.speed),
-        },
-        glass: {
-          enabled: legacy ? legacy.glass : bool(glass.enabled, base.glass.enabled),
-          blur: num(glass.blur, BLUR_RANGE, base.glass.blur),
-        },
-        // v0.4.0：鲸鱼动画。species 走白名单，其余走 num() 的钳位 + 步长吸附。
-        whale: {
-          enabled: bool(whale.enabled, base.whale.enabled),
-          species: WHALE_SPECIES.includes(whale.species) ? whale.species : base.whale.species,
-          count: num(whale.count, WHALE_RANGES.count, base.whale.count),
-          speed: num(whale.speed, WHALE_RANGES.speed, base.whale.speed),
-          bodySwing: num(whale.bodySwing, WHALE_RANGES.bodySwing, base.whale.bodySwing),
-          turnAgility: num(whale.turnAgility, WHALE_RANGES.turnAgility, base.whale.turnAgility),
-          tailFrequency: num(whale.tailFrequency, WHALE_RANGES.tailFrequency, base.whale.tailFrequency),
-          size: num(whale.size, WHALE_RANGES.size, base.whale.size),
-          opacity: num(whale.opacity, WHALE_RANGES.opacity, base.whale.opacity),
-          gridScale: num(whale.gridScale, WHALE_RANGES.gridScale, base.whale.gridScale),
-          gridOpacity: num(whale.gridOpacity, WHALE_RANGES.gridOpacity, base.whale.gridOpacity),
-          fishCount: num(whale.fishCount, WHALE_RANGES.fishCount, base.whale.fishCount),
-          wake: num(whale.wake, WHALE_RANGES.wake, base.whale.wake),
+          hero: normalizeHero(pages.hero, base.pages.hero),
+          chat: normalizeChat(pages.chat, base.pages.chat),
         },
       };
     }
@@ -404,28 +467,58 @@ window.__ModuleLoader__.load({
       return next;
     }
 
+    /** 合并一个顶层布尔键（enabled / glass）：undefined 不覆盖。 */
+    function mergeFlag(base, src, key) {
+      return Object.prototype.hasOwnProperty.call(src, key) && src[key] !== undefined
+        ? src[key]
+        : base;
+    }
+
+    /** 合并新建会话页（背景/标题/鲸鱼都是深一层分组）。 */
+    function mergeHero(base, partial) {
+      const src = group(partial);
+      return {
+        enabled: mergeFlag(base.enabled, src, 'enabled'),
+        background: mergeGroup(base.background, src.background, BACKGROUND_KEYS),
+        title: mergeGroup(base.title, src.title, TITLE_KEYS),
+        whale: mergeGroup(base.whale, src.whale, WHALE_KEYS),
+        glass: mergeFlag(base.glass, src, 'glass'),
+      };
+    }
+
+    /** 合并聊天会话页。 */
+    function mergeChat(base, partial) {
+      const src = group(partial);
+      return {
+        enabled: mergeFlag(base.enabled, src, 'enabled'),
+        background: mergeGroup(base.background, src.background, BACKGROUND_KEYS),
+        glass: mergeFlag(base.glass, src, 'glass'),
+      };
+    }
+
     /**
      * 局部更新：只改动 partial 中显式出现的键，其余保持不变，结果仍经过归一化。
+     *
+     * 支持任意深度，例如：
+     *   patch(state, { pages: { hero: { background: { intensity: 0.6 } } } })
+     * 只会改新建会话页的背景强度，聊天会话页与标题、鲸鱼都不动。
+     *
      * @param {unknown} state 当前设置。
      * @param {unknown} partial 局部改动。
      */
     function patch(state, partial) {
       const base = normalize(state);
       const src = group(partial);
+      const pages = group(src.pages);
       const next = {
         ...base,
-        enabled: Object.prototype.hasOwnProperty.call(src, 'enabled') ? src.enabled : base.enabled,
-        pages: mergeGroup(base.pages, src.pages, ['hero', 'chat']),
-        title: mergeGroup(base.title, src.title, ['idle', 'interact', 'speed']),
-        background: mergeGroup(base.background, src.background, [
-          'idle',
-          'interact',
-          'intensity',
-          'fps',
-          'speed',
-        ]),
-        glass: mergeGroup(base.glass, src.glass, ['enabled', 'blur']),
-        whale: mergeGroup(base.whale, src.whale, WHALE_KEYS),
+        enabled: mergeFlag(base.enabled, src, 'enabled'),
+        frame: mergeGroup(base.frame, src.frame, ['fps']),
+        glass: mergeGroup(base.glass, src.glass, ['blur']),
+        pages: {
+          hero: mergeHero(base.pages.hero, pages.hero),
+          chat: mergeChat(base.pages.chat, pages.chat),
+        },
       };
       return normalize(next);
     }
@@ -635,28 +728,32 @@ window.__ModuleLoader__.load({
     }
 
     /**
-     * 决定「HUD 面板毛玻璃」这个跨区域能力是否生效。
+     * 决定「HUD 面板补场与毛玻璃」这个跨区域能力是否生效。
      *
-     * 规则（v0.2.9 起）：HUD 面板不再有独立开关，它跟随「聊天会话页面」这个页面开关——
-     * 关掉聊天会话页的动效，面板也同步回到原生外观。
-     * 它不受「输入框毛玻璃效果」总开关控制（该开关只管输入框卡片）。
+     * 规则（v0.5.0）：HUD 面板没有独立开关，它跟随**当前所在页**的两道开关——
+     *   1. 当前页的「UI动效总开关」（pageEnabled）；
+     *   2. 当前页的「背景」开关（backgroundEnabled）。
+     * 也就是说：在新建会话页看的是新建页的那两个开关，在聊天会话页看的是聊天页的那两个开关。
+     * 第二道是刻意的：面板玻璃的意义是「模糊它背后那片信号场」，该页背景关掉后
+     * 没有可模糊的内容，补场与面板玻璃就应该一起回到原生外观。
+     * 它**不**受当前页「输入框毛玻璃效果」开关控制（那个开关只管输入框卡片）。
      *
-     * @param {{ page?: string, chatPage?: unknown }} input
+     * @param {{ page?: string, pageEnabled?: unknown, backgroundEnabled?: unknown }} input
      * @returns {{ hud: boolean }}
      */
     function resolvePanelTargets(input) {
       const src = input && typeof input === "object" ? input : {};
       const inScope = src.page === PAGE_HERO || src.page === PAGE_CHAT;
       if (!inScope) return { hud: false };
-      return { hud: !!src.chatPage };
+      return { hud: !!src.pageEnabled && !!src.backgroundEnabled };
     }
 
     /**
-     * 决定「鲸鱼动画」这一图层是否应该存在（v0.4.0）。
+     * 决定「鲸鱼动画」这一图层是否应该存在（v0.4.0，v0.5.0 改为按页模型）。
      *
      * 三道上级闸门都要开，缺一不可：
      *   1. 总开关（启用全部动效）；
-     *   2. 页面开关「新建会话页面」——它代表「这一页要不要动效背景」，鲸鱼只是其中一层；
+     *   2. 新建会话页的「UI动效总开关」——它代表「这一页要不要动效」，鲸鱼只是其中一层；
      *   3. 鲸鱼自己的开关。
      * 最后才是页面判定：鲸鱼**只**在新增会话页渲染。
      *
@@ -666,13 +763,13 @@ window.__ModuleLoader__.load({
      *
      * 本函数不含任何 DOM API，故可被 `node --test` 直接导入断言。
      *
-     * @param {{ page?: string, heroPage?: unknown, master?: unknown, whaleEnabled?: unknown }} input
+     * @param {{ page?: string, pageEnabled?: unknown, master?: unknown, whaleEnabled?: unknown }} input
      * @returns {boolean}
      */
     function resolveWhaleTarget(input) {
       const src = input && typeof input === "object" ? input : {};
       if (!src.master) return false;
-      if (!src.heroPage) return false;
+      if (!src.pageEnabled) return false;
       if (!src.whaleEnabled) return false;
       return src.page === PAGE_HERO;
     }
@@ -4677,6 +4774,19 @@ window.__ModuleLoader__.load({
     html[data-mui-active] [data-slot="main.conversation"],
     html[data-mui-active] [data-slot="conversation.session"],
     html[data-mui-active] [data-slot="conversation.composer.bar"]{background-color:transparent}
+    /* v0.5.0：聊天页里的「轨迹」「统计」等会话视图会在同一个内容容器内切换，
+       它们的节点自带不透明底色，把整片信号场盖住（统计视图没有底色，所以一直能透出来）。
+       轨迹视图有三层都要清，少一层都看不到场：
+         1. 视图根节点：带 data-conversation-composer-overlay（宿主用它判断「视图与输入框重叠」）；
+         2. 根里的分栏容器（.rh_gBW_split）：background: var(--dsw-alias-bg-layer-1)，铺满整个视图区。
+            它没有稳定类名，但它唯一的滚动子节点带 data-trajectory-scroll，用 :has 命中；
+         3. 表格本体（table）：同样写着 bg-layer-1，不清的话行与行之间仍是白底。
+            限定在这个视图根内部，不会波及聊天正文里的 Markdown 表格。
+       只清背景色、不动布局与子元素；用 background-color 而不是 background 简写，
+       避免误伤视图自定义的渐变/背景图。插件关闭（清掉 data-mui-active）后整组规则自动失效。 */
+    html[data-mui-active] [data-conversation-content] [data-conversation-composer-overlay],
+    html[data-mui-active] [data-conversation-content] [data-conversation-composer-overlay] :has(> [data-trajectory-scroll]),
+    html[data-mui-active] [data-conversation-content] [data-conversation-composer-overlay] table{background-color:transparent}
     [data-mui-field] > canvas{position:absolute;inset:0;display:block;width:100%;height:100%}
     /* WebGL2 不可用时的静态降级底：一层柔和径向渐变，不抖动、不交互 */
     [data-mui-field][data-fallback]{
@@ -4877,8 +4987,41 @@ window.__ModuleLoader__.load({
     .mui-row{display:flex;align-items:flex-start;gap:16px;padding:8px 0;min-width:0}
     .mui-row-text{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 auto}
     .mui-row-label{font-size:13px;line-height:20px;color:var(--dsw-alias-label-primary)}
-    .mui-row-hint{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
+    /* v0.5.0：说明文字改用 tertiary 令牌，比 secondary 更淡（深浅主题都定义，不写死颜色）。 */
+    .mui-row-hint{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}
     .mui-row-control{flex:none;display:flex;align-items:center;gap:8px;padding-top:1px}
+    /* 折叠开关行（v0.5.0）：整行可点，与 .mui-row 的左右两栏节奏对齐。
+       为什么用自绘 button 而不是 <details>/<summary>：效果行里的开关若放进 summary，
+       点开关会连带开合详情；独立按钮才能把「开效果」与「看参数」两件事分开。 */
+    .mui-disclosure{
+      display:flex;align-items:center;justify-content:space-between;gap:8px;
+      width:100%;padding:4px 0;border:0;border-radius:8px;background:transparent;cursor:pointer;
+      color:var(--dsw-alias-label-secondary);font-family:inherit;font-size:12px;line-height:18px;
+      font-weight:500;text-align:left;
+      transition:background .15s var(--ds-ease-in-out,ease),color .15s var(--ds-ease-in-out,ease);
+    }
+    .mui-disclosure:hover{
+      background:color-mix(in srgb, var(--dsw-alias-label-primary) 5%, transparent);
+      color:var(--dsw-alias-label-primary);
+    }
+    .mui-disclosure:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
+    .mui-disclosure-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .mui-disclosure-icon{flex:none;color:currentColor;transition:transform .15s var(--ds-ease-in-out,ease)}
+    .mui-disclosure[aria-expanded="true"] .mui-disclosure-icon{transform:rotate(90deg)}
+    /* 折叠区容器（v0.5.0）：始终渲染、收起时加 [hidden]。
+       注意必须显式写 .mui-detail[hidden]{display:none}——上面的 display:flex 是作者样式，
+       会盖掉浏览器对 [hidden] 的默认 display:none。 */
+    .mui-detail{
+      display:flex;flex-direction:column;gap:2px;
+      margin:2px 0 4px;padding:2px 0 4px 12px;
+      border-left:1px solid color-mix(in srgb, var(--dsw-alias-label-primary) 9%, transparent);
+    }
+    .mui-detail[hidden]{display:none}
+    /* 参数被上级开关锁住时的提示（v0.5.0）：用 warn 色，避免与普通说明混淆。 */
+    .mui-detail-note{
+      margin:4px 0 2px;font-size:12px;line-height:18px;
+      color:var(--dsw-alias-state-warn-primary);
+    }
     .mui-switch{
       position:relative;flex:none;width:34px;height:20px;padding:0;border:0;border-radius:999px;cursor:pointer;
       background:color-mix(in srgb, var(--dsw-alias-label-primary) 18%, transparent);
@@ -4970,7 +5113,7 @@ window.__ModuleLoader__.load({
     .mui-button:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
     .mui-toast{font-size:12px;line-height:18px;color:var(--dsw-alias-state-success-primary)}
     @media (prefers-reduced-motion: reduce){
-      [data-mui-field],[data-mui-field] > canvas,.mui-switch,.mui-switch::after,.mui-button{transition:none}
+      [data-mui-field],[data-mui-field] > canvas,.mui-switch,.mui-switch::after,.mui-button,.mui-disclosure,.mui-disclosure-icon{transition:none}
     }
     `;
 
@@ -5028,6 +5171,49 @@ window.__ModuleLoader__.load({
       if (value < min) return min;
       if (value > max) return max;
       return value;
+    }
+
+    /**
+     * 取某个页面的设置作用域（v0.5.0 按页模型）。
+     *
+     * store 的快照总是经过 normalize() 的；这里的兜底只为「测试里手搓的裸 state」不崩，
+     * 不承担补默认值的职责——缺的键交给各引擎自己的默认值，避免两处默认值打架。
+     *
+     * @param {object} state 设置快照
+     * @param {string} page PAGE_HERO / PAGE_CHAT
+     * @returns {{ enabled?: boolean, background?: object, title?: object, whale?: object, glass?: boolean }}
+     *   该页的作用域对象；页面不在作用范围时返回空对象。
+     */
+    function pageScopeOf(state, page) {
+      const scopes = state && typeof state === "object" && state.pages && typeof state.pages === "object"
+        ? state.pages
+        : {};
+      const scope = page === PAGE_HERO ? scopes.hero : page === PAGE_CHAT ? scopes.chat : null;
+      return scope && typeof scope === "object" ? scope : {};
+    }
+
+    /** 取某页的背景分组（纯函数，供同步路径与测试共用）。 */
+    function backgroundScopeOf(state, page) {
+      const background = pageScopeOf(state, page).background;
+      return background && typeof background === "object" ? background : {};
+    }
+
+    /** 取某页的标题分组（只有新建会话页有）。 */
+    function titleScopeOf(state) {
+      const title = pageScopeOf(state, PAGE_HERO).title;
+      return title && typeof title === "object" ? title : {};
+    }
+
+    /** 取新建会话页的鲸鱼分组。 */
+    function whaleScopeOf(state) {
+      const whale = pageScopeOf(state, PAGE_HERO).whale;
+      return whale && typeof whale === "object" ? whale : {};
+    }
+
+    /** 全局帧率上限（v0.5.0 从 background.fps 提到顶层）。 */
+    function frameFpsOf(state) {
+      const frame = state && typeof state === "object" ? state.frame : null;
+      return frame && typeof frame.fps === "number" ? frame.fps : 0;
     }
 
     /**
@@ -5251,11 +5437,10 @@ window.__ModuleLoader__.load({
       }
 
       function fieldWanted(state) {
-        // v0.2.9：背景是否铺由「页面」开关决定；background.idle 只决定是否持续动画。
+        // v0.5.0：背景是否铺由「该页总开关 + 该页背景开关」决定；idle 只决定是否持续动画。
         if (!state.enabled) return false;
-        if (page === PAGE_HERO) return state.pages.hero;
-        if (page === PAGE_CHAT) return state.pages.chat;
-        return false;
+        if (page !== PAGE_HERO && page !== PAGE_CHAT) return false;
+        return !!pageScopeOf(state, page).enabled && !!backgroundScopeOf(state, page).enabled;
       }
 
       function syncField(state, dark) {
@@ -5294,14 +5479,17 @@ window.__ModuleLoader__.load({
         }
         doc.documentElement.setAttribute("data-mui-active", "");
 
+        // v0.5.0：参数来自**当前页**的背景分组（两页各调各的），帧率是全局的。
+        const fieldBackground = backgroundScopeOf(state, page);
+        const fieldFps = frameFpsOf(state);
         if (!field) {
           field = createField(layerEl, {
             dark,
-            intensity: state.background.intensity,
-            idle: state.background.idle,
-            interact: state.background.interact,
-            fps: state.background.fps,
-            speed: state.background.speed,
+            intensity: fieldBackground.intensity,
+            idle: fieldBackground.idle,
+            interact: fieldBackground.interact,
+            fps: fieldFps,
+            speed: fieldBackground.speed,
             reduceMotion: status.getSnapshot().reducedMotion,
             onFallback: (reason) => {
               engineState = `fallback:${reason}`;
@@ -5314,11 +5502,11 @@ window.__ModuleLoader__.load({
         } else {
           field.update({
             dark,
-            intensity: state.background.intensity,
-            idle: state.background.idle,
-            interact: state.background.interact,
-            fps: state.background.fps,
-            speed: state.background.speed,
+            intensity: fieldBackground.intensity,
+            idle: fieldBackground.idle,
+            interact: fieldBackground.interact,
+            fps: fieldFps,
+            speed: fieldBackground.speed,
           });
         }
         layerEl.setAttribute("data-on", "");
@@ -5329,11 +5517,11 @@ window.__ModuleLoader__.load({
       /**
        * 把设置摊平成鲸鱼适配器要的形状。
        *
-       * fps 与 interact 刻意取 background 那两项：这是本轮的产品决策——
-       * 帧率上限与鼠标交互都复用既有的全局开关，不新增第二套概念。
+       * v0.5.0：参数取新建会话页的鲸鱼分组；帧率是全局的，
+       * 鼠标交互复用该页「背景鼠标交互」——不再新增第二套概念。
        */
       function whaleOptions(state, dark) {
-        const whale = state.whale && typeof state.whale === "object" ? state.whale : {};
+        const whale = whaleScopeOf(state);
         return {
           dark: !!dark,
           species: whale.species,
@@ -5348,8 +5536,8 @@ window.__ModuleLoader__.load({
           fishCount: whale.fishCount,
           wake: whale.wake,
           opacity: whale.opacity,
-          fps: state.background ? state.background.fps : 0,
-          interact: state.background ? state.background.interact : false,
+          fps: frameFpsOf(state),
+          interact: !!backgroundScopeOf(state, PAGE_HERO).interact,
         };
       }
 
@@ -5377,11 +5565,12 @@ window.__ModuleLoader__.load({
        * 留着不画比拆掉更费，也更容易在切页后留下幽灵监听。
        */
       function syncWhale(state, dark) {
+        const heroScope = pageScopeOf(state, PAGE_HERO);
         const wanted = resolveWhaleTarget({
           page,
-          heroPage: state.pages ? state.pages.hero : false,
+          pageEnabled: heroScope.enabled,
           master: state.enabled,
-          whaleEnabled: state.whale ? state.whale.enabled : false,
+          whaleEnabled: whaleScopeOf(state).enabled,
         });
         const surface = wanted ? resolveSurface() : null;
         if (!wanted || !surface) {
@@ -5621,18 +5810,28 @@ window.__ModuleLoader__.load({
         setFlag(hudBackdropEl, "data-on", true);
       }
 
-      /** HUD 面板补场：面板在、且开着 HUD 玻璃时才有意义。 */
+      /**
+       * HUD 面板补场：面板在、且**当前所在页**的「UI动效总开关」与「背景」都开着时才有意义。
+       *
+       * v0.5.0：面板玻璃要模糊的就是这片补场，所以两道开关与 syncRoot 里的
+       * data-mui-hud-glass 完全一致——该页背景关掉后补场与玻璃一起消失，不留「发虚但没内容」的状态。
+       * 参数也取当前页那一份：补场与它所在页面的信号场必须是同一片观感，否则接缝处会露馅。
+       */
       function syncHudBackdrop(state, dark) {
         const panel = doc.querySelector(".hud-panel");
+        const currentScope = pageScopeOf(state, page);
+        const pageBackground = backgroundScopeOf(state, page);
         const wanted =
           state.enabled &&
           page !== PAGE_NONE &&
-          state.pages.chat &&
+          !!currentScope.enabled &&
+          !!pageBackground.enabled &&
           !!panel;
         if (!wanted) {
           destroyHudBackdrop();
           return;
         }
+        const hudFps = frameFpsOf(state);
         if (!hudBackdropEl) {
           hudBackdropEl = doc.createElement("div");
           hudBackdropEl.setAttribute("data-mui-field", "");
@@ -5647,14 +5846,14 @@ window.__ModuleLoader__.load({
         if (!hudField) {
           hudField = createField(hudBackdropEl, {
             dark,
-            intensity: state.background.intensity,
-            idle: state.background.idle,
+            intensity: pageBackground.intensity,
+            idle: pageBackground.idle,
             // v0.3.1：与内容区共用「背景鼠标交互」开关。原来这里写死 false，
-            // 导致面板背后那块背景完全没有鼠标交互动效。
-            interact: state.background.interact,
-            fps: state.background.fps,
+            // 导致面板背后那块背景完全没有鼠标交互动效。v0.5.0 起跟随当前页那一份。
+            interact: pageBackground.interact,
+            fps: hudFps,
             // HUD 补场与内容区共用同一个背景速度：两者是同一片背景的两段，不同速会在接缝处露馅。
-            speed: state.background.speed,
+            speed: pageBackground.speed,
             // v0.3.1：补场不播入场揭示。它是内容区那片背景的延续段，而且每次进聊天页都会被重建，
             // 保留揭示就等于每次进页都重播 1.8s 的展开动画——也就是「过几秒才出现」的直接原因。
             intro: false,
@@ -5668,11 +5867,11 @@ window.__ModuleLoader__.load({
         } else {
           hudField.update({
             dark,
-            intensity: state.background.intensity,
-            idle: state.background.idle,
-            interact: state.background.interact,
-            fps: state.background.fps,
-            speed: state.background.speed,
+            intensity: pageBackground.intensity,
+            idle: pageBackground.idle,
+            interact: pageBackground.interact,
+            fps: hudFps,
+            speed: pageBackground.speed,
           });
         }
         placeHudBackdrop(panel);
@@ -5709,8 +5908,9 @@ window.__ModuleLoader__.load({
       // ---- 标题 -------------------------------------------------------------
 
       function titleWanted(state) {
-        // 标题只存在于新增会话页，因此它跟随「新建会话页面」开关。
-        return state.enabled && page === PAGE_HERO && state.pages.hero;
+        // 标题只存在于新增会话页：需要该页总开关 + 标题自己的开关同时打开（v0.5.0）。
+        if (!state.enabled || page !== PAGE_HERO) return false;
+        return !!pageScopeOf(state, PAGE_HERO).enabled && !!titleScopeOf(state).enabled;
       }
 
       function removeTitle() {
@@ -5821,6 +6021,7 @@ window.__ModuleLoader__.load({
         applyTitleBox();
 
         const dark = doc.body.hasAttribute("data-ds-dark-theme");
+        const titleSettings = titleScopeOf(state);
         title = createTechText(titleEl, TITLE_TEXT, {
           fontWeight: 600,
           fontSize: TITLE_TARGET_SIZE,
@@ -5837,11 +6038,11 @@ window.__ModuleLoader__.load({
           specks: 14,
           // speed 是引擎内在基准（0.9），speedFactor 才是用户可调的倍率（v0.3.0）。
           speed: 0.9,
-          speedFactor: state.title.speed,
-          selection: state.title.interact,
-          labels: state.title.interact,
-          draggable: state.title.interact,
-          sweep: state.title.idle,
+          speedFactor: titleSettings.speed,
+          selection: titleSettings.interact,
+          labels: titleSettings.interact,
+          draggable: titleSettings.interact,
+          sweep: titleSettings.idle,
           reduceMotion: status.getSnapshot().reducedMotion,
         });
         status.set({ titleAvailable: true });
@@ -5864,22 +6065,23 @@ window.__ModuleLoader__.load({
         // 页面上任何 DOM 变化都会触发 sync()，而标题引擎的 refresh 需要重新烘焙字形贴图，
         // 所以这里用签名短路：只有开关或主题真的变了才重建。
         const dark = doc.body.hasAttribute("data-ds-dark-theme");
-        doc.documentElement.toggleAttribute("data-mui-title-static", !state.title.interact);
+        const titleSettings = titleScopeOf(state);
+        doc.documentElement.toggleAttribute("data-mui-title-static", !titleSettings.interact);
         if (!title) return;
         // v0.3.0：速度走独立的轻量入口，**不进签名**。
         // 一旦进签名，拖滑块每一格都会触发 refresh → 重烘字形贴图 → 标题闪烁。
-        if (state.title.speed !== titleSpeed) {
-          titleSpeed = state.title.speed;
-          title.setSpeed(state.title.speed);
+        if (titleSettings.speed !== titleSpeed) {
+          titleSpeed = titleSettings.speed;
+          title.setSpeed(titleSettings.speed);
         }
-        const signature = `${state.title.idle}|${state.title.interact}|${dark}`;
+        const signature = `${titleSettings.idle}|${titleSettings.interact}|${dark}`;
         if (signature === titleSignature) return;
         titleSignature = signature;
         title.refresh({
           color: readToken(doc, "--dsw-alias-label-primary", dark ? "#f2f4fa" : "#0b0f1a"),
           accentColor: readToken(doc, "--dsw-alias-brand-primary", "#2b3af0"),
-          sweep: state.title.idle,
-          interact: state.title.interact,
+          sweep: titleSettings.idle,
+          interact: titleSettings.interact,
         });
       }
 
@@ -5897,15 +6099,29 @@ window.__ModuleLoader__.load({
         // 这样 HUD 玻璃、右栏背景这类跨区域能力在背景关掉时仍然可单独生效。
         setFlag(root, "data-mui-scope", page !== PAGE_NONE);
         setFlag(root, "data-mui-dark", dark);
-        // 输入框毛玻璃：v0.2.9 起是一个全局开关，再由当前页面开关决定是否生效。
-        const glassOn = state.glass.enabled;
-        setFlag(root, "data-mui-glass-hero", glassOn && page === PAGE_HERO && state.pages.hero);
-        setFlag(root, "data-mui-glass-chat", glassOn && page === PAGE_CHAT && state.pages.chat);
-        // HUD 面板没有独立开关：跟随「聊天会话页面」（见 resolvePanelTargets 注释）。
-        const targets = resolvePanelTargets({ page, chatPage: state.pages.chat });
+        // 输入框毛玻璃（v0.5.0 按页）：该页总开关 + 该页「输入框毛玻璃效果」都开着才生效。
+        const heroScope = pageScopeOf(state, PAGE_HERO);
+        const chatScope = pageScopeOf(state, PAGE_CHAT);
+        setFlag(
+          root,
+          "data-mui-glass-hero",
+          page === PAGE_HERO && !!heroScope.enabled && !!heroScope.glass,
+        );
+        setFlag(
+          root,
+          "data-mui-glass-chat",
+          page === PAGE_CHAT && !!chatScope.enabled && !!chatScope.glass,
+        );
+        // HUD 面板没有独立开关：跟随**当前所在页**的总开关 + 背景开关（见 resolvePanelTargets 注释）。
+        const targets = resolvePanelTargets({
+          page,
+          pageEnabled: pageScopeOf(state, page).enabled,
+          backgroundEnabled: backgroundScopeOf(state, page).enabled,
+        });
         setFlag(root, "data-mui-hud-glass", targets.hud);
         // 模糊半径已固定 14px（v0.2.9 移除滑块），这里仍写变量以保持 CSS 单一来源。
-        setVar(root, "--mui-blur", `${state.glass.blur}px`);
+        const blurRadius = state.glass && Number.isFinite(state.glass.blur) ? state.glass.blur : 14;
+        setVar(root, "--mui-blur", `${blurRadius}px`);
         // 降级底色也放在根上：WebGL2 不可用时 CSS 径向渐变要用到这两个变量。
         setVar(root, "--mui-field-bg", dark ? "#070a12" : "#e7e9f0");
         setVar(root, "--mui-field-wave", dark ? "#3a4a7a" : "#b6bfd8");
@@ -6046,9 +6262,11 @@ window.__ModuleLoader__.load({
         lines.push(statLine("hudField", hudField ? hudField.stats : null));
         // v0.3.0：把两个实际生效的速度倍率也打出来，便于确认滑块值真的到达了引擎
         // （设置层与引擎层之间有任何一处漏传，这里会立刻暴露成 1×）。
-        const speeds = store.getSnapshot();
+        const snapshot = store.getSnapshot();
+        // v0.5.0：速度按页取值。当前页不在作用范围时按聊天会话页打印（HUD 补场也跟随它）。
+        const speedPage = page === PAGE_HERO || page === PAGE_CHAT ? page : PAGE_CHAT;
         lines.push(
-          `speeds: title=${speeds.title.speed}x background=${speeds.background.speed}x hud=follow`,
+          `speeds: title=${titleScopeOf(snapshot).speed}x background[${speedPage}]=${backgroundScopeOf(snapshot, speedPage).speed}x hud=follow`,
         );
 
         if (history.length > 0) {
@@ -6182,13 +6400,14 @@ window.__ModuleLoader__.load({
     /**
      * dsh-signal-field · 「设置 → UI 动画」页
      *
-     * v0.2.9 起页面分成两个模块（中间一条分割线）：
-     *   1. 「页面」——哪些页面展示动效（新建会话页面 / 聊天会话页面）
-     *   2. 「动效」——动效本身（标题、标题动画速度、背景、背景强度、背景动画速度、毛玻璃、重绘帧率上限）
-     * 总开关单独一行放在两个模块之前。
+     * v0.5.0 起页面**按页面组织**，不再是「页面开关 + 全局效果参数」两个维度：
      *
-     * v0.4.0：鲸鱼动画的 13 项设置**并入「动效」模块末尾**（不新增模块、不新增分割线）。
-     * 行标题统一加「鲸鱼」前缀，否则「透明度」「游动速度」会和上面的「背景强度」「背景动画速度」混淆。
+     *   1.「总开关」——全局启用 + 动画重绘帧率上限（帧率 v0.5.0 从「动效」卡片移到这里）
+     *   2.「新建会话页」——页总开关 → 背景 → 标题文字 → 鲸鱼 → 输入框毛玻璃（块间分割线）
+     *   3.「聊天会话页」——页总开关 → 背景 → 输入框毛玻璃（该页没有标题与鲸鱼）
+     *
+     * 每个效果行下面跟一个默认折叠的「…动效设置」：展开后才是细节参数。
+     * 折叠状态只存在组件里，不写存储（需求：每次进入都折叠）。
      *
      * 只做三件事：把设置渲染成开关/滑块/分段/数字框、把改动写回 store、在必要时说明降级状态。
      * 不依赖 DSH 的 Client 组件包（按插件实践要求自绘控件，只用主题 token 取色）。
@@ -6311,7 +6530,70 @@ window.__ModuleLoader__.load({
       );
     }
 
-    /** 设置页主体。props: { store, status?, t, close? } */
+    /**
+     * 折叠开关行（v0.5.0）。
+     *
+     * 为什么用自绘 button 而不是原生 `<details>/<summary>`：这一行与它上面的效果行是分开的，
+     * 而效果行右侧还有开关；若把开关塞进 `<summary>`，点开关会连带开合详情。
+     * 自绘 button + aria-expanded/aria-controls 的语义与键盘行为由浏览器保证，
+     * 视觉又能和 .mui-row 的左右两栏节奏对齐。
+     */
+    function Disclosure(props) {
+      return h(
+        "button",
+        {
+          type: "button",
+          className: "mui-disclosure",
+          "aria-expanded": props.open ? "true" : "false",
+          "aria-controls": props.controls,
+          onClick: props.onToggle,
+        },
+        h("span", { className: "mui-disclosure-label" }, props.label),
+        h(
+          "svg",
+          {
+            className: "mui-disclosure-icon",
+            viewBox: "0 0 16 16",
+            width: 14,
+            height: 14,
+            "aria-hidden": "true",
+            focusable: "false",
+          },
+          h("path", {
+            d: "M6 3.5L10.5 8 6 12.5",
+            fill: "none",
+            stroke: "currentColor",
+            strokeWidth: 1.6,
+            strokeLinecap: "round",
+            strokeLinejoin: "round",
+          }),
+        ),
+      );
+    }
+
+    /**
+     * 折叠区容器（v0.5.0）。
+     *
+     * 始终渲染、收起时加 `hidden`：这样结构测试可以在不模拟 React 状态的前提下
+     * 断言行序与控件契约，也不需要为「展开后的内容」额外维护一份影子树。
+     * CSS 必须补 `.mui-detail[hidden]{display:none}`（作者样式会覆盖 UA 的 [hidden]）。
+     */
+    function Detail(props) {
+      return h(
+        "div",
+        {
+          className: "mui-detail",
+          id: props.id,
+          role: "group",
+          "aria-label": props.label,
+          hidden: props.open ? undefined : true,
+        },
+        props.locked ? h("p", { className: "mui-detail-note" }, props.lockedNote) : null,
+        props.children,
+      );
+    }
+
+    /** 设置页主体。props: { store, status?, t } */
     function SettingsPage(props) {
       const store = props.store;
       const status = props.status || NO_STATUS;
@@ -6319,24 +6601,33 @@ window.__ModuleLoader__.load({
       const state = useStore(store);
       const runtime = useStore(status);
       const [toast, setToast] = React.useState("");
-      const off = !state.enabled;
-      // v0.4.0：鲸鱼分组可能缺席（测试直接塞了裸状态、或存档还没写过 whale 键）。
-      // 这里只保证读属性不炸，真正的默认值由 settings.js 的 normalize() 兜。
-      const whale = state.whale && typeof state.whale === "object" ? state.whale : {};
+      // v0.5.0：折叠区的展开状态只在本组件内，不写存储（需求：每次进入都折叠）。
+      const [openKeys, setOpenKeys] = React.useState({});
 
       const set = (partial) => store.update(partial);
+      const toggle = (key) =>
+        setOpenKeys((previous) => ({ ...previous, [key]: !previous[key] }));
 
-      /** 模块「页面」里的行：控制该页是否展示动效。 */
-      const pageSwitch = (key) => ({
-        checked: state.pages[key],
-        disabled: off,
-        onChange: (value) => set({ pages: { [key]: value } }),
-      });
+      // 防御性读取：真实运行时 store 的快照一定经过 normalize()；
+      // 这里兜底只为「测试直接塞裸状态」时不炸，不承担补默认值的职责。
+      const pages = state.pages && typeof state.pages === "object" ? state.pages : {};
+      const hero = pages.hero && typeof pages.hero === "object" ? pages.hero : {};
+      const chat = pages.chat && typeof pages.chat === "object" ? pages.chat : {};
+      const heroBg = hero.background && typeof hero.background === "object" ? hero.background : {};
+      const heroTitle = hero.title && typeof hero.title === "object" ? hero.title : {};
+      const heroWhale = hero.whale && typeof hero.whale === "object" ? hero.whale : {};
+      const chatBg = chat.background && typeof chat.background === "object" ? chat.background : {};
+      const fps = state.frame && Number.isFinite(state.frame.fps) ? state.frame.fps : 30;
 
-      /**
-       * 一张卡片（v0.4.0）。三个模块各一张，卡片之间不再放分割线——卡片边框本身就是分隔。
-       * 卡片标题比卡内分组小标题高一级：13px 半粗主色 vs 12px 次色。
-       */
+      const enabled = !!state.enabled;
+      // 两道锁：全局总开关关 → 全部禁用；某页总开关关 → 该页的效果行与折叠区禁用。
+      const heroLocked = !enabled || !hero.enabled;
+      const chatLocked = !enabled || !chat.enabled;
+      const heroBgLocked = heroLocked || !heroBg.enabled;
+      const heroTitleLocked = heroLocked || !heroTitle.enabled;
+      const heroWhaleLocked = heroLocked || !heroWhale.enabled;
+
+      /** 一张卡片。卡片边框本身就是分隔，卡片之间不再放分割线。 */
       const card = (title, children) =>
         h(
           "section",
@@ -6345,48 +6636,121 @@ window.__ModuleLoader__.load({
           children,
         );
 
-      /**
-       * 动效卡片里的一个分组（v0.4.0）。
-       *
-       * first 为真时**不**画分割线：卡片标题已经把这组与上面隔开，
-       * 再加一条线会变成「卡片标题 + 线 + 小标题」的三层堆叠。
-       *
-       * rows 用可变参数而不是数组，是为了让 React 看到多个 children 而不是数组，
-       * 免掉「数组元素缺 key」的警告。
-       */
-      const group = (title, first, ...rows) =>
+      const divider = () => h("div", { className: "mui-divider", role: "separator" });
+
+      /** 一行开关。 */
+      const switchRow = (key, label, hint, checked, disabled, onChange) =>
         h(
-          React.Fragment,
-          null,
-          first ? null : h("div", { className: "mui-divider", role: "separator" }),
-          h("h4", { className: "mui-group-title" }, title),
-          ...rows,
+          Row,
+          { key, label, hint },
+          h(Switch, { label, checked: !!checked, disabled, onChange }),
         );
 
-      const heroPage = pageSwitch("hero");
-      const chatPage = pageSwitch("chat");
-      const glassEnabled = {
-        checked: state.glass.enabled,
-        disabled: off,
-        onChange: (value) => set({ glass: { enabled: value } }),
-      };
+      /** 一行滑块。 */
+      const rangeRow = (key, label, hint, value, min, max, step, display, disabled, onChange) =>
+        h(
+          Row,
+          { key, label, hint },
+          h(Range, { label, value, min, max, step, display, disabled, onChange }),
+        );
+
+      /** 折叠区：标题行 + 详情容器（详情始终渲染，收起时 hidden）。 */
+      const disclosure = (key, label, controlsId, locked, rows) => [
+        h(
+          Disclosure,
+          {
+            key: `${key}-toggle`,
+            label,
+            controls: controlsId,
+            open: !!openKeys[key],
+            onToggle: () => toggle(key),
+          },
+        ),
+        h(
+          Detail,
+          {
+            key: `${key}-detail`,
+            id: controlsId,
+            label,
+            open: !!openKeys[key],
+            locked,
+            lockedNote: t("detailLocked"),
+          },
+          ...rows,
+        ),
+      ];
+
+      /** 背景折叠区里的四行（两页共用同一套行与文案，只是写回不同的页面分组）。 */
+      const backgroundRows = (pageKey, background, locked) => [
+        switchRow(
+          `${pageKey}-bg-idle`,
+          t("rowBackgroundIdle"),
+          t("rowBackgroundIdleHint"),
+          background.idle,
+          locked,
+          (value) => set({ pages: { [pageKey]: { background: { idle: value } } } }),
+        ),
+        switchRow(
+          `${pageKey}-bg-interact`,
+          t("rowBackgroundInteract"),
+          t("rowBackgroundInteractHint"),
+          background.interact,
+          locked,
+          (value) => set({ pages: { [pageKey]: { background: { interact: value } } } }),
+        ),
+        rangeRow(
+          `${pageKey}-bg-intensity`,
+          t("rowIntensity"),
+          t("rowIntensityHint"),
+          Number.isFinite(background.intensity) ? background.intensity : 0.3,
+          0,
+          1,
+          0.05,
+          `${Math.round((Number.isFinite(background.intensity) ? background.intensity : 0.3) * 100)}%`,
+          locked,
+          (value) => set({ pages: { [pageKey]: { background: { intensity: value } } } }),
+        ),
+        rangeRow(
+          `${pageKey}-bg-speed`,
+          t("rowBackgroundSpeed"),
+          t("rowBackgroundSpeedHint"),
+          Number.isFinite(background.speed) ? background.speed : 1,
+          0.25,
+          2,
+          0.25,
+          `${Number.isFinite(background.speed) ? background.speed : 1}×`,
+          locked,
+          (value) => set({ pages: { [pageKey]: { background: { speed: value } } } }),
+        ),
+      ];
 
       return h(
         "div",
         { className: "mui-page" },
         h("p", { className: "mui-lead" }, t("lead")),
 
-        // 总开关
+        // ===== 卡片 1：总开关（v0.5.0：帧率也归到这里）=====
         card(
           t("groupMaster"),
           h(
-            Row,
-            { label: t("master"), hint: t("masterHint") },
-            h(Switch, {
-              label: t("master"),
-              checked: state.enabled,
-              onChange: (value) => set({ enabled: value }),
-            }),
+            React.Fragment,
+            null,
+            switchRow(t("master"), t("master"), t("masterHint"), enabled, false, (value) =>
+              set({ enabled: value }),
+            ),
+            divider(),
+            rangeRow(
+              t("rowFps"),
+              t("rowFps"),
+              t("rowFpsHint"),
+              fps,
+              15,
+              60,
+              5,
+              `${fps} fps`,
+              !enabled,
+              (value) => set({ frame: { fps: value } }),
+            ),
           ),
         ),
 
@@ -6397,218 +6761,197 @@ window.__ModuleLoader__.load({
           ? h("p", { className: "mui-note", "data-tone": "warn" }, t("reducedMotion"))
           : null,
 
-        // 模块 1：页面
+        // ===== 卡片 2：新建会话页 =====
         card(
-          t("groupPages"),
+          t("groupHeroPage"),
           h(
             React.Fragment,
             null,
-            h(
-              Row,
-              { key: "page-hero", label: t("rowHeroPage"), hint: t("rowHeroPageHint") },
-              h(Switch, { label: t("rowHeroPage"), ...heroPage }),
+            switchRow(
+              "hero-master",
+              t("pageMaster"),
+              t("pageHeroHint"),
+              hero.enabled,
+              !enabled,
+              (value) => set({ pages: { hero: { enabled: value } } }),
             ),
-            h(
-              Row,
-              { key: "page-chat", label: t("rowChatPage"), hint: t("rowChatPageHint") },
-              h(Switch, { label: t("rowChatPage"), ...chatPage }),
+            divider(),
+            switchRow(
+              "hero-background",
+              t("rowBackground"),
+              t("rowBackgroundHint"),
+              heroBg.enabled,
+              heroLocked,
+              (value) => set({ pages: { hero: { background: { enabled: value } } } }),
             ),
-          ),
-        ),
-
-        // 模块 2：动效 → 动效卡片（v0.4.0）：卡内再分五组，组间用分割线 + 小标题
-        card(
-          t("groupEffects"),
-          h(
-            React.Fragment,
-            null,
-            group(
-              t("groupBackground"),
-              true,
-              h(
-                Row,
-                { label: t("rowBackgroundIdle"), hint: t("rowBackgroundIdleHint") },
-                h(Switch, {
-                  label: t("rowBackgroundIdle"),
-                  checked: state.background.idle,
-                  disabled: off,
-                  onChange: (value) => set({ background: { idle: value } }),
-                }),
-              ),
-              h(
-                Row,
-                { label: t("rowBackgroundInteract"), hint: t("rowBackgroundInteractHint") },
-                h(Switch, {
-                  label: t("rowBackgroundInteract"),
-                  checked: state.background.interact,
-                  disabled: off,
-                  onChange: (value) => set({ background: { interact: value } }),
-                }),
-              ),
-              h(
-                Row,
-                { label: t("rowIntensity"), hint: t("rowIntensityHint") },
-                h(Range, {
-                  label: t("rowIntensity"),
-                  value: state.background.intensity,
-                  min: 0,
-                  max: 1,
-                  step: 0.05,
-                  display: `${Math.round(state.background.intensity * 100)}%`,
-                  disabled: off,
-                  onChange: (value) => set({ background: { intensity: value } }),
-                }),
-              ),
-              // v0.3.0：背景动画速度（整片背景的时钟倍率，含涟漪）。与帧率上限完全独立。
-              h(
-                Row,
-                { label: t("rowBackgroundSpeed"), hint: t("rowBackgroundSpeedHint") },
-                h(Range, {
-                  label: t("rowBackgroundSpeed"),
-                  value: state.background.speed,
-                  min: 0.25,
-                  max: 2,
-                  step: 0.25,
-                  display: `${state.background.speed}×`,
-                  disabled: off,
-                  onChange: (value) => set({ background: { speed: value } }),
-                }),
-              ),
+            ...disclosure(
+              "hero-background",
+              t("detailBackground"),
+              "sf-hero-background-detail",
+              heroBgLocked,
+              backgroundRows("hero", heroBg, heroBgLocked),
             ),
-            group(
-              t("groupHeadline"),
-              false,
-              h(
-                Row,
-                { label: t("rowTitleIdle"), hint: t("rowTitleIdleHint") },
-                h(Switch, {
-                  label: t("rowTitleIdle"),
-                  checked: state.title.idle,
-                  disabled: off,
-                  onChange: (value) => set({ title: { idle: value } }),
-                }),
-              ),
-              h(
-                Row,
-                { label: t("rowTitleInteract"), hint: t("rowTitleInteractHint") },
-                h(Switch, {
-                  label: t("rowTitleInteract"),
-                  checked: state.title.interact,
-                  disabled: off,
-                  onChange: (value) => set({ title: { interact: value } }),
-                }),
-              ),
-              // v0.3.0：标题动画速度。范围与步长镜像 settings.js 的 SPEED_RANGE；
-              // 这里写常量而不是 import，是因为设置页测试会剥掉 import 行后再渲染组件。
-              h(
-                Row,
-                { label: t("rowTitleSpeed"), hint: t("rowTitleSpeedHint") },
-                h(Range, {
-                  label: t("rowTitleSpeed"),
-                  value: state.title.speed,
-                  min: 0.25,
-                  max: 2,
-                  step: 0.25,
-                  display: `${state.title.speed}×`,
-                  disabled: off,
-                  onChange: (value) => set({ title: { speed: value } }),
-                }),
-              ),
+            divider(),
+            switchRow(
+              "hero-title",
+              t("rowTitle"),
+              t("rowTitleHint"),
+              heroTitle.enabled,
+              heroLocked,
+              (value) => set({ pages: { hero: { title: { enabled: value } } } }),
             ),
-            group(
-              t("groupWhale"),
-              false,
-              // ===== v0.4.0：鲸鱼动画（从 dsh-ascii-whales 迁移）=====
-              // 独立成一个分组而不是并进背景组：两者是互不相干的渲染管线，
-              // 而且这组有 13 行，混进背景组会把上面 4 行彻底淹没。
-              h(
-                Row,
-                { label: t("rowWhaleEnabled"), hint: t("rowWhaleEnabledHint") },
-                h(Switch, {
-                  label: t("rowWhaleEnabled"),
-                  checked: whale.enabled,
-                  disabled: off,
-                  onChange: (value) => set({ whale: { enabled: value } }),
-                }),
-              ),
-              // 字符风格固定 ASCII，故这里只有「种类」一个分段选择，没有字形切换。
-              h(
-                Row,
-                { label: t("rowWhaleSpecies"), hint: t("rowWhaleSpeciesHint") },
-                h(Segmented, {
-                  label: t("rowWhaleSpecies"),
-                  value: whale.species,
-                  disabled: off,
-                  options: [
-                    { value: "humpback", label: t("whaleHumpback") },
-                    { value: "orca", label: t("whaleOrca") },
-                  ],
-                  onChange: (value) => set({ whale: { species: value } }),
-                }),
-              ),
-              h("p", { className: "mui-row-hint" }, t("whaleNumbersHint")),
-              h(
-                "div",
-                { className: "mui-numgrid" },
-                WHALE_NUMBERS.map((field) =>
-                  h(
-                    "label",
-                    { key: field.key, className: "mui-num" },
-                    h("span", { className: "mui-num-label" }, t(field.row)),
-                    h("input", {
-                      type: "number",
-                      className: "mui-num-input",
-                      "aria-label": t(field.row),
-                      min: field.min,
-                      max: field.max,
-                      step: field.step,
-                      value: whale[field.key] === undefined ? "" : whale[field.key],
-                      disabled: off ? true : undefined,
-                      onChange: (event) => {
-                        // 清空输入框时不要写回：valueAsNumber 会变成 NaN，
-                        // 而归一化会把非法值换回默认，等于「一删就跳回默认」，手感很糟。
-                        const next = event.target.valueAsNumber;
-                        if (event.target.value !== "" && Number.isFinite(next)) {
-                          set({ whale: { [field.key]: next } });
-                        }
-                      },
-                    }),
+            ...disclosure(
+              "hero-title",
+              t("detailTitle"),
+              "sf-hero-title-detail",
+              heroTitleLocked,
+              [
+                switchRow(
+                  "hero-title-idle",
+                  t("rowTitleIdle"),
+                  t("rowTitleIdleHint"),
+                  heroTitle.idle,
+                  heroTitleLocked,
+                  (value) => set({ pages: { hero: { title: { idle: value } } } }),
+                ),
+                switchRow(
+                  "hero-title-interact",
+                  t("rowTitleInteract"),
+                  t("rowTitleInteractHint"),
+                  heroTitle.interact,
+                  heroTitleLocked,
+                  (value) => set({ pages: { hero: { title: { interact: value } } } }),
+                ),
+                // v0.3.0：标题动画速度。范围与步长镜像 settings.js 的 SPEED_RANGE。
+                rangeRow(
+                  "hero-title-speed",
+                  t("rowTitleSpeed"),
+                  t("rowTitleSpeedHint"),
+                  Number.isFinite(heroTitle.speed) ? heroTitle.speed : 1,
+                  0.25,
+                  2,
+                  0.25,
+                  `${Number.isFinite(heroTitle.speed) ? heroTitle.speed : 1}×`,
+                  heroTitleLocked,
+                  (value) => set({ pages: { hero: { title: { speed: value } } } }),
+                ),
+              ],
+            ),
+            divider(),
+            switchRow(
+              "hero-whale",
+              t("rowWhale"),
+              t("rowWhaleHint"),
+              heroWhale.enabled,
+              heroLocked,
+              (value) => set({ pages: { hero: { whale: { enabled: value } } } }),
+            ),
+            ...disclosure(
+              "hero-whale",
+              t("detailWhale"),
+              "sf-hero-whale-detail",
+              heroWhaleLocked,
+              [
+                // 字符风格固定 ASCII，故这里只有「种类」一个分段选择，没有字形切换。
+                h(
+                  Row,
+                  { key: "hero-whale-species", label: t("rowWhaleSpecies"), hint: t("rowWhaleSpeciesHint") },
+                  h(Segmented, {
+                    label: t("rowWhaleSpecies"),
+                    value: heroWhale.species,
+                    disabled: heroWhaleLocked,
+                    options: [
+                      { value: "humpback", label: t("whaleHumpback") },
+                      { value: "orca", label: t("whaleOrca") },
+                    ],
+                    onChange: (value) => set({ pages: { hero: { whale: { species: value } } } }),
+                  }),
+                ),
+                h("p", { key: "hero-whale-numbers-hint", className: "mui-row-hint" }, t("whaleNumbersHint")),
+                h(
+                  "div",
+                  { key: "hero-whale-numbers", className: "mui-numgrid" },
+                  WHALE_NUMBERS.map((field) =>
+                    h(
+                      "label",
+                      { key: field.key, className: "mui-num" },
+                      h("span", { className: "mui-num-label" }, t(field.row)),
+                      h("input", {
+                        type: "number",
+                        className: "mui-num-input",
+                        "aria-label": t(field.row),
+                        min: field.min,
+                        max: field.max,
+                        step: field.step,
+                        value: heroWhale[field.key] === undefined ? "" : heroWhale[field.key],
+                        disabled: heroWhaleLocked ? true : undefined,
+                        onChange: (event) => {
+                          // 清空输入框时不要写回：valueAsNumber 会变成 NaN，
+                          // 而归一化会把非法值换回默认，等于「一删就跳回默认」，手感很糟。
+                          const next = event.target.valueAsNumber;
+                          if (event.target.value !== "" && Number.isFinite(next)) {
+                            set({ pages: { hero: { whale: { [field.key]: next } } } });
+                          }
+                        },
+                      }),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
-            group(
-              t("groupInput"),
-              false,
-              h(
-                Row,
-                { label: t("rowGlass"), hint: t("rowGlassHint") },
-                h(Switch, { label: t("rowGlass"), ...glassEnabled }),
-              ),
-            ),
-            group(
-              t("groupFps"),
-              false,
-              // v0.2.11：重绘帧率上限。范围与步长镜像 settings.js 的 FPS_RANGE，
-              // 这里写常量而不是 import，是因为设置页测试会剥掉 import 行后再渲染组件。
-              h(
-                Row,
-                { label: t("rowFps"), hint: t("rowFpsHint") },
-                h(Range, {
-                  label: t("rowFps"),
-                  value: state.background.fps,
-                  min: 15,
-                  max: 60,
-                  step: 5,
-                  display: `${state.background.fps} fps`,
-                  disabled: off,
-                  onChange: (value) => set({ background: { fps: value } }),
-                }),
-              ),
+            divider(),
+            switchRow(
+              "hero-glass",
+              t("rowGlass"),
+              t("rowGlassHint"),
+              hero.glass,
+              heroLocked,
+              (value) => set({ pages: { hero: { glass: value } } }),
             ),
           ),
         ),
 
+        // ===== 卡片 3：聊天会话页（没有标题与鲸鱼）=====
+        card(
+          t("groupChatPage"),
+          h(
+            React.Fragment,
+            null,
+            switchRow(
+              "chat-master",
+              t("pageMaster"),
+              t("pageChatHint"),
+              chat.enabled,
+              !enabled,
+              (value) => set({ pages: { chat: { enabled: value } } }),
+            ),
+            divider(),
+            switchRow(
+              "chat-background",
+              t("rowBackground"),
+              t("rowBackgroundHint"),
+              chatBg.enabled,
+              chatLocked,
+              (value) => set({ pages: { chat: { background: { enabled: value } } } }),
+            ),
+            ...disclosure(
+              "chat-background",
+              t("detailBackground"),
+              "sf-chat-background-detail",
+              chatLocked || !chatBg.enabled,
+              backgroundRows("chat", chatBg, chatLocked || !chatBg.enabled),
+            ),
+            divider(),
+            switchRow(
+              "chat-glass",
+              t("rowGlass"),
+              t("rowGlassHint"),
+              chat.glass,
+              chatLocked,
+              (value) => set({ pages: { chat: { glass: value } } }),
+            ),
+          ),
+        ),
 
         h(
           "div",
@@ -6666,9 +7009,15 @@ window.__ModuleLoader__.load({
       }
       if (stored !== null && stored !== "") return;
       if (!prefersReducedMotion()) return;
+      // v0.5.0：动效参数按页保存，两页都要把「默认动效 / 鼠标交互」置为静止。
       store.update({
-        title: { idle: false, interact: false },
-        background: { idle: false, interact: false },
+        pages: {
+          hero: {
+            title: { idle: false, interact: false },
+            background: { idle: false, interact: false },
+          },
+          chat: { background: { idle: false, interact: false } },
+        },
       });
     }
 

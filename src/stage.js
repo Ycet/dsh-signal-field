@@ -45,6 +45,49 @@ function clamp(value, min, max) {
 }
 
 /**
+ * 取某个页面的设置作用域（v0.5.0 按页模型）。
+ *
+ * store 的快照总是经过 normalize() 的；这里的兜底只为「测试里手搓的裸 state」不崩，
+ * 不承担补默认值的职责——缺的键交给各引擎自己的默认值，避免两处默认值打架。
+ *
+ * @param {object} state 设置快照
+ * @param {string} page PAGE_HERO / PAGE_CHAT
+ * @returns {{ enabled?: boolean, background?: object, title?: object, whale?: object, glass?: boolean }}
+ *   该页的作用域对象；页面不在作用范围时返回空对象。
+ */
+export function pageScopeOf(state, page) {
+  const scopes = state && typeof state === "object" && state.pages && typeof state.pages === "object"
+    ? state.pages
+    : {};
+  const scope = page === PAGE_HERO ? scopes.hero : page === PAGE_CHAT ? scopes.chat : null;
+  return scope && typeof scope === "object" ? scope : {};
+}
+
+/** 取某页的背景分组（纯函数，供同步路径与测试共用）。 */
+export function backgroundScopeOf(state, page) {
+  const background = pageScopeOf(state, page).background;
+  return background && typeof background === "object" ? background : {};
+}
+
+/** 取某页的标题分组（只有新建会话页有）。 */
+export function titleScopeOf(state) {
+  const title = pageScopeOf(state, PAGE_HERO).title;
+  return title && typeof title === "object" ? title : {};
+}
+
+/** 取新建会话页的鲸鱼分组。 */
+export function whaleScopeOf(state) {
+  const whale = pageScopeOf(state, PAGE_HERO).whale;
+  return whale && typeof whale === "object" ? whale : {};
+}
+
+/** 全局帧率上限（v0.5.0 从 background.fps 提到顶层）。 */
+export function frameFpsOf(state) {
+  const frame = state && typeof state === "object" ? state.frame : null;
+  return frame && typeof frame.fps === "number" ? frame.fps : 0;
+}
+
+/**
  * 流式输出期间的同步合并窗口（ms）。
  *
  * 会话在流式输出时 `body` 的 childList 每帧都在变，而 sync() 里有 5~8 次布局读
@@ -265,11 +308,10 @@ export function createStage(options) {
   }
 
   function fieldWanted(state) {
-    // v0.2.9：背景是否铺由「页面」开关决定；background.idle 只决定是否持续动画。
+    // v0.5.0：背景是否铺由「该页总开关 + 该页背景开关」决定；idle 只决定是否持续动画。
     if (!state.enabled) return false;
-    if (page === PAGE_HERO) return state.pages.hero;
-    if (page === PAGE_CHAT) return state.pages.chat;
-    return false;
+    if (page !== PAGE_HERO && page !== PAGE_CHAT) return false;
+    return !!pageScopeOf(state, page).enabled && !!backgroundScopeOf(state, page).enabled;
   }
 
   function syncField(state, dark) {
@@ -308,14 +350,17 @@ export function createStage(options) {
     }
     doc.documentElement.setAttribute("data-mui-active", "");
 
+    // v0.5.0：参数来自**当前页**的背景分组（两页各调各的），帧率是全局的。
+    const fieldBackground = backgroundScopeOf(state, page);
+    const fieldFps = frameFpsOf(state);
     if (!field) {
       field = createField(layerEl, {
         dark,
-        intensity: state.background.intensity,
-        idle: state.background.idle,
-        interact: state.background.interact,
-        fps: state.background.fps,
-        speed: state.background.speed,
+        intensity: fieldBackground.intensity,
+        idle: fieldBackground.idle,
+        interact: fieldBackground.interact,
+        fps: fieldFps,
+        speed: fieldBackground.speed,
         reduceMotion: status.getSnapshot().reducedMotion,
         onFallback: (reason) => {
           engineState = `fallback:${reason}`;
@@ -328,11 +373,11 @@ export function createStage(options) {
     } else {
       field.update({
         dark,
-        intensity: state.background.intensity,
-        idle: state.background.idle,
-        interact: state.background.interact,
-        fps: state.background.fps,
-        speed: state.background.speed,
+        intensity: fieldBackground.intensity,
+        idle: fieldBackground.idle,
+        interact: fieldBackground.interact,
+        fps: fieldFps,
+        speed: fieldBackground.speed,
       });
     }
     layerEl.setAttribute("data-on", "");
@@ -343,11 +388,11 @@ export function createStage(options) {
   /**
    * 把设置摊平成鲸鱼适配器要的形状。
    *
-   * fps 与 interact 刻意取 background 那两项：这是本轮的产品决策——
-   * 帧率上限与鼠标交互都复用既有的全局开关，不新增第二套概念。
+   * v0.5.0：参数取新建会话页的鲸鱼分组；帧率是全局的，
+   * 鼠标交互复用该页「背景鼠标交互」——不再新增第二套概念。
    */
   function whaleOptions(state, dark) {
-    const whale = state.whale && typeof state.whale === "object" ? state.whale : {};
+    const whale = whaleScopeOf(state);
     return {
       dark: !!dark,
       species: whale.species,
@@ -362,8 +407,8 @@ export function createStage(options) {
       fishCount: whale.fishCount,
       wake: whale.wake,
       opacity: whale.opacity,
-      fps: state.background ? state.background.fps : 0,
-      interact: state.background ? state.background.interact : false,
+      fps: frameFpsOf(state),
+      interact: !!backgroundScopeOf(state, PAGE_HERO).interact,
     };
   }
 
@@ -391,11 +436,12 @@ export function createStage(options) {
    * 留着不画比拆掉更费，也更容易在切页后留下幽灵监听。
    */
   function syncWhale(state, dark) {
+    const heroScope = pageScopeOf(state, PAGE_HERO);
     const wanted = resolveWhaleTarget({
       page,
-      heroPage: state.pages ? state.pages.hero : false,
+      pageEnabled: heroScope.enabled,
       master: state.enabled,
-      whaleEnabled: state.whale ? state.whale.enabled : false,
+      whaleEnabled: whaleScopeOf(state).enabled,
     });
     const surface = wanted ? resolveSurface() : null;
     if (!wanted || !surface) {
@@ -635,18 +681,28 @@ export function createStage(options) {
     setFlag(hudBackdropEl, "data-on", true);
   }
 
-  /** HUD 面板补场：面板在、且开着 HUD 玻璃时才有意义。 */
+  /**
+   * HUD 面板补场：面板在、且**当前所在页**的「UI动效总开关」与「背景」都开着时才有意义。
+   *
+   * v0.5.0：面板玻璃要模糊的就是这片补场，所以两道开关与 syncRoot 里的
+   * data-mui-hud-glass 完全一致——该页背景关掉后补场与玻璃一起消失，不留「发虚但没内容」的状态。
+   * 参数也取当前页那一份：补场与它所在页面的信号场必须是同一片观感，否则接缝处会露馅。
+   */
   function syncHudBackdrop(state, dark) {
     const panel = doc.querySelector(".hud-panel");
+    const currentScope = pageScopeOf(state, page);
+    const pageBackground = backgroundScopeOf(state, page);
     const wanted =
       state.enabled &&
       page !== PAGE_NONE &&
-      state.pages.chat &&
+      !!currentScope.enabled &&
+      !!pageBackground.enabled &&
       !!panel;
     if (!wanted) {
       destroyHudBackdrop();
       return;
     }
+    const hudFps = frameFpsOf(state);
     if (!hudBackdropEl) {
       hudBackdropEl = doc.createElement("div");
       hudBackdropEl.setAttribute("data-mui-field", "");
@@ -661,14 +717,14 @@ export function createStage(options) {
     if (!hudField) {
       hudField = createField(hudBackdropEl, {
         dark,
-        intensity: state.background.intensity,
-        idle: state.background.idle,
+        intensity: pageBackground.intensity,
+        idle: pageBackground.idle,
         // v0.3.1：与内容区共用「背景鼠标交互」开关。原来这里写死 false，
-        // 导致面板背后那块背景完全没有鼠标交互动效。
-        interact: state.background.interact,
-        fps: state.background.fps,
+        // 导致面板背后那块背景完全没有鼠标交互动效。v0.5.0 起跟随当前页那一份。
+        interact: pageBackground.interact,
+        fps: hudFps,
         // HUD 补场与内容区共用同一个背景速度：两者是同一片背景的两段，不同速会在接缝处露馅。
-        speed: state.background.speed,
+        speed: pageBackground.speed,
         // v0.3.1：补场不播入场揭示。它是内容区那片背景的延续段，而且每次进聊天页都会被重建，
         // 保留揭示就等于每次进页都重播 1.8s 的展开动画——也就是「过几秒才出现」的直接原因。
         intro: false,
@@ -682,11 +738,11 @@ export function createStage(options) {
     } else {
       hudField.update({
         dark,
-        intensity: state.background.intensity,
-        idle: state.background.idle,
-        interact: state.background.interact,
-        fps: state.background.fps,
-        speed: state.background.speed,
+        intensity: pageBackground.intensity,
+        idle: pageBackground.idle,
+        interact: pageBackground.interact,
+        fps: hudFps,
+        speed: pageBackground.speed,
       });
     }
     placeHudBackdrop(panel);
@@ -723,8 +779,9 @@ export function createStage(options) {
   // ---- 标题 -------------------------------------------------------------
 
   function titleWanted(state) {
-    // 标题只存在于新增会话页，因此它跟随「新建会话页面」开关。
-    return state.enabled && page === PAGE_HERO && state.pages.hero;
+    // 标题只存在于新增会话页：需要该页总开关 + 标题自己的开关同时打开（v0.5.0）。
+    if (!state.enabled || page !== PAGE_HERO) return false;
+    return !!pageScopeOf(state, PAGE_HERO).enabled && !!titleScopeOf(state).enabled;
   }
 
   function removeTitle() {
@@ -835,6 +892,7 @@ export function createStage(options) {
     applyTitleBox();
 
     const dark = doc.body.hasAttribute("data-ds-dark-theme");
+    const titleSettings = titleScopeOf(state);
     title = createTechText(titleEl, TITLE_TEXT, {
       fontWeight: 600,
       fontSize: TITLE_TARGET_SIZE,
@@ -851,11 +909,11 @@ export function createStage(options) {
       specks: 14,
       // speed 是引擎内在基准（0.9），speedFactor 才是用户可调的倍率（v0.3.0）。
       speed: 0.9,
-      speedFactor: state.title.speed,
-      selection: state.title.interact,
-      labels: state.title.interact,
-      draggable: state.title.interact,
-      sweep: state.title.idle,
+      speedFactor: titleSettings.speed,
+      selection: titleSettings.interact,
+      labels: titleSettings.interact,
+      draggable: titleSettings.interact,
+      sweep: titleSettings.idle,
       reduceMotion: status.getSnapshot().reducedMotion,
     });
     status.set({ titleAvailable: true });
@@ -878,22 +936,23 @@ export function createStage(options) {
     // 页面上任何 DOM 变化都会触发 sync()，而标题引擎的 refresh 需要重新烘焙字形贴图，
     // 所以这里用签名短路：只有开关或主题真的变了才重建。
     const dark = doc.body.hasAttribute("data-ds-dark-theme");
-    doc.documentElement.toggleAttribute("data-mui-title-static", !state.title.interact);
+    const titleSettings = titleScopeOf(state);
+    doc.documentElement.toggleAttribute("data-mui-title-static", !titleSettings.interact);
     if (!title) return;
     // v0.3.0：速度走独立的轻量入口，**不进签名**。
     // 一旦进签名，拖滑块每一格都会触发 refresh → 重烘字形贴图 → 标题闪烁。
-    if (state.title.speed !== titleSpeed) {
-      titleSpeed = state.title.speed;
-      title.setSpeed(state.title.speed);
+    if (titleSettings.speed !== titleSpeed) {
+      titleSpeed = titleSettings.speed;
+      title.setSpeed(titleSettings.speed);
     }
-    const signature = `${state.title.idle}|${state.title.interact}|${dark}`;
+    const signature = `${titleSettings.idle}|${titleSettings.interact}|${dark}`;
     if (signature === titleSignature) return;
     titleSignature = signature;
     title.refresh({
       color: readToken(doc, "--dsw-alias-label-primary", dark ? "#f2f4fa" : "#0b0f1a"),
       accentColor: readToken(doc, "--dsw-alias-brand-primary", "#2b3af0"),
-      sweep: state.title.idle,
-      interact: state.title.interact,
+      sweep: titleSettings.idle,
+      interact: titleSettings.interact,
     });
   }
 
@@ -911,15 +970,29 @@ export function createStage(options) {
     // 这样 HUD 玻璃、右栏背景这类跨区域能力在背景关掉时仍然可单独生效。
     setFlag(root, "data-mui-scope", page !== PAGE_NONE);
     setFlag(root, "data-mui-dark", dark);
-    // 输入框毛玻璃：v0.2.9 起是一个全局开关，再由当前页面开关决定是否生效。
-    const glassOn = state.glass.enabled;
-    setFlag(root, "data-mui-glass-hero", glassOn && page === PAGE_HERO && state.pages.hero);
-    setFlag(root, "data-mui-glass-chat", glassOn && page === PAGE_CHAT && state.pages.chat);
-    // HUD 面板没有独立开关：跟随「聊天会话页面」（见 resolvePanelTargets 注释）。
-    const targets = resolvePanelTargets({ page, chatPage: state.pages.chat });
+    // 输入框毛玻璃（v0.5.0 按页）：该页总开关 + 该页「输入框毛玻璃效果」都开着才生效。
+    const heroScope = pageScopeOf(state, PAGE_HERO);
+    const chatScope = pageScopeOf(state, PAGE_CHAT);
+    setFlag(
+      root,
+      "data-mui-glass-hero",
+      page === PAGE_HERO && !!heroScope.enabled && !!heroScope.glass,
+    );
+    setFlag(
+      root,
+      "data-mui-glass-chat",
+      page === PAGE_CHAT && !!chatScope.enabled && !!chatScope.glass,
+    );
+    // HUD 面板没有独立开关：跟随**当前所在页**的总开关 + 背景开关（见 resolvePanelTargets 注释）。
+    const targets = resolvePanelTargets({
+      page,
+      pageEnabled: pageScopeOf(state, page).enabled,
+      backgroundEnabled: backgroundScopeOf(state, page).enabled,
+    });
     setFlag(root, "data-mui-hud-glass", targets.hud);
     // 模糊半径已固定 14px（v0.2.9 移除滑块），这里仍写变量以保持 CSS 单一来源。
-    setVar(root, "--mui-blur", `${state.glass.blur}px`);
+    const blurRadius = state.glass && Number.isFinite(state.glass.blur) ? state.glass.blur : 14;
+    setVar(root, "--mui-blur", `${blurRadius}px`);
     // 降级底色也放在根上：WebGL2 不可用时 CSS 径向渐变要用到这两个变量。
     setVar(root, "--mui-field-bg", dark ? "#070a12" : "#e7e9f0");
     setVar(root, "--mui-field-wave", dark ? "#3a4a7a" : "#b6bfd8");
@@ -1060,9 +1133,11 @@ export function createStage(options) {
     lines.push(statLine("hudField", hudField ? hudField.stats : null));
     // v0.3.0：把两个实际生效的速度倍率也打出来，便于确认滑块值真的到达了引擎
     // （设置层与引擎层之间有任何一处漏传，这里会立刻暴露成 1×）。
-    const speeds = store.getSnapshot();
+    const snapshot = store.getSnapshot();
+    // v0.5.0：速度按页取值。当前页不在作用范围时按聊天会话页打印（HUD 补场也跟随它）。
+    const speedPage = page === PAGE_HERO || page === PAGE_CHAT ? page : PAGE_CHAT;
     lines.push(
-      `speeds: title=${speeds.title.speed}x background=${speeds.background.speed}x hud=follow`,
+      `speeds: title=${titleScopeOf(snapshot).speed}x background[${speedPage}]=${backgroundScopeOf(snapshot, speedPage).speed}x hud=follow`,
     );
 
     if (history.length > 0) {

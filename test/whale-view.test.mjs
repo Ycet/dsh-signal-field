@@ -1,7 +1,7 @@
 /**
  * 鲸鱼图层可见性测试（v0.4.0）
  *
- * resolveWhaleTarget() 是「总开关 × 页面开关 × 鲸鱼开关 × 当前页面」四者的唯一判定点。
+ * resolveWhaleTarget() 是「总开关 × 新建会话页总开关 × 鲸鱼开关 × 当前页面」四者的唯一判定点。
  * 之所以把它单独抽成纯函数，就是为了能在没有 DOM 的情况下把真值表钉死：
  * 任何一处闸门写错，表现都是「明明开着却看不到鲸鱼」或「关掉了还在跑」，
  * 这两种都只能在浏览器里靠肉眼发现，代价太高。
@@ -12,8 +12,8 @@ import test from 'node:test';
 
 import { PAGE_CHAT, PAGE_HERO, PAGE_NONE, resolveWhaleTarget } from '../src/page.js';
 
-/** 四道闸门全开的最小输入。 */
-const ALL_ON = Object.freeze({ page: PAGE_HERO, heroPage: true, master: true, whaleEnabled: true });
+/** 四道闸门全开的最小输入（v0.5.0：页面闸门改名为 pageEnabled）。 */
+const ALL_ON = Object.freeze({ page: PAGE_HERO, pageEnabled: true, master: true, whaleEnabled: true });
 
 test('whale-view: 四道闸门全开才显示', () => {
   assert.equal(resolveWhaleTarget(ALL_ON), true);
@@ -21,7 +21,7 @@ test('whale-view: 四道闸门全开才显示', () => {
 
 test('whale-view: 任一上级闸门关闭都不显示', () => {
   assert.equal(resolveWhaleTarget({ ...ALL_ON, master: false }), false, '总开关关闭');
-  assert.equal(resolveWhaleTarget({ ...ALL_ON, heroPage: false }), false, '「新建会话页面」关闭');
+  assert.equal(resolveWhaleTarget({ ...ALL_ON, pageEnabled: false }), false, '「新建会话页」总开关关闭');
   assert.equal(resolveWhaleTarget({ ...ALL_ON, whaleEnabled: false }), false, '鲸鱼开关关闭');
 });
 

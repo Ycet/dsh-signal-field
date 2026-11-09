@@ -138,49 +138,77 @@ test('locale: 两侧都声明了作用范围，且描述不再宣传已移出的
   assert.equal(/plugin manager|scheduled-task/i.test(en.meta.description), false);
 });
 
-test('settings page: 三张卡片 + 动效卡内五组，旧的按页效果行已下线', async () => {
+test('settings page: 三张卡片按页面组织，折叠区与旧结构互斥', async () => {
   const source = await readFile(join(ROOT, 'src', 'settings-page.js'), 'utf8');
-  // v0.4.0：模块改成卡片。三张卡：总开关 / 页面 / 动效
-  assert.equal(source.includes('t("groupMaster")'), true, '缺少「总开关」卡片');
-  assert.equal(source.includes('t("groupPages")'), true, '缺少「页面」卡片');
-  assert.equal(source.includes('t("groupEffects")'), true, '缺少「动效」卡片');
+  // v0.5.0：卡片 = 总开关 / 新建会话页 / 聊天会话页
+  for (const key of ['groupMaster', 'groupHeroPage', 'groupChatPage']) {
+    assert.equal(source.includes(`t("${key}")`), true, `缺少卡片标题：${key}`);
+  }
   assert.equal(source.includes('"mui-card"'), true, '缺少卡片的样式类');
   assert.equal(source.includes('"mui-card-title"'), true, '缺少卡片标题的样式类');
-  assert.equal(source.includes('card('), true, '缺少卡片的实际调用');
-  // 动效卡内五组：分割线 + 小标题
-  for (const key of ['groupBackground', 'groupHeadline', 'groupWhale', 'groupInput', 'groupFps']) {
-    assert.equal(source.includes(`t("${key}")`), true, `缺少分组小标题：${key}`);
+  assert.equal(source.includes('"mui-divider"'), true, '缺少分割线的样式类');
+  // v0.5.0：折叠区
+  assert.equal(source.includes('"mui-disclosure"'), true, '缺少折叠按钮的样式类');
+  assert.equal(source.includes('"mui-detail"'), true, '缺少折叠区容器的样式类');
+  assert.equal(source.includes('"mui-detail-note"'), true, '缺少折叠区锁定提示的样式类');
+  assert.equal(source.includes('"aria-expanded"'), true, '折叠按钮缺少 aria-expanded');
+  assert.equal(source.includes('"aria-controls"'), true, '折叠按钮缺少 aria-controls');
+  for (const key of ['detailBackground', 'detailTitle', 'detailWhale', 'detailLocked', 'pageMaster']) {
+    assert.equal(source.includes(`t("${key}")`), true, `缺少折叠区文案：${key}`);
   }
-  assert.equal(source.includes('"mui-group-title"'), true, '缺少分组小标题的样式类');
-  assert.equal(source.includes('"mui-divider"'), true, '缺少分组分割线的样式类');
-  // 旧结构残留检查：v0.2.9 的 section 级样式与模块间的那一条 divider() 调用都该消失
-  assert.equal(source.includes('"mui-section"'), false, '卡片化后不应再有 mui-section');
-  assert.equal(source.includes('"mui-section-title"'), false, '卡片化后不应再有 mui-section-title');
-  assert.equal(source.includes('divider(),'), false, '模块间不再调用 divider()（卡片边框即分隔）');
-  // 动效卡片的六项（4 个开关 + 2 个滑块）一个不少
-  for (const key of [
-    'rowTitleIdle',
-    'rowTitleInteract',
-    'rowBackgroundIdle',
-    'rowBackgroundInteract',
-    'rowGlass',
-    'rowIntensity',
+  // 帧率移进总开关卡片（写回顶层 frame，不再是 background.fps）
+  assert.equal(source.includes('set({ frame: { fps: value } })'), true, '帧率应写回顶层 frame');
+  assert.equal(source.includes('state.background'), false, '设置页不应再读旧的全局 background');
+  // 按页写回：两页各自的分组
+  for (const token of [
+    'set({ pages: { hero: { background: { enabled: value } } } })',
+    'set({ pages: { chat: { background: { enabled: value } } } })',
+    'set({ pages: { hero: { title: { enabled: value } } } })',
+    'set({ pages: { hero: { whale: { enabled: value } } } })',
+    'set({ pages: { hero: { glass: value } } })',
+    'set({ pages: { chat: { glass: value } } })',
   ]) {
-    assert.equal(source.includes(`t("${key}")`), true, `动效卡片缺少：${key}`);
+    assert.equal(source.includes(token), true, `缺少按页写回：${token}`);
   }
-  // 已下线的行：HUD 独立开关、模糊半径滑块、按页效果行
-  for (const gone of ['rowHudGlass', 'rowBlur', 'rowHeroTitle', 'rowHeroGlass', 'rowChatGlass']) {
+  // 旧结构彻底下线：旧分组标题、旧按页效果行、卡片化前的类名
+  for (const key of ['groupPages', 'groupEffects', 'groupBackground', 'groupHeadline', 'groupWhale', 'groupInput', 'groupFps']) {
+    assert.equal(source.includes(`t("${key}")`), false, `不应再引用旧分组：${key}`);
+  }
+  for (const gone of ['rowHudGlass', 'rowBlur', 'rowHeroPage', 'rowChatPage', 'rowHeroTitle', 'rowGlassChat']) {
     assert.equal(source.includes(gone), false, `页面仍残留已下线的行：${gone}`);
   }
+  assert.equal(source.includes('"mui-section"'), false, '不应再有 mui-section');
+  assert.equal(source.includes('"mui-group-title"'), false, 'v0.5.0 起不再使用卡内分组小标题');
 });
 
 test('locale: 中英键集完全一致，且与设置页实际用到的键对得上', async () => {
   const zh = JSON.parse(await readFile(join(ROOT, 'locale', 'zh.json'), 'utf8')).runtime;
   const en = JSON.parse(await readFile(join(ROOT, 'locale', 'en.json'), 'utf8')).runtime;
   assert.deepEqual(Object.keys(zh), Object.keys(en), '中英 runtime 键集与顺序必须一致');
-  for (const key of ['groupPages', 'groupEffects', 'rowHeroPage', 'rowChatPage', 'rowGlass']) {
+  for (const key of [
+    'groupMaster',
+    'groupHeroPage',
+    'groupChatPage',
+    'pageMaster',
+    'pageHeroHint',
+    'pageChatHint',
+    'rowBackground',
+    'rowTitle',
+    'rowWhale',
+    'rowGlass',
+    'detailBackground',
+    'detailTitle',
+    'detailWhale',
+    'detailLocked',
+    'rowFps',
+  ]) {
     assert.equal(typeof zh[key], 'string', `中文缺少：${key}`);
     assert.equal(typeof en[key], 'string', `英文缺少：${key}`);
+  }
+  // v0.5.0 已下线的键不得残留
+  for (const gone of ['groupPages', 'groupEffects', 'rowHeroPage', 'rowChatPage']) {
+    assert.equal(gone in zh, false, `中文不应再保留：${gone}`);
+    assert.equal(gone in en, false, `英文不应再保留：${gone}`);
   }
   const page = await readFile(join(ROOT, 'src', 'settings-page.js'), 'utf8');
   const used = new Set();

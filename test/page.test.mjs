@@ -42,16 +42,23 @@ test('resolvePageKind: 三个分类常量互不相同', () => {
 });
 
 test('resolvePanelTargets: 不在作用范围时 HUD 不生效', () => {
-  const targets = resolvePanelTargets({ page: PAGE_NONE, chatPage: true });
+  const targets = resolvePanelTargets({ page: PAGE_NONE, pageEnabled: true, backgroundEnabled: true });
   assert.deepEqual(targets, { hud: false });
 });
 
-test('resolvePanelTargets: HUD 面板跟随「聊天会话页面」开关', () => {
-  // v0.2.9：HUD 面板没有独立开关，只看聊天页是否启用；与当前处在哪一页无关。
-  assert.deepEqual(resolvePanelTargets({ page: PAGE_HERO, chatPage: true }), { hud: true });
-  assert.deepEqual(resolvePanelTargets({ page: PAGE_CHAT, chatPage: true }), { hud: true });
-  assert.deepEqual(resolvePanelTargets({ page: PAGE_HERO, chatPage: false }), { hud: false });
-  assert.deepEqual(resolvePanelTargets({ page: PAGE_CHAT, chatPage: false }), { hud: false });
+test('resolvePanelTargets: HUD 面板跟随「当前所在页」的总开关 + 背景开关', () => {
+  // v0.5.0：面板要模糊的是它所在那一页的背景，所以两道开关都要开（新建页用新建页的，聊天页用聊天页的）。
+  const on = { pageEnabled: true, backgroundEnabled: true };
+  assert.deepEqual(resolvePanelTargets({ page: PAGE_HERO, ...on }), { hud: true });
+  assert.deepEqual(resolvePanelTargets({ page: PAGE_CHAT, ...on }), { hud: true });
+  // 任一开关关闭都不生效
+  assert.deepEqual(resolvePanelTargets({ page: PAGE_HERO, pageEnabled: false, backgroundEnabled: true }), {
+    hud: false,
+  });
+  assert.deepEqual(resolvePanelTargets({ page: PAGE_CHAT, pageEnabled: true, backgroundEnabled: false }), {
+    hud: false,
+  });
+  assert.deepEqual(resolvePanelTargets({ page: PAGE_CHAT }), { hud: false }, '缺少背景开关时关闭');
 });
 
 test('resolvePanelTargets: 右侧边栏背景已移除，不再返回 rightbar', () => {
@@ -59,7 +66,8 @@ test('resolvePanelTargets: 右侧边栏背景已移除，不再返回 rightbar',
   const targets = resolvePanelTargets({
     page: PAGE_CHAT,
     rightbarOpen: true,
-    chatPage: true,
+    pageEnabled: true,
+    backgroundEnabled: true,
     rightbarBackground: true,
   });
   assert.equal('rightbar' in targets, false);
@@ -71,12 +79,23 @@ test('resolvePanelTargets: 垃圾输入不会抛错', () => {
     assert.equal(typeof resolvePanelTargets(input).hud, 'boolean');
   }
   assert.deepEqual(resolvePanelTargets({ page: PAGE_CHAT }), { hud: false });
-  // 开关按真值强制布尔（沿用原实现的 !! 语义）：假值关闭、真值开启
+  // 两个开关都按真值强制布尔（沿用原实现的 !! 语义）：任一假值即关闭，两者都真才开启
   for (const falsy of [undefined, null, false, 0, '']) {
-    assert.deepEqual(resolvePanelTargets({ page: PAGE_CHAT, chatPage: falsy }), { hud: false });
+    assert.deepEqual(
+      resolvePanelTargets({ page: PAGE_CHAT, pageEnabled: falsy, backgroundEnabled: true }),
+      { hud: false },
+      `pageEnabled=${String(falsy)}`,
+    );
+    assert.deepEqual(
+      resolvePanelTargets({ page: PAGE_CHAT, pageEnabled: true, backgroundEnabled: falsy }),
+      { hud: false },
+      `backgroundEnabled=${String(falsy)}`,
+    );
   }
   for (const truthy of [true, 1, 'yes']) {
-    assert.deepEqual(resolvePanelTargets({ page: PAGE_CHAT, chatPage: truthy }), { hud: true });
+    assert.deepEqual(
+      resolvePanelTargets({ page: PAGE_CHAT, pageEnabled: truthy, backgroundEnabled: truthy }),
+      { hud: true },
+    );
   }
-  assert.deepEqual(resolvePanelTargets({ page: PAGE_CHAT, chatPage: true }), { hud: true });
 });

@@ -129,3 +129,26 @@ test('parity: HUD 补场自带不透明同源底色，不与内容区的场叠�
   // 补场画在内容区之上；自身透明时与内容区的场重叠就会叠成两层场（更密更暗）。
   assert.match(hud.body, /background:\s*var\(--mui-surface-base\)/, '补场必须自带同源不透明底色');
 });
+
+test('parity: 会话内视图（轨迹 / 统计）的不透明底色必须被清掉', () => {
+  // 轨迹视图有三层自带 background: var(--dsw-alias-bg-layer-1)：视图根、分栏容器、表格本体。
+  // 少清一层都看不到信号场，所以这里逐条钉住。
+  const scope = '[data-conversation-content]';
+  const root = '[data-conversation-composer-overlay]';
+  const rules = blocks(CSS).filter((block) => block.body.includes('background-color:transparent'));
+  const matches = (needle) => rules.some((block) => block.selector.includes(needle));
+
+  assert.ok(
+    rules.some((block) => block.selector.includes(scope) && block.selector.includes(root)),
+    '缺少「会话视图根透明」规则',
+  );
+  assert.ok(matches(':has(> [data-trajectory-scroll])'), '缺少「轨迹分栏容器透明」规则');
+  assert.ok(
+    rules.some((block) => block.selector.includes(root) && block.selector.includes(' table')),
+    '缺少「轨迹表格透明」规则',
+  );
+  for (const block of rules) {
+    if (!block.selector.includes(root)) continue;
+    assert.doesNotMatch(block.body, /(?:^|[;\s])background\s*:/, '只用 background-color，避免覆盖视图自定义背景');
+  }
+});

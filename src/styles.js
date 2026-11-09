@@ -49,6 +49,19 @@ html[data-mui-active] [data-slot="main"],
 html[data-mui-active] [data-slot="main.conversation"],
 html[data-mui-active] [data-slot="conversation.session"],
 html[data-mui-active] [data-slot="conversation.composer.bar"]{background-color:transparent}
+/* v0.5.0：聊天页里的「轨迹」「统计」等会话视图会在同一个内容容器内切换，
+   它们的节点自带不透明底色，把整片信号场盖住（统计视图没有底色，所以一直能透出来）。
+   轨迹视图有三层都要清，少一层都看不到场：
+     1. 视图根节点：带 data-conversation-composer-overlay（宿主用它判断「视图与输入框重叠」）；
+     2. 根里的分栏容器（.rh_gBW_split）：background: var(--dsw-alias-bg-layer-1)，铺满整个视图区。
+        它没有稳定类名，但它唯一的滚动子节点带 data-trajectory-scroll，用 :has 命中；
+     3. 表格本体（table）：同样写着 bg-layer-1，不清的话行与行之间仍是白底。
+        限定在这个视图根内部，不会波及聊天正文里的 Markdown 表格。
+   只清背景色、不动布局与子元素；用 background-color 而不是 background 简写，
+   避免误伤视图自定义的渐变/背景图。插件关闭（清掉 data-mui-active）后整组规则自动失效。 */
+html[data-mui-active] [data-conversation-content] [data-conversation-composer-overlay],
+html[data-mui-active] [data-conversation-content] [data-conversation-composer-overlay] :has(> [data-trajectory-scroll]),
+html[data-mui-active] [data-conversation-content] [data-conversation-composer-overlay] table{background-color:transparent}
 [data-mui-field] > canvas{position:absolute;inset:0;display:block;width:100%;height:100%}
 /* WebGL2 不可用时的静态降级底：一层柔和径向渐变，不抖动、不交互 */
 [data-mui-field][data-fallback]{
@@ -249,8 +262,41 @@ html[data-mui-scope][data-mui-hud-glass][data-mui-dark] .hud-panel::before{
 .mui-row{display:flex;align-items:flex-start;gap:16px;padding:8px 0;min-width:0}
 .mui-row-text{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 auto}
 .mui-row-label{font-size:13px;line-height:20px;color:var(--dsw-alias-label-primary)}
-.mui-row-hint{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
+/* v0.5.0：说明文字改用 tertiary 令牌，比 secondary 更淡（深浅主题都定义，不写死颜色）。 */
+.mui-row-hint{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}
 .mui-row-control{flex:none;display:flex;align-items:center;gap:8px;padding-top:1px}
+/* 折叠开关行（v0.5.0）：整行可点，与 .mui-row 的左右两栏节奏对齐。
+   为什么用自绘 button 而不是 <details>/<summary>：效果行里的开关若放进 summary，
+   点开关会连带开合详情；独立按钮才能把「开效果」与「看参数」两件事分开。 */
+.mui-disclosure{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  width:100%;padding:4px 0;border:0;border-radius:8px;background:transparent;cursor:pointer;
+  color:var(--dsw-alias-label-secondary);font-family:inherit;font-size:12px;line-height:18px;
+  font-weight:500;text-align:left;
+  transition:background .15s var(--ds-ease-in-out,ease),color .15s var(--ds-ease-in-out,ease);
+}
+.mui-disclosure:hover{
+  background:color-mix(in srgb, var(--dsw-alias-label-primary) 5%, transparent);
+  color:var(--dsw-alias-label-primary);
+}
+.mui-disclosure:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
+.mui-disclosure-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mui-disclosure-icon{flex:none;color:currentColor;transition:transform .15s var(--ds-ease-in-out,ease)}
+.mui-disclosure[aria-expanded="true"] .mui-disclosure-icon{transform:rotate(90deg)}
+/* 折叠区容器（v0.5.0）：始终渲染、收起时加 [hidden]。
+   注意必须显式写 .mui-detail[hidden]{display:none}——上面的 display:flex 是作者样式，
+   会盖掉浏览器对 [hidden] 的默认 display:none。 */
+.mui-detail{
+  display:flex;flex-direction:column;gap:2px;
+  margin:2px 0 4px;padding:2px 0 4px 12px;
+  border-left:1px solid color-mix(in srgb, var(--dsw-alias-label-primary) 9%, transparent);
+}
+.mui-detail[hidden]{display:none}
+/* 参数被上级开关锁住时的提示（v0.5.0）：用 warn 色，避免与普通说明混淆。 */
+.mui-detail-note{
+  margin:4px 0 2px;font-size:12px;line-height:18px;
+  color:var(--dsw-alias-state-warn-primary);
+}
 .mui-switch{
   position:relative;flex:none;width:34px;height:20px;padding:0;border:0;border-radius:999px;cursor:pointer;
   background:color-mix(in srgb, var(--dsw-alias-label-primary) 18%, transparent);
@@ -342,7 +388,7 @@ html[data-mui-scope][data-mui-hud-glass][data-mui-dark] .hud-panel::before{
 .mui-button:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
 .mui-toast{font-size:12px;line-height:18px;color:var(--dsw-alias-state-success-primary)}
 @media (prefers-reduced-motion: reduce){
-  [data-mui-field],[data-mui-field] > canvas,.mui-switch,.mui-switch::after,.mui-button{transition:none}
+  [data-mui-field],[data-mui-field] > canvas,.mui-switch,.mui-switch::after,.mui-button,.mui-disclosure,.mui-disclosure-icon{transition:none}
 }
 `;
 

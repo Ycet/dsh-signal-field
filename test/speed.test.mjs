@@ -24,10 +24,11 @@ test('速度范围: 0.25×–2×，步长 0.25', () => {
   assert.deepEqual({ ...SPEED_RANGE }, { min: 0.25, max: 2, step: 0.25 });
 });
 
-test('默认: 标题与背景速度都是 1×（等于不做任何缩放的原观感）', () => {
+test('默认: 标题与两页背景速度都是 1×（等于不做任何缩放的原观感）', () => {
   const state = defaults();
-  assert.equal(state.title.speed, 1);
-  assert.equal(state.background.speed, 1);
+  assert.equal(state.pages.hero.title.speed, 1);
+  assert.equal(state.pages.hero.background.speed, 1);
+  assert.equal(state.pages.chat.background.speed, 1);
 });
 
 test('speedValue: 非法值回落 1×，越界钳到边界', () => {
@@ -75,47 +76,66 @@ test('scaleTau / scaleStep: 非法入参不抛错，按 1× 处理', () => {
 });
 
 test('normalize: 速度按步长吸附并钳位', () => {
-  assert.equal(normalize({ title: { speed: 1.25 } }).title.speed, 1.25);
-  assert.equal(normalize({ title: { speed: 1.1 } }).title.speed, 1);
-  assert.equal(normalize({ title: { speed: 0.1 } }).title.speed, SPEED_RANGE.min);
-  assert.equal(normalize({ background: { speed: 9 } }).background.speed, SPEED_RANGE.max);
-  assert.equal(normalize({ background: { speed: '1.5' } }).background.speed, 1);
+  const hero = normalize({
+    version: 3,
+    pages: { hero: { title: { speed: 1.25 }, background: { speed: 0.1 } } },
+  });
+  assert.equal(hero.pages.hero.title.speed, 1.25);
+  assert.equal(hero.pages.hero.background.speed, SPEED_RANGE.min);
+
+  const chat = normalize({ version: 3, pages: { chat: { background: { speed: 9 } } } });
+  assert.equal(chat.pages.chat.background.speed, SPEED_RANGE.max);
+
+  // 非数字回落 1×（两个页面各自独立判定）
+  const bad = normalize({
+    version: 3,
+    pages: {
+      hero: { title: { speed: 1.1 }, background: { speed: '1.5' } },
+      chat: { background: { speed: '1.5' } },
+    },
+  });
+  assert.equal(bad.pages.hero.title.speed, 1);
+  assert.equal(bad.pages.hero.background.speed, 1);
+  assert.equal(bad.pages.chat.background.speed, 1);
 });
 
-test('patch: 标题速度与背景速度互不影响', () => {
+test('patch: 标题速度与背景速度互不影响（含两页之间）', () => {
   const base = defaults();
-  const titleOnly = patch(base, { title: { speed: 2 } });
-  assert.equal(titleOnly.title.speed, 2);
-  assert.equal(titleOnly.background.speed, 1);
+  const titleOnly = patch(base, { pages: { hero: { title: { speed: 2 } } } });
+  assert.equal(titleOnly.pages.hero.title.speed, 2);
+  assert.equal(titleOnly.pages.hero.background.speed, 1);
+  assert.equal(titleOnly.pages.chat.background.speed, 1);
 
-  const bgOnly = patch(base, { background: { speed: 0.5 } });
-  assert.equal(bgOnly.background.speed, 0.5);
-  assert.equal(bgOnly.title.speed, 1);
+  const bgOnly = patch(base, { pages: { hero: { background: { speed: 0.5 } } } });
+  assert.equal(bgOnly.pages.hero.background.speed, 0.5);
+  assert.equal(bgOnly.pages.hero.title.speed, 1);
+  assert.equal(bgOnly.pages.chat.background.speed, 1);
+
+  // 改聊天页背景速度不会影响新建会话页
+  const chatOnly = patch(base, { pages: { chat: { background: { speed: 0.25 } } } });
+  assert.equal(chatOnly.pages.chat.background.speed, 0.25);
+  assert.equal(chatOnly.pages.hero.background.speed, 1);
 
   // 不传 speed 时保持原值，不被默认值悄悄覆盖
-  const kept = patch(titleOnly, { title: { idle: false } });
-  assert.equal(kept.title.speed, 2);
+  const kept = patch(titleOnly, { pages: { hero: { title: { idle: false } } } });
+  assert.equal(kept.pages.hero.title.speed, 2);
 });
 
-test('兼容: 没有 speed 的旧存档读出 1×，且不影响其余字段', () => {
-  const legacy = {
+test('兼容: 旧 v2 存档里的速度与强度不迁移，帧率保留', () => {
+  // 模拟 v0.2.11 时代的存档：只有全局 background/title，没有 per-page 结构
+  const stripped = {
     version: 2,
     enabled: true,
     pages: { hero: true, chat: true },
     title: { idle: true, interact: true },
-    background: { idle: true, interact: true, intensity: 0.55, fps: 45, speed: 0.5 },
+    background: { idle: true, interact: true, intensity: 0.55, fps: 45 },
     glass: { enabled: true, blur: 14 },
   };
-  // 只删掉 speed 两个键，模拟 v0.2.11 及更早的存档
-  const stripped = {
-    ...legacy,
-    title: { idle: true, interact: true },
-    background: { idle: true, interact: true, intensity: 0.55, fps: 45 },
-  };
   const state = normalize(stripped);
-  assert.equal(state.title.speed, 1);
-  assert.equal(state.background.speed, 1);
-  // 手调过的强度与帧率必须原样保留
-  assert.equal(state.background.intensity, 0.55);
-  assert.equal(state.background.fps, 45);
+  assert.equal(state.pages.hero.title.speed, 1);
+  assert.equal(state.pages.hero.background.speed, 1);
+  assert.equal(state.pages.chat.background.speed, 1);
+  // v0.5.0 升级语义：只有帧率保留，旧强度回默认 30%
+  assert.equal(state.pages.hero.background.intensity, 0.3);
+  assert.equal(state.frame.fps, 45);
 });

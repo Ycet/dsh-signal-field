@@ -49,14 +49,22 @@ test('补场: interact 必须来自设置，不得写死 false', () => {
   const body = sliceFunction(STAGE, 'function syncHudBackdrop', '/** 面板会随窗口缩放');
   assert.match(
     body,
-    /interact: state\.background\.interact/,
-    '补场交互应跟随「背景鼠标交互」开关',
+    /interact: pageBackground\.interact/,
+    '补场交互应跟随当前页「背景鼠标交互」开关',
   );
   assert.doesNotMatch(
     body,
     /interact: false/,
     '补场主路径不得再把 interact 写死为 false（暂停路径在 placeHudBackdrop 里，属于另一处）',
   );
+});
+
+test('补场: 开关与参数都取「当前所在页」，不再固定读聊天页', () => {
+  const body = sliceFunction(STAGE, 'function syncHudBackdrop', '/** 面板会随窗口缩放');
+  // 新建会话页也必须听新建会话页的开关：两处都读当前 page，而不是硬编码 PAGE_CHAT
+  assert.match(body, /pageScopeOf\(state, page\)/, '补场应读当前页的作用域开关');
+  assert.match(body, /backgroundScopeOf\(state, page\)/, '补场参数应取当前页的背景分组');
+  assert.doesNotMatch(body, /PAGE_CHAT/, '补场不应再固定引用聊天页');
 });
 
 test('补场: 面板未就位时的暂停路径仍然保留（interact:false 只应出现在那里）', () => {
@@ -67,7 +75,7 @@ test('补场: 面板未就位时的暂停路径仍然保留（interact:false 只
 test('内容区: 不得把 intro:false 传染给内容区的场（观感零回归）', () => {
   const body = sliceFunction(STAGE, 'field = createField(layerEl, {', 'engineState = field.fallback');
   assert.doesNotMatch(body, /intro/, '内容区必须保留下 1.8s 入场揭示');
-  assert.match(body, /interact: state\.background\.interact/, '内容区交互本就跟随设置');
+  assert.match(body, /interact: fieldBackground\.interact/, '内容区交互本就跟随设置');
 });
 
 test('引擎: applyOptions 必须支持 intro 并在关闭时补满 reveal', () => {
@@ -89,11 +97,12 @@ test('样式: 补场去掉淡入，内容区仍保留 0.5s 过渡', () => {
   assert.match(base.body, /transition:\s*opacity \.5s/, '内容区的 0.5s 淡入必须保留');
 });
 
-test('设置: v0.3.1 的「33 个 runtime 键」基线仍成立，其后只做过加法', async () => {
+test('设置: runtime 键数基线（v0.5.0 按页重组后的 58 键）', async () => {
   const zh = JSON.parse(await readFile(new URL('../locale/zh.json', import.meta.url), 'utf8')).runtime;
   const en = JSON.parse(await readFile(new URL('../locale/en.json', import.meta.url), 'utf8')).runtime;
-  // v0.3.1 收尾时是 33；v0.4.0 加入鲸鱼 18 键 → 51；同日补 5 个分组小标题 → 56。
+  // 演进：v0.3.1 33 → v0.4.0 加鲸鱼 18 键 → 51 → 同日补 5 个分组小标题 → 56；
+  // v0.5.0 按页重组：删 13 个旧分组/旧行键、加 15 个新键 → 58。
   // 这里钉住总数与中英同序，任何一侧漏译或顺序错位都会红。
-  assert.equal(Object.keys(zh).length, 56);
+  assert.equal(Object.keys(zh).length, 58);
   assert.deepEqual(Object.keys(zh), Object.keys(en));
 });

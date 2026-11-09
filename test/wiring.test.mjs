@@ -495,13 +495,14 @@ test('wiring: hero 页默认挂出鲸鱼图层，且引擎失败时走兜底不�
 });
 
 test('wiring: 鲸鱼开关关闭时不建图层', async () => {
-  const { layers } = await mountWith({ whale: { enabled: false } });
+  // v0.5.0：鲸鱼挂在新建会话页分组下
+  const { layers } = await mountWith({ pages: { hero: { whale: { enabled: false } } } });
   assert.equal(layers.length, 0, '关掉鲸鱼开关后不该有任何鲸鱼图层');
 });
 
-test('wiring: 「新建会话页面」关闭时不建图层（页面开关是上级）', async () => {
-  const { layers } = await mountWith({ pages: { hero: false } });
-  assert.equal(layers.length, 0, '页面开关关闭时鲸鱼也应停用');
+test('wiring: 「新建会话页」总开关关闭时不建图层（页面开关是上级）', async () => {
+  const { layers } = await mountWith({ pages: { hero: { enabled: false } } });
+  assert.equal(layers.length, 0, '页面总开关关闭时鲸鱼也应停用');
 });
 
 test('wiring: 聊天会话页不建鲸鱼图层（只在新增会话页渲染）', async () => {

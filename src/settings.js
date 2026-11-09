@@ -4,6 +4,17 @@
  * 这里只放纯函数：默认值、归一化、局部合并、存储读写。
  * 之所以把它们与 DOM/React 代码分开，是为了让 `node --test` 能直接导入本文件做单元测试
  * （构建脚本会把本文件原样拼进 client.js，因此不依赖任何浏览器 API）。
+ *
+ * v0.5.0 起设置结构升到 v3：**按页面组织**。
+ *   enabled      —— 全局总开关（「设置 → UI 动画」第一张卡片）
+ *   frame.fps    —— 全局面板帧率上限（v0.5.0 从 background.fps 提到顶层）
+ *   glass.blur   —— 毛玻璃半径（固定 14px，不暴露给界面）
+ *   pages.hero   —— 新建会话页：页总开关 + 背景（含参数）+ 标题 + 鲸鱼 + 毛玻璃
+ *   pages.chat   —— 聊天会话页：页总开关 + 背景（含参数）+ 毛玻璃
+ *
+ * 为什么每个效果都带一个自己的 `enabled`：设置页按页分卡片后，
+ * 「背景（开/关）」表示该页是否显示背景层（关闭即整层不创建），
+ * 而「背景默认动效（自走/静止）」下沉到折叠区，两者是不同的概念。
  */
 
 /** 语言资源命名空间。 */
@@ -18,8 +29,8 @@ export const STORAGE_KEY = 'dsh-signal-field:v1';
  */
 export const LEGACY_STORAGE_KEY = 'dsh-motion-ui:v1';
 
-/** 当前设置结构版本。v2 = v0.2.9 起的「页面开关 × 全局效果」结构。 */
-export const SCHEMA_VERSION = 2;
+/** 当前设置结构版本。v3 = v0.5.0 起的「按页面组织」结构。 */
+export const SCHEMA_VERSION = 3;
 
 /** 背景强度的取值范围（滑块的钳位与步长）。 */
 export const INTENSITY_RANGE = Object.freeze({ min: 0, max: 1, step: 0.05 });
@@ -70,7 +81,7 @@ export const WHALE_RANGES = Object.freeze({
 /** 鲸鱼种类的合法取值：座头鲸 / 虎鲸。 */
 export const WHALE_SPECIES = Object.freeze(['humpback', 'orca']);
 
-/** whale 分组里可由 patch() 合并的键（顺序与设置页行序不同，这里只是键表）。 */
+/** whale 分组里可由 patch() 合并的键。 */
 const WHALE_KEYS = Object.freeze([
   'enabled',
   'species',
@@ -86,6 +97,16 @@ const WHALE_KEYS = Object.freeze([
   'fishCount',
   'wake',
 ]);
+
+/** background 分组里可由 patch() 合并的键。 */
+const BACKGROUND_KEYS = Object.freeze(['enabled', 'idle', 'interact', 'intensity', 'speed']);
+
+/** title 分组里可由 patch() 合并的键。 */
+const TITLE_KEYS = Object.freeze(['enabled', 'idle', 'interact', 'speed']);
+
+/** 两张页面卡片各自的子键（chat 没有 title / whale）。 */
+const HERO_KEYS = Object.freeze(['enabled', 'background', 'title', 'whale', 'glass']);
+const CHAT_KEYS = Object.freeze(['enabled', 'background', 'glass']);
 
 /**
  * 归一化一个速度倍率：非有限值一律回落 1×，其余钳到 SPEED_RANGE。
@@ -119,44 +140,67 @@ export function scaleStep(amount, speed) {
   return value * speedValue(speed);
 }
 
+/** 一页背景的默认值（两页各自独立一份，避免共享引用）。 */
+function backgroundDefaults() {
+  return { enabled: true, idle: true, interact: true, intensity: 0.3, speed: 1 };
+}
+
+/** 新建会话页标题的默认值。 */
+function titleDefaults() {
+  return { enabled: true, idle: true, interact: true, speed: 1 };
+}
+
 /**
- * 默认设置（v0.2.9 结构 + v0.2.11 的 background.fps + v0.3.0 的两个 speed
- * + v0.4.0 的 whale 分组）：
- *   pages      —— 哪些页面展示动效（设置页模块「页面」）
- *   title      —— 标题默认动效 / 鼠标交互 / 动画速度（默认 1×）
- *   background —— 背景默认动效 / 鼠标交互 / 强度（默认 30%）/ 帧率上限（默认 30fps）/ 速度（默认 1×）
- *   glass      —— 输入框毛玻璃总开关；blur 固定 14px，已不再提供滑块
- *   whale      —— 鲸鱼动画（v0.4.0 从 dsh-ascii-whales 迁移）：开关 + 种类 + 11 个数值项。
- *                 默认值 = 迁移当时用户的实际取值，不是上游出厂默认（差异见 README）。
- * HUD 面板毛玻璃没有独立开关：它跟随「聊天会话页面」开关（详见 README 设置页章节）。
+ * 鲸鱼默认值（v0.4.0 从 dsh-ascii-whales 迁移）：
+ * 默认值 = 迁移当时用户的实际取值，不是上游出厂默认（差异见 README）。
+ */
+function whaleDefaults() {
+  return {
+    enabled: true,
+    species: 'humpback',
+    count: 1,
+    speed: 0.5,
+    bodySwing: 0.75,
+    turnAgility: 0.8,
+    tailFrequency: 0.85,
+    size: 1.5,
+    opacity: 0.5,
+    gridScale: 0.5,
+    gridOpacity: 0.1,
+    fishCount: 188,
+    wake: 1,
+  };
+}
+
+/**
+ * 默认设置（v0.5.0 / 结构 v3）。
  *
- * 逐版只往已有分组里**加键**，因此一直**不升 SCHEMA_VERSION**：
- * normalize() 对缺失键填默认值、对未知键直接丢弃，
+ * 逐版只往已有分组里**加键**：normalize() 对缺失键填默认值、对未知键直接丢弃，
  * 旧存档读出来就是新默认，旧版本读到新存档只是丢掉不认识的键，两个方向都不会坏。
- * v0.4.0 同样是加分组：旧存档没有 whale 键，读出来就是上表默认。
+ *
+ * v0.5.0 的破例：结构从「全局效果」改成「按页效果」，旧存档里的效果参数**不再映射**，
+ * 除总开关与帧率外一律回默认（产品决策，README 升级说明里明写）。
  */
 export function defaults() {
   return {
     version: SCHEMA_VERSION,
     enabled: true,
-    pages: { hero: true, chat: true },
-    title: { idle: true, interact: true, speed: 1 },
-    background: { idle: true, interact: true, intensity: 0.3, fps: 30, speed: 1 },
-    glass: { enabled: true, blur: 14 },
-    whale: {
-      enabled: true,
-      species: 'humpback',
-      count: 1,
-      speed: 0.5,
-      bodySwing: 0.75,
-      turnAgility: 0.8,
-      tailFrequency: 0.85,
-      size: 1.5,
-      opacity: 0.5,
-      gridScale: 0.5,
-      gridOpacity: 0.1,
-      fishCount: 188,
-      wake: 1,
+    frame: { fps: 30 },
+    // 毛玻璃半径固定 14px，只作为 CSS 变量的单一来源，不提供界面控件
+    glass: { blur: 14 },
+    pages: {
+      hero: {
+        enabled: true,
+        background: backgroundDefaults(),
+        title: titleDefaults(),
+        whale: whaleDefaults(),
+        glass: true,
+      },
+      chat: {
+        enabled: true,
+        background: backgroundDefaults(),
+        glass: true,
+      },
     },
   };
 }
@@ -180,89 +224,104 @@ function group(value) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
 }
 
-/**
- * 识别 v0.2.8 及更早的「按页 × 按效果」结构，并映射成新的「页面开关 × 全局效果」。
- * 只认 `surfaces`：新结构（version 2 / 有 pages）一律返回 null，保证迁移只发生一次。
- * @param {object} src 已确认是对象的输入
- * @returns {null | { hero: boolean, chat: boolean, glass: boolean }}
- */
-function migrateSurfaces(src) {
-  if (src.version === SCHEMA_VERSION) return null;
-  const surfaces = src.surfaces;
-  if (!surfaces || typeof surfaces !== 'object' || Array.isArray(surfaces)) return null;
-  const hero = group(surfaces.hero);
-  const chat = group(surfaces.chat);
-  // 旧结构里每页每项都是独立开关：任一效果开着就认为该页仍在展示动效。
-  const heroOn =
-    bool(hero.title, true) || bool(hero.background, true) || bool(hero.glass, true);
-  const chatOn = bool(chat.background, true) || bool(chat.glass, true);
-  // 旧结构有「两页各自的毛玻璃」：任一页开着就视为全局玻璃开启。
-  const glassOn = bool(hero.glass, true) || bool(chat.glass, true);
-  return { hero: heroOn, chat: chatOn, glass: glassOn };
+/** 归一化背景分组。 */
+function normalizeBackground(value, base) {
+  const src = group(value);
+  return {
+    enabled: bool(src.enabled, base.enabled),
+    idle: bool(src.idle, base.idle),
+    interact: bool(src.interact, base.interact),
+    intensity: num(src.intensity, INTENSITY_RANGE, base.intensity),
+    speed: num(src.speed, SPEED_RANGE, base.speed),
+  };
 }
 
-/** v0.2.8 及更早的强度默认值；迁移时把「恰好是旧默认」的值换成新默认 30%。 */
-const LEGACY_DEFAULT_INTENSITY = 0.55;
+/** 归一化标题分组。 */
+function normalizeTitle(value, base) {
+  const src = group(value);
+  return {
+    enabled: bool(src.enabled, base.enabled),
+    idle: bool(src.idle, base.idle),
+    interact: bool(src.interact, base.interact),
+    speed: num(src.speed, SPEED_RANGE, base.speed),
+  };
+}
+
+/** 归一化鲸鱼分组：species 走白名单，其余走 num() 的钳位 + 步长吸附。 */
+function normalizeWhale(value, base) {
+  const src = group(value);
+  return {
+    enabled: bool(src.enabled, base.enabled),
+    species: WHALE_SPECIES.includes(src.species) ? src.species : base.species,
+    count: num(src.count, WHALE_RANGES.count, base.count),
+    speed: num(src.speed, WHALE_RANGES.speed, base.speed),
+    bodySwing: num(src.bodySwing, WHALE_RANGES.bodySwing, base.bodySwing),
+    turnAgility: num(src.turnAgility, WHALE_RANGES.turnAgility, base.turnAgility),
+    tailFrequency: num(src.tailFrequency, WHALE_RANGES.tailFrequency, base.tailFrequency),
+    size: num(src.size, WHALE_RANGES.size, base.size),
+    opacity: num(src.opacity, WHALE_RANGES.opacity, base.opacity),
+    gridScale: num(src.gridScale, WHALE_RANGES.gridScale, base.gridScale),
+    gridOpacity: num(src.gridOpacity, WHALE_RANGES.gridOpacity, base.gridOpacity),
+    fishCount: num(src.fishCount, WHALE_RANGES.fishCount, base.fishCount),
+    wake: num(src.wake, WHALE_RANGES.wake, base.wake),
+  };
+}
+
+/** 归一化新建会话页：页总开关 + 背景 + 标题 + 鲸鱼 + 毛玻璃。 */
+function normalizeHero(value, base) {
+  const src = group(value);
+  return {
+    enabled: bool(src.enabled, base.enabled),
+    background: normalizeBackground(src.background, base.background),
+    title: normalizeTitle(src.title, base.title),
+    whale: normalizeWhale(src.whale, base.whale),
+    glass: bool(src.glass, base.glass),
+  };
+}
+
+/** 归一化聊天会话页：页总开关 + 背景 + 毛玻璃（该页没有标题与鲸鱼）。 */
+function normalizeChat(value, base) {
+  const src = group(value);
+  return {
+    enabled: bool(src.enabled, base.enabled),
+    background: normalizeBackground(src.background, base.background),
+    glass: bool(src.glass, base.glass),
+  };
+}
 
 /**
  * 把任意输入归一化为一份合法设置。
  * 未知键丢弃、类型错误回默认、数值钳位，损坏的 JSON 或旧结构都不会让 UI 崩掉。
+ *
+ * 兼容性说明（v0.5.0）：
+ *   - 旧版 `pages.hero` 是布尔值 → group() 得空对象 → 该页总开关回默认 true（重置语义）；
+ *   - 旧版全局 `background` / `title` / `whale` / `glass.enabled` 全部忽略（重置语义）；
+ *   - 唯一保留的旧值是帧率：新路径 `frame.fps` 优先，缺失时回落到旧 `background.fps`；
+ *   - 毛玻璃半径只在**当前结构版本**的存档里读取：旧结构没有这个可调项，
+ *     按「升级即重置」的决策一律回默认 14px。
+ *
  * @param {unknown} input 已解析的设置对象（可为 null/undefined/垃圾值）。
  * @returns {ReturnType<typeof defaults>} 全新对象，永不与输入共享引用。
  */
 export function normalize(input) {
   const base = defaults();
   const src = group(input);
-  const legacy = migrateSurfaces(src);
+  const frame = group(src.frame);
+  const legacyBackground = group(src.background);
   const pages = group(src.pages);
-  const title = group(src.title);
-  const background = group(src.background);
-  const glass = group(src.glass);
-  const whale = group(src.whale);
-
-  // 旧结构恰用旧默认强度时，跟着新默认一起变淡；手调过的值原样保留。
-  const rawIntensity = background.intensity;
-  const migratedIntensity =
-    legacy && rawIntensity === LEGACY_DEFAULT_INTENSITY ? base.background.intensity : rawIntensity;
+  const isCurrent = src.version === SCHEMA_VERSION;
+  // 帧率是唯一跨版本保留的旧值：v0.2.11 起它一直在 background.fps。
+  const fpsInput = frame.fps === undefined ? legacyBackground.fps : frame.fps;
+  const blurInput = isCurrent ? group(src.glass).blur : undefined;
 
   return {
     version: SCHEMA_VERSION,
     enabled: bool(src.enabled, base.enabled),
+    frame: { fps: num(fpsInput, FPS_RANGE, base.frame.fps) },
+    glass: { blur: num(blurInput, BLUR_RANGE, base.glass.blur) },
     pages: {
-      hero: legacy ? legacy.hero : bool(pages.hero, base.pages.hero),
-      chat: legacy ? legacy.chat : bool(pages.chat, base.pages.chat),
-    },
-    title: {
-      idle: bool(title.idle, base.title.idle),
-      interact: bool(title.interact, base.title.interact),
-      speed: num(title.speed, SPEED_RANGE, base.title.speed),
-    },
-    background: {
-      idle: bool(background.idle, base.background.idle),
-      interact: bool(background.interact, base.background.interact),
-      intensity: num(migratedIntensity, INTENSITY_RANGE, base.background.intensity),
-      fps: num(background.fps, FPS_RANGE, base.background.fps),
-      speed: num(background.speed, SPEED_RANGE, base.background.speed),
-    },
-    glass: {
-      enabled: legacy ? legacy.glass : bool(glass.enabled, base.glass.enabled),
-      blur: num(glass.blur, BLUR_RANGE, base.glass.blur),
-    },
-    // v0.4.0：鲸鱼动画。species 走白名单，其余走 num() 的钳位 + 步长吸附。
-    whale: {
-      enabled: bool(whale.enabled, base.whale.enabled),
-      species: WHALE_SPECIES.includes(whale.species) ? whale.species : base.whale.species,
-      count: num(whale.count, WHALE_RANGES.count, base.whale.count),
-      speed: num(whale.speed, WHALE_RANGES.speed, base.whale.speed),
-      bodySwing: num(whale.bodySwing, WHALE_RANGES.bodySwing, base.whale.bodySwing),
-      turnAgility: num(whale.turnAgility, WHALE_RANGES.turnAgility, base.whale.turnAgility),
-      tailFrequency: num(whale.tailFrequency, WHALE_RANGES.tailFrequency, base.whale.tailFrequency),
-      size: num(whale.size, WHALE_RANGES.size, base.whale.size),
-      opacity: num(whale.opacity, WHALE_RANGES.opacity, base.whale.opacity),
-      gridScale: num(whale.gridScale, WHALE_RANGES.gridScale, base.whale.gridScale),
-      gridOpacity: num(whale.gridOpacity, WHALE_RANGES.gridOpacity, base.whale.gridOpacity),
-      fishCount: num(whale.fishCount, WHALE_RANGES.fishCount, base.whale.fishCount),
-      wake: num(whale.wake, WHALE_RANGES.wake, base.whale.wake),
+      hero: normalizeHero(pages.hero, base.pages.hero),
+      chat: normalizeChat(pages.chat, base.pages.chat),
     },
   };
 }
@@ -277,28 +336,58 @@ function mergeGroup(base, partial, keys) {
   return next;
 }
 
+/** 合并一个顶层布尔键（enabled / glass）：undefined 不覆盖。 */
+function mergeFlag(base, src, key) {
+  return Object.prototype.hasOwnProperty.call(src, key) && src[key] !== undefined
+    ? src[key]
+    : base;
+}
+
+/** 合并新建会话页（背景/标题/鲸鱼都是深一层分组）。 */
+function mergeHero(base, partial) {
+  const src = group(partial);
+  return {
+    enabled: mergeFlag(base.enabled, src, 'enabled'),
+    background: mergeGroup(base.background, src.background, BACKGROUND_KEYS),
+    title: mergeGroup(base.title, src.title, TITLE_KEYS),
+    whale: mergeGroup(base.whale, src.whale, WHALE_KEYS),
+    glass: mergeFlag(base.glass, src, 'glass'),
+  };
+}
+
+/** 合并聊天会话页。 */
+function mergeChat(base, partial) {
+  const src = group(partial);
+  return {
+    enabled: mergeFlag(base.enabled, src, 'enabled'),
+    background: mergeGroup(base.background, src.background, BACKGROUND_KEYS),
+    glass: mergeFlag(base.glass, src, 'glass'),
+  };
+}
+
 /**
  * 局部更新：只改动 partial 中显式出现的键，其余保持不变，结果仍经过归一化。
+ *
+ * 支持任意深度，例如：
+ *   patch(state, { pages: { hero: { background: { intensity: 0.6 } } } })
+ * 只会改新建会话页的背景强度，聊天会话页与标题、鲸鱼都不动。
+ *
  * @param {unknown} state 当前设置。
  * @param {unknown} partial 局部改动。
  */
 export function patch(state, partial) {
   const base = normalize(state);
   const src = group(partial);
+  const pages = group(src.pages);
   const next = {
     ...base,
-    enabled: Object.prototype.hasOwnProperty.call(src, 'enabled') ? src.enabled : base.enabled,
-    pages: mergeGroup(base.pages, src.pages, ['hero', 'chat']),
-    title: mergeGroup(base.title, src.title, ['idle', 'interact', 'speed']),
-    background: mergeGroup(base.background, src.background, [
-      'idle',
-      'interact',
-      'intensity',
-      'fps',
-      'speed',
-    ]),
-    glass: mergeGroup(base.glass, src.glass, ['enabled', 'blur']),
-    whale: mergeGroup(base.whale, src.whale, WHALE_KEYS),
+    enabled: mergeFlag(base.enabled, src, 'enabled'),
+    frame: mergeGroup(base.frame, src.frame, ['fps']),
+    glass: mergeGroup(base.glass, src.glass, ['blur']),
+    pages: {
+      hero: mergeHero(base.pages.hero, pages.hero),
+      chat: mergeChat(base.pages.chat, pages.chat),
+    },
   };
   return normalize(next);
 }

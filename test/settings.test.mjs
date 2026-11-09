@@ -1,3 +1,14 @@
+/**
+ * 设置模型单测（v0.5.0 / 结构 v3）
+ *
+ * v0.5.0 把设置从「全局效果」改成「按页面组织」：新建会话页与聊天会话页各有一套
+ * 开关与参数，帧率提到顶层。这里锁住四件事：
+ *   1. 默认值结构（三处：全局、hero、chat）；
+ *   2. 旧存档的升级语义——**只保留总开关与帧率**，其余一律回默认（产品决策）；
+ *   3. patch() 的深合并只改显式出现的键，两页互不串味；
+ *   4. 存储层（读写、损坏数据、写入异常、reset、重开读回）。
+ */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -5,6 +16,7 @@ import {
   BLUR_RANGE,
   FPS_RANGE,
   INTENSITY_RANGE,
+  SPEED_RANGE,
   STORAGE_KEY,
   createStatus,
   createStore,
@@ -15,98 +27,164 @@ import {
   sameState,
 } from '../src/settings.js';
 
-test('defaults: 两个页面 + 六个效果项，强度默认 30%', () => {
+/** 一份合法的 v3 存档，用来验证「新结构按值读取」。 */
+function v3Input() {
+  return {
+    version: 3,
+    enabled: false,
+    frame: { fps: 45 },
+    glass: { blur: 20 },
+    pages: {
+      hero: {
+        enabled: false,
+        background: { enabled: false, idle: false, interact: false, intensity: 0.8, speed: 1.75 },
+        title: { enabled: false, idle: false, interact: false, speed: 1.5 },
+        whale: { enabled: false, species: 'orca', count: 7, speed: 2, size: 3, fishCount: 300 },
+        glass: false,
+      },
+      chat: {
+        enabled: false,
+        background: { enabled: false, idle: false, interact: false, intensity: 0.65, speed: 0.5 },
+        glass: false,
+      },
+    },
+  };
+}
+
+test('defaults: v3 结构——全局帧率 + 两页各自的效果分组', () => {
   const state = defaults();
-  assert.equal(state.version, 2);
+  assert.equal(state.version, 3);
   assert.equal(state.enabled, true);
-  assert.deepEqual(state.pages, { hero: true, chat: true });
-  assert.deepEqual(state.title, { idle: true, interact: true, speed: 1 });
-  assert.deepEqual(state.background, {
-    idle: true,
-    interact: true,
-    intensity: 0.3,
-    fps: 30,
-    speed: 1,
+  assert.deepEqual(state.frame, { fps: 30 });
+  assert.deepEqual(state.glass, { blur: 14 });
+  assert.deepEqual(Object.keys(state).sort(), ['enabled', 'frame', 'glass', 'pages', 'version']);
+
+  assert.deepEqual(state.pages.hero, {
+    enabled: true,
+    background: { enabled: true, idle: true, interact: true, intensity: 0.3, speed: 1 },
+    title: { enabled: true, idle: true, interact: true, speed: 1 },
+    whale: {
+      enabled: true,
+      species: 'humpback',
+      count: 1,
+      speed: 0.5,
+      bodySwing: 0.75,
+      turnAgility: 0.8,
+      tailFrequency: 0.85,
+      size: 1.5,
+      opacity: 0.5,
+      gridScale: 0.5,
+      gridOpacity: 0.1,
+      fishCount: 188,
+      wake: 1,
+    },
+    glass: true,
   });
-  assert.deepEqual(state.glass, { enabled: true, blur: 14 });
-  // 设置页模块 1 两行 + 模块 2 五项开关（强度是滑块，不计数）
-  const switches = [
-    state.pages.hero,
-    state.pages.chat,
-    state.title.idle,
-    state.title.interact,
-    state.background.idle,
-    state.background.interact,
-    state.glass.enabled,
-  ];
-  assert.equal(switches.every(Boolean), true);
+  // 聊天会话页没有标题与鲸鱼
+  assert.deepEqual(state.pages.chat, {
+    enabled: true,
+    background: { enabled: true, idle: true, interact: true, intensity: 0.3, speed: 1 },
+    glass: true,
+  });
 });
 
-test('defaults: 不再有 surfaces 结构，模糊半径固定 14', () => {
+test('defaults: 两页的背景对象互不共享引用', () => {
   const state = defaults();
-  assert.equal('surfaces' in state, false);
-  assert.equal(state.glass.blur, 14);
-  assert.deepEqual(Object.keys(state).sort(), [
-    'background',
-    'enabled',
-    'glass',
-    'pages',
-    'title',
-    'version',
-    // v0.4.0：鲸鱼动画分组
-    'whale',
-  ]);
+  assert.notEqual(state.pages.hero.background, state.pages.chat.background);
+  state.pages.hero.background.intensity = 0.9;
+  assert.equal(state.pages.chat.background.intensity, 0.3);
 });
 
-test('迁移: 旧「按页 × 按效果」结构映射为页面开关 + 全局效果', () => {
+test('normalize: 新结构按值读取', () => {
+  const state = normalize(v3Input());
+  assert.equal(state.version, 3);
+  assert.equal(state.enabled, false);
+  assert.equal(state.frame.fps, 45);
+  assert.equal(state.glass.blur, 20);
+  assert.equal(state.pages.hero.enabled, false);
+  assert.equal(state.pages.hero.background.intensity, 0.8);
+  assert.equal(state.pages.hero.background.speed, 1.75);
+  assert.equal(state.pages.hero.title.speed, 1.5);
+  assert.equal(state.pages.hero.whale.species, 'orca');
+  assert.equal(state.pages.hero.whale.fishCount, 300);
+  assert.equal(state.pages.chat.background.intensity, 0.65);
+  assert.equal(state.pages.chat.glass, false);
+});
+
+test('升级: v0.4.x 的全局效果参数一律回默认，只保留总开关与帧率', () => {
+  const legacy = {
+    version: 2,
+    enabled: false,
+    pages: { hero: false, chat: false },
+    title: { idle: false, interact: false, speed: 2 },
+    background: { idle: false, interact: false, intensity: 0.55, fps: 45, speed: 1.5 },
+    glass: { enabled: false, blur: 20 },
+    whale: { enabled: false, species: 'orca', count: 7, fishCount: 300 },
+  };
+  const state = normalize(legacy);
+  assert.equal(state.version, 3);
+  // 唯一保留的两项
+  assert.equal(state.enabled, false);
+  assert.equal(state.frame.fps, 45);
+  // 其余全部回默认（含页面开关、毛玻璃开关、模糊半径、标题/背景/鲸鱼参数）
+  assert.deepEqual(state.pages, defaults().pages);
+  assert.equal(state.glass.blur, 14);
+});
+
+test('升级: v0.2.8 及更早的 surfaces 结构不再迁移', () => {
   const state = normalize({
     version: 1,
     enabled: true,
-    title: { idle: false, interact: true },
-    background: { idle: true, interact: false, intensity: 0.55 },
     surfaces: {
       hero: { title: true, background: false, glass: false },
       chat: { background: false, glass: false },
       panels: { hudGlass: true },
-      plugins: { background: false },
     },
+    background: { intensity: 0.55 },
     glass: { blur: 20 },
   });
-  // 新增会话页任一效果开着 → 页面开启；聊天页两项全关 → 页面关闭
-  assert.deepEqual(state.pages, { hero: true, chat: false });
-  // 两页玻璃都关 → 全局玻璃关闭
-  assert.equal(state.glass.enabled, false);
-  // 旧默认强度 0.55 迁移为新默认 0.30；模糊半径保留原值
-  assert.equal(state.background.intensity, 0.3);
-  assert.equal(state.glass.blur, 20);
-  // 旧字段与未知页面组都不再出现在结果里
   assert.equal('surfaces' in state, false);
+  assert.deepEqual(state.pages, defaults().pages);
+  assert.equal(state.glass.blur, 14);
 });
 
-test('迁移: 手调过的强度不被改写，新结构也不再被迁移', () => {
-  const tuned = normalize({
-    version: 1,
-    background: { intensity: 0.7 },
-    surfaces: { hero: { glass: true } },
+test('升级: 没有 fps 的极老存档读出默认 30', () => {
+  const state = normalize({ version: 1, enabled: true });
+  assert.equal(state.frame.fps, 30);
+});
+
+test('升级: frame.fps 优先于旧 background.fps', () => {
+  const state = normalize({ frame: { fps: 60 }, background: { fps: 15 } });
+  assert.equal(state.frame.fps, 60);
+});
+
+test('normalize: 数值钳位与步长吸附', () => {
+  const hero = normalize({
+    pages: { hero: { background: { intensity: 7, speed: 9 }, title: { speed: 0.1 } } },
+    frame: { fps: 999 },
   });
-  assert.equal(tuned.background.intensity, 0.7);
+  assert.equal(hero.pages.hero.background.intensity, INTENSITY_RANGE.max);
+  assert.equal(hero.pages.hero.background.speed, SPEED_RANGE.max);
+  assert.equal(hero.pages.hero.title.speed, SPEED_RANGE.min);
+  assert.equal(hero.frame.fps, FPS_RANGE.max);
 
-  // 已经是 v2 结构：0.55 是用户自己拖的值，必须原样保留
-  const kept = normalize({ version: 2, background: { intensity: 0.55 } });
-  assert.equal(kept.background.intensity, 0.55);
-  const pages = normalize({ version: 2, pages: { hero: false, chat: true } });
-  assert.deepEqual(pages.pages, { hero: false, chat: true });
+  const chat = normalize({
+    version: 3,
+    pages: { chat: { background: { intensity: -3, speed: '1.5' } } },
+    frame: { fps: 33 },
+    glass: { blur: 13.6 },
+  });
+  assert.equal(chat.pages.chat.background.intensity, INTENSITY_RANGE.min);
+  assert.equal(chat.pages.chat.background.speed, 1);
+  assert.equal(chat.frame.fps, 35);
+  assert.equal(chat.glass.blur, 14);
+  assert.equal(normalize({ version: 3, glass: { blur: 999 } }).glass.blur, BLUR_RANGE.max);
 });
 
-test('patch: 页面开关与玻璃总开关可单独改动，其余保持', () => {
-  const patched = patch(defaults(), { pages: { chat: false }, glass: { enabled: false } });
-  assert.equal(patched.pages.chat, false);
-  assert.equal(patched.pages.hero, true);
-  assert.equal(patched.glass.enabled, false);
-  assert.equal(patched.glass.blur, 14);
-  // 旧字段名不再被接受
-  const legacyPatch = patch(defaults(), { surfaces: { hero: { glass: false } } });
-  assert.equal(legacyPatch.glass.enabled, true);
+test('normalize: 帧率非法值一律回落 30（不能变成 NaN 或 0）', () => {
+  for (const bad of ['40', null, undefined, NaN, Infinity, {}, []]) {
+    assert.equal(normalize({ frame: { fps: bad } }).frame.fps, 30, `非法值 ${String(bad)}`);
+  }
 });
 
 test('normalize: 非对象输入回默认值', () => {
@@ -119,99 +197,96 @@ test('normalize: 丢弃未知键、类型错误回默认', () => {
   const state = normalize({
     enabled: 'yes',
     unknown: 1,
-    title: { idle: false, interact: 'no', extra: true },
-    pages: { hero: false, stranger: true },
-    glass: { enabled: 'maybe' },
+    frame: { fps: 30, extra: 1 },
+    pages: {
+      hero: {
+        enabled: 'no',
+        stranger: true,
+        background: { enabled: 'maybe', unknown: 1 },
+        title: { idle: false },
+        whale: { species: 'nope', ghost: 1 },
+      },
+      chat: { glass: 'yes' },
+      panels: { hudGlass: true },
+    },
+    glass: { enabled: false },
   });
   assert.equal(state.enabled, true);
-  assert.equal(state.title.idle, false);
-  assert.equal(state.title.interact, true);
-  assert.equal(state.pages.hero, false);
-  assert.equal(state.glass.enabled, true);
+  assert.equal(state.pages.hero.enabled, true);
+  assert.equal(state.pages.hero.background.enabled, true);
+  assert.equal(state.pages.hero.title.idle, false);
+  assert.equal(state.pages.hero.whale.species, 'humpback');
+  assert.equal(state.pages.chat.glass, true);
+  assert.equal('stranger' in state.pages.hero, false);
+  assert.equal('panels' in state.pages, false);
   assert.equal('unknown' in state, false);
-  assert.equal('stranger' in state.pages, false);
-  assert.equal('surfaces' in state, false);
+  assert.equal('extra' in state.frame, false);
+  // 旧版的 glass.enabled 已不是合法键
+  assert.deepEqual(Object.keys(state.glass), ['blur']);
 });
 
-test('normalize: 数值钳位与步长吸附', () => {
-  assert.equal(normalize({ background: { intensity: 7 } }).background.intensity, INTENSITY_RANGE.max);
-  assert.equal(normalize({ background: { intensity: -3 } }).background.intensity, INTENSITY_RANGE.min);
-  assert.equal(normalize({ background: { intensity: 0.33 } }).background.intensity, 0.35);
-  assert.equal(normalize({ glass: { blur: 999 } }).glass.blur, BLUR_RANGE.max);
-  assert.equal(normalize({ glass: { blur: -1 } }).glass.blur, BLUR_RANGE.min);
-  assert.equal(normalize({ glass: { blur: 13.6 } }).glass.blur, 14);
-  assert.equal(normalize({ glass: { blur: 'wide' } }).glass.blur, 14);
-});
-
-test('v0.2.11: 帧率上限默认 30，范围 15–60 步长 5', () => {
-  assert.deepEqual({ ...FPS_RANGE }, { min: 15, max: 60, step: 5 });
-  assert.equal(defaults().background.fps, 30);
-});
-
-test('normalize: 帧率上限钳位、吸附与非法值回落', () => {
-  assert.equal(normalize({ background: { fps: FPS_RANGE.max + 100 } }).background.fps, FPS_RANGE.max);
-  assert.equal(normalize({ background: { fps: -1 } }).background.fps, FPS_RANGE.min);
-  assert.equal(normalize({ background: { fps: 33 } }).background.fps, 35);
-  assert.equal(normalize({ background: { fps: 29 } }).background.fps, 30);
-  // 非数值一律回落到默认 30，不能变成 NaN 或 0（0 会让引擎锁死不出帧）
-  for (const bad of ['40', null, undefined, NaN, Infinity, {}, []]) {
-    assert.equal(normalize({ background: { fps: bad } }).background.fps, 30, `非法值 ${String(bad)}`);
-  }
-});
-
-test('patch: 只改 fps，背景其余项不变', () => {
+test('patch: 深合并只改显式出现的键', () => {
   const base = defaults();
-  const next = patch(base, { background: { fps: 60 } });
-  assert.equal(next.background.fps, 60);
-  assert.equal(next.background.idle, true);
-  assert.equal(next.background.interact, true);
-  assert.equal(next.background.intensity, 0.3);
-  // 不传 fps 时保持原值，不被默认值悄悄覆盖
-  assert.equal(patch(next, { background: { intensity: 0.8 } }).background.fps, 60);
+  const next = patch(base, { pages: { hero: { background: { intensity: 0.6 } } } });
+  assert.equal(next.pages.hero.background.intensity, 0.6);
+  // 同页其他参数、另一页、其它分组都不动
+  assert.equal(next.pages.hero.background.speed, 1);
+  assert.equal(next.pages.hero.background.idle, true);
+  assert.equal(next.pages.chat.background.intensity, 0.3);
+  assert.equal(next.pages.hero.title.idle, true);
 });
 
-test('兼容: 没有 fps 的旧存档（v2 结构）读出默认 30，不触发迁移', () => {
-  const legacy = {
-    version: 2,
-    enabled: true,
-    pages: { hero: true, chat: true },
-    title: { idle: true, interact: true },
-    background: { idle: true, interact: true, intensity: 0.55 },
-    glass: { enabled: true, blur: 14 },
-  };
-  const state = normalize(legacy);
-  assert.equal(state.version, 2);
-  assert.equal(state.background.fps, 30);
-  // 手调过的强度必须原样保留，不能被「旧默认值改写」逻辑误伤
-  assert.equal(state.background.intensity, 0.55);
-});
-
-test('normalize: 每次返回新对象，不复用默认值引用', () => {
-  const a = defaults();
-  const b = defaults();
-  assert.notEqual(a, b);
-  assert.notEqual(a.title, b.title);
-  const normalized = normalize(undefined);
-  a.title.idle = false;
-  assert.equal(normalize(undefined).title.idle, true);
-  assert.equal(normalized.title.idle, true);
-});
-
-test('patch: 只改显式出现的键，其余保持不变', () => {
+test('patch: 两页的同名开关互不影响', () => {
   const base = defaults();
-  const next = patch(base, { pages: { hero: false } });
-  assert.equal(next.pages.hero, false);
-  assert.equal(next.pages.chat, true);
-  assert.equal(next.background.intensity, 0.3);
-  // 旧字段名不再生效
-  const legacy = patch(base, { surfaces: { hero: { glass: false } } });
-  assert.equal(legacy.glass.enabled, true);
+  const heroOff = patch(base, { pages: { hero: { background: { enabled: false } } } });
+  assert.equal(heroOff.pages.hero.background.enabled, false);
+  assert.equal(heroOff.pages.chat.background.enabled, true);
+
+  const chatOff = patch(base, { pages: { chat: { background: { enabled: false } } } });
+  assert.equal(chatOff.pages.chat.background.enabled, false);
+  assert.equal(chatOff.pages.hero.background.enabled, true);
+});
+
+test('patch: 页面总开关与毛玻璃开关可单独改动', () => {
+  const next = patch(defaults(), {
+    pages: { hero: { enabled: false, glass: false }, chat: { enabled: false, glass: false } },
+  });
+  assert.equal(next.pages.hero.enabled, false);
+  assert.equal(next.pages.hero.glass, false);
+  assert.equal(next.pages.chat.enabled, false);
+  assert.equal(next.pages.chat.glass, false);
+  // 页面关掉不会连带改动效果开关本身
+  assert.equal(next.pages.hero.background.enabled, true);
+  assert.equal(next.pages.chat.background.enabled, true);
+});
+
+test('patch: 全局帧率与模糊可单独改动', () => {
+  const next = patch(defaults(), { frame: { fps: 60 }, glass: { blur: 20 } });
+  assert.equal(next.frame.fps, 60);
+  assert.equal(next.glass.blur, 20);
+  assert.equal(next.pages.hero.background.intensity, 0.3);
+  // 不传时保持原值，不被默认值悄悄覆盖
+  const after = patch(next, { pages: { hero: { background: { intensity: 0.8 } } } });
+  assert.equal(after.frame.fps, 60);
+  assert.equal(after.glass.blur, 20);
 });
 
 test('patch: partial 中的 undefined 不覆盖现有值', () => {
-  const next = patch(defaults(), { title: { idle: undefined, interact: false } });
-  assert.equal(next.title.idle, true);
-  assert.equal(next.title.interact, false);
+  const next = patch(defaults(), {
+    pages: { hero: { title: { idle: undefined, interact: false } } },
+  });
+  assert.equal(next.pages.hero.title.idle, true);
+  assert.equal(next.pages.hero.title.interact, false);
+});
+
+test('patch: 旧字段名不再生效', () => {
+  const legacyShape = patch(defaults(), {
+    title: { idle: false },
+    background: { intensity: 0.9, fps: 60 },
+    glass: { enabled: false },
+    surfaces: { hero: { glass: false } },
+  });
+  assert.deepEqual(legacyShape, defaults());
 });
 
 test('patch: 非法 partial 不抛错', () => {
@@ -220,9 +295,24 @@ test('patch: 非法 partial 不抛错', () => {
   }
 });
 
+test('normalize: 每次返回新对象，不复用默认值引用', () => {
+  const a = defaults();
+  const b = defaults();
+  assert.notEqual(a, b);
+  assert.notEqual(a.pages.hero, b.pages.hero);
+  const normalized = normalize(undefined);
+  a.pages.hero.background.intensity = 0.9;
+  assert.equal(normalize(undefined).pages.hero.background.intensity, 0.3);
+  assert.equal(normalized.pages.hero.background.intensity, 0.3);
+});
+
 test('sameState: 归一化后相同即视为无变化', () => {
   assert.equal(sameState(defaults(), normalize({ irrelevant: true })), true);
   assert.equal(sameState(defaults(), patch(defaults(), { enabled: false })), false);
+  assert.equal(
+    sameState(defaults(), patch(defaults(), { pages: { chat: { glass: false } } })),
+    false,
+  );
 });
 
 test('createStore: 无存储数据时返回默认值', () => {
@@ -243,13 +333,13 @@ test('createStore: update 写盘并通知订阅者', () => {
   const seen = [];
   const off = store.subscribe((state) => seen.push(state));
 
-  store.update({ glass: { blur: 20 } });
-  assert.equal(store.getSnapshot().glass.blur, 20);
+  store.update({ frame: { fps: 60 } });
+  assert.equal(store.getSnapshot().frame.fps, 60);
   assert.equal(seen.length, 1);
-  assert.equal(JSON.parse(storage.getItem(STORAGE_KEY)).glass.blur, 20);
+  assert.equal(JSON.parse(storage.getItem(STORAGE_KEY)).frame.fps, 60);
 
   off();
-  store.update({ glass: { blur: 22 } });
+  store.update({ frame: { fps: 45 } });
   assert.equal(seen.length, 1);
 });
 
@@ -261,7 +351,7 @@ test('createStore: 无实质变化不写盘、不通知', () => {
     calls += 1;
   });
   const before = storage.getItem(STORAGE_KEY);
-  store.update({ glass: { blur: 14 } });
+  store.update({ frame: { fps: 30 } });
   assert.equal(calls, 0);
   assert.equal(storage.getItem(STORAGE_KEY), before);
 });
@@ -269,13 +359,33 @@ test('createStore: 无实质变化不写盘、不通知', () => {
 test('createStore: 重开（新实例）能读回上次设置', () => {
   const storage = memoryStorage();
   const first = createStore(storage);
-  first.update({ enabled: false, pages: { chat: false }, glass: { enabled: false } });
+  first.update({
+    enabled: false,
+    pages: { hero: { background: { enabled: false }, title: { speed: 1.5 } } },
+  });
   const second = createStore(storage);
   const state = second.getSnapshot();
   assert.equal(state.enabled, false);
-  assert.equal(state.pages.chat, false);
-  assert.equal(state.pages.hero, true);
-  assert.equal(state.glass.enabled, false);
+  assert.equal(state.pages.hero.background.enabled, false);
+  assert.equal(state.pages.hero.title.speed, 1.5);
+  assert.equal(state.pages.chat.background.enabled, true);
+});
+
+test('createStore: 读到旧 v2 存档时按升级语义重置', () => {
+  const storage = memoryStorage({
+    [STORAGE_KEY]: JSON.stringify({
+      version: 2,
+      enabled: false,
+      pages: { hero: false, chat: true },
+      background: { intensity: 0.7, fps: 60 },
+    }),
+  });
+  const state = createStore(storage).getSnapshot();
+  assert.equal(state.version, 3);
+  assert.equal(state.enabled, false);
+  assert.equal(state.frame.fps, 60);
+  assert.equal(state.pages.hero.enabled, true, '旧页面开关不迁移');
+  assert.equal(state.pages.hero.background.intensity, 0.3, '旧强度不迁移');
 });
 
 test('createStore: 写入异常不影响内存状态', () => {
@@ -293,7 +403,10 @@ test('createStore: 写入异常不影响内存状态', () => {
 
 test('createStore: reset 恢复默认值', () => {
   const store = createStore(memoryStorage());
-  store.update({ enabled: false, title: { idle: false } });
+  store.update({
+    enabled: false,
+    pages: { hero: { title: { idle: false }, whale: { species: 'orca' } } },
+  });
   store.reset();
   assert.deepEqual(store.getSnapshot(), defaults());
 });

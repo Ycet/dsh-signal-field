@@ -33,9 +33,15 @@ function seedReducedMotion(storage, store) {
   }
   if (stored !== null && stored !== "") return;
   if (!prefersReducedMotion()) return;
+  // v0.5.0：动效参数按页保存，两页都要把「默认动效 / 鼠标交互」置为静止。
   store.update({
-    title: { idle: false, interact: false },
-    background: { idle: false, interact: false },
+    pages: {
+      hero: {
+        title: { idle: false, interact: false },
+        background: { idle: false, interact: false },
+      },
+      chat: { background: { idle: false, interact: false } },
+    },
   });
 }
 

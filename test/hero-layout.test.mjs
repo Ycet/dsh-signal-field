@@ -242,14 +242,26 @@ function makeStore(state) {
 }
 
 function baseState() {
-  // v0.2.9 结构：页面开关 × 全局效果开关
+  // v0.5.0 结构：按页面组织（这里只填这条路径用得到的键，缺的键由各引擎自己的默认值兜底）
   return {
-    version: 2,
+    version: 3,
     enabled: true,
-    pages: { hero: true, chat: true },
-    title: { idle: true, interact: true },
-    background: { idle: true, interact: true, intensity: 0.3 },
-    glass: { enabled: true, blur: 14 },
+    frame: { fps: 30 },
+    glass: { blur: 14 },
+    pages: {
+      hero: {
+        enabled: true,
+        background: { enabled: true, idle: true, interact: true, intensity: 0.3, speed: 1 },
+        title: { enabled: true, idle: true, interact: true, speed: 1 },
+        whale: { enabled: true },
+        glass: true,
+      },
+      chat: {
+        enabled: true,
+        background: { enabled: true, idle: true, interact: true, intensity: 0.3, speed: 1 },
+        glass: true,
+      },
+    },
   };
 }
 
@@ -285,7 +297,7 @@ test('hero: 标题插在 headline 行内、文案组之前', async () => {
 test('hero: 标题关闭时不插入节点', async () => {
   const { module, doc, headline } = await loadStage();
   const state = baseState();
-  state.pages.hero = false;
+  state.pages.hero.enabled = false;
   const store = makeStore(state);
   const status = {
     snapshot: { reducedMotion: false, titleAvailable: null },

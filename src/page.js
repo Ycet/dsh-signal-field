@@ -39,28 +39,32 @@ export function resolvePageKind(input) {
 }
 
 /**
- * 决定「HUD 面板毛玻璃」这个跨区域能力是否生效。
+ * 决定「HUD 面板补场与毛玻璃」这个跨区域能力是否生效。
  *
- * 规则（v0.2.9 起）：HUD 面板不再有独立开关，它跟随「聊天会话页面」这个页面开关——
- * 关掉聊天会话页的动效，面板也同步回到原生外观。
- * 它不受「输入框毛玻璃效果」总开关控制（该开关只管输入框卡片）。
+ * 规则（v0.5.0）：HUD 面板没有独立开关，它跟随**当前所在页**的两道开关——
+ *   1. 当前页的「UI动效总开关」（pageEnabled）；
+ *   2. 当前页的「背景」开关（backgroundEnabled）。
+ * 也就是说：在新建会话页看的是新建页的那两个开关，在聊天会话页看的是聊天页的那两个开关。
+ * 第二道是刻意的：面板玻璃的意义是「模糊它背后那片信号场」，该页背景关掉后
+ * 没有可模糊的内容，补场与面板玻璃就应该一起回到原生外观。
+ * 它**不**受当前页「输入框毛玻璃效果」开关控制（那个开关只管输入框卡片）。
  *
- * @param {{ page?: string, chatPage?: unknown }} input
+ * @param {{ page?: string, pageEnabled?: unknown, backgroundEnabled?: unknown }} input
  * @returns {{ hud: boolean }}
  */
 export function resolvePanelTargets(input) {
   const src = input && typeof input === "object" ? input : {};
   const inScope = src.page === PAGE_HERO || src.page === PAGE_CHAT;
   if (!inScope) return { hud: false };
-  return { hud: !!src.chatPage };
+  return { hud: !!src.pageEnabled && !!src.backgroundEnabled };
 }
 
 /**
- * 决定「鲸鱼动画」这一图层是否应该存在（v0.4.0）。
+ * 决定「鲸鱼动画」这一图层是否应该存在（v0.4.0，v0.5.0 改为按页模型）。
  *
  * 三道上级闸门都要开，缺一不可：
  *   1. 总开关（启用全部动效）；
- *   2. 页面开关「新建会话页面」——它代表「这一页要不要动效背景」，鲸鱼只是其中一层；
+ *   2. 新建会话页的「UI动效总开关」——它代表「这一页要不要动效」，鲸鱼只是其中一层；
  *   3. 鲸鱼自己的开关。
  * 最后才是页面判定：鲸鱼**只**在新增会话页渲染。
  *
@@ -70,13 +74,13 @@ export function resolvePanelTargets(input) {
  *
  * 本函数不含任何 DOM API，故可被 `node --test` 直接导入断言。
  *
- * @param {{ page?: string, heroPage?: unknown, master?: unknown, whaleEnabled?: unknown }} input
+ * @param {{ page?: string, pageEnabled?: unknown, master?: unknown, whaleEnabled?: unknown }} input
  * @returns {boolean}
  */
 export function resolveWhaleTarget(input) {
   const src = input && typeof input === "object" ? input : {};
   if (!src.master) return false;
-  if (!src.heroPage) return false;
+  if (!src.pageEnabled) return false;
   if (!src.whaleEnabled) return false;
   return src.page === PAGE_HERO;
 }
