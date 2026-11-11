@@ -16,7 +16,7 @@
  */
 
 import { createField } from "./field.js";
-import { PAGE_CHAT, PAGE_HERO, PAGE_NONE, resolvePageKind, resolvePanelTargets, resolveWhaleTarget } from "./page.js";
+import { PAGE_CHAT, PAGE_HERO, PAGE_NONE, resolvePageKind, resolvePanelTargets, resolveViewKind, resolveWhaleTarget } from "./page.js";
 import { createTechText, measureTitle } from "./techtext.js";
 import { createWhaleField } from "./whale-field.js";
 
@@ -75,9 +75,16 @@ export function titleScopeOf(state) {
   return title && typeof title === "object" ? title : {};
 }
 
-/** 取新建会话页的鲸鱼分组。 */
-export function whaleScopeOf(state) {
-  const whale = pageScopeOf(state, PAGE_HERO).whale;
+/**
+ * 取某一页的鲸鱼分组（v0.5.1 起两页各一份）。
+ *
+ * 不传 page 时按新建会话页取值，仅供历史调用点兜底；新代码一律显式传页面。
+ * @param {object} state 设置快照
+ * @param {string} [page] PAGE_HERO / PAGE_CHAT
+ */
+export function whaleScopeOf(state, page) {
+  const target = page === PAGE_CHAT ? PAGE_CHAT : PAGE_HERO;
+  const whale = pageScopeOf(state, target).whale;
   return whale && typeof whale === "object" ? whale : {};
 }
 
@@ -272,6 +279,23 @@ export function createStage(options) {
     });
   }
 
+  /**
+   * 聊天页内部的子视图（对话 / 轨迹 / 统计），v0.5.1 起只用于自检与排查。
+   *
+   * 三个子视图共用同一份 `[data-conversation-content]`，所以页面分类与图层挂载点不变、
+   * 切视图不重建图层。但它们的视图根底色不同，排查「鲸鱼/信号场在某视图下不见」时
+   * 必须能分清是「开关没开」还是「被视图底色盖住」，故把结论打进自检。
+   */
+  function resolveView() {
+    if (page !== PAGE_CHAT) return "thread";
+    const root = conversationRoot();
+    if (!root) return "thread";
+    return resolveViewKind({
+      hasTrajectory: !!root.querySelector("[data-trajectory-scroll]"),
+      hasStatsTable: !!(root.querySelector("[data-conversation-composer-overlay]") && root.querySelector("table th")),
+    });
+  }
+
   /** hero 里字号最大的叶子文本块就是主标题。 */
   function findHeadline(root) {
     const nodes = root.querySelectorAll("h1, h2, h3, h4, p, div, span");
@@ -314,6 +338,23 @@ export function createStage(options) {
     return !!pageScopeOf(state, page).enabled && !!backgroundScopeOf(state, page).enabled;
   }
 
+  /**
+   * 鲸鱼这一层要不要画（v0.5.1 两页都可能要）。
+   *
+   * 单独抽出来是为了让 syncRoot() 与 syncWhale() 用同一份判定：
+   * 根属性 data-mui-active 的语义是「这一页至少有一层动效图层在跑」，
+   * 只开鲸鱼、关掉背景时也必须保留它——否则「轨迹」「统计」视图的不透明底色会回来，
+   * 鲸鱼就被整片盖住（这正是本轮要修的「聊天页鲸鱼在轨迹/统计看不到」）。
+   */
+  function whaleWanted(state) {
+    return resolveWhaleTarget({
+      page,
+      pageEnabled: pageScopeOf(state, page).enabled,
+      master: state.enabled,
+      whaleEnabled: whaleScopeOf(state, page).enabled,
+    });
+  }
+
   function syncField(state, dark) {
     const wanted = fieldWanted(state);
     const surface = resolveSurface();
@@ -345,10 +386,10 @@ export function createStage(options) {
     if (!wanted) {
       layerEl.removeAttribute("data-on");
       if (field) field.update({ idle: false, interact: false });
-      doc.documentElement.removeAttribute("data-mui-active");
+      // data-mui-active 由 syncRoot() 统一维护（背景关掉但鲸鱼还开着时它必须留着），
+      // 这里不再动它，避免两个写者互相覆盖。
       return;
     }
-    doc.documentElement.setAttribute("data-mui-active", "");
 
     // v0.5.0：参数来自**当前页**的背景分组（两页各调各的），帧率是全局的。
     const fieldBackground = backgroundScopeOf(state, page);
@@ -388,11 +429,11 @@ export function createStage(options) {
   /**
    * 把设置摊平成鲸鱼适配器要的形状。
    *
-   * v0.5.0：参数取新建会话页的鲸鱼分组；帧率是全局的，
-   * 鼠标交互复用该页「背景鼠标交互」——不再新增第二套概念。
+   * v0.5.1：参数取**当前所在页**的鲸鱼分组（新建页用 pages.hero.whale、聊天页用 pages.chat.whale）；
+   * 帧率是全局的，鼠标交互复用该页「背景鼠标交互」——不再新增第二套概念。
    */
-  function whaleOptions(state, dark) {
-    const whale = whaleScopeOf(state);
+  function whaleOptions(state, dark, pageKind) {
+    const whale = whaleScopeOf(state, pageKind || page);
     return {
       dark: !!dark,
       species: whale.species,
@@ -408,7 +449,7 @@ export function createStage(options) {
       wake: whale.wake,
       opacity: whale.opacity,
       fps: frameFpsOf(state),
-      interact: !!backgroundScopeOf(state, PAGE_HERO).interact,
+      interact: !!backgroundScopeOf(state, pageKind || page).interact,
     };
   }
 
@@ -430,19 +471,21 @@ export function createStage(options) {
    * 判定收敛在 resolveWhaleTarget()（纯函数、可单测）；这里只做三件事：
    * 该有时把图层挂进内容面、该没时整层销毁、其余情况把设置推给适配器做增量更新。
    *
+   * v0.5.1：鲸鱼在**两个会话页都能出现**，闸门与参数都取「当前所在页」那一份
+   * （新建页听 pages.hero.whale，聊天页听 pages.chat.whale），因此：
+   *   - 页面切换（hero ↔ chat）时参数会随之切换，适配器做的是增量 update；
+   *   - 「轨迹」「统计」视图与「对话」共用同一个 `[data-conversation-content]`，
+   *     页面分类仍是 chat，所以切视图不会销毁图层——但视图根自带不透明底色，
+   *     必须在样式层把它清掉，否则鲸鱼与信号场一起被盖住（见 styles.js 的视图底色规则）。
+   *
    * 为什么整层销毁而不是像信号场那样「留着但不画」：
-   * 鲸鱼只在新增会话页出现，离开这一页就没有再复用的机会；
-   * 而且它的引擎持有 ResizeObserver / IntersectionObserver / window 指针监听，
-   * 留着不画比拆掉更费，也更容易在切页后留下幽灵监听。
+   * 该页关掉鲸鱼后没有复用机会，而且引擎持有 ResizeObserver / IntersectionObserver /
+   * window 指针监听，留着不画比拆掉更费，也更容易在切页后留下幽灵监听。
+   * 但**同一页内换视图不销毁**：内容面没变，图层继续复用，画布尺寸由引擎自己的
+   * ResizeObserver 跟随视图区高度变化重新量。
    */
   function syncWhale(state, dark) {
-    const heroScope = pageScopeOf(state, PAGE_HERO);
-    const wanted = resolveWhaleTarget({
-      page,
-      pageEnabled: heroScope.enabled,
-      master: state.enabled,
-      whaleEnabled: whaleScopeOf(state).enabled,
-    });
+    const wanted = whaleWanted(state);
     const surface = wanted ? resolveSurface() : null;
     if (!wanted || !surface) {
       destroyWhale();
@@ -463,7 +506,7 @@ export function createStage(options) {
       surface.append(whaleEl);
     }
 
-    const options = whaleOptions(state, dark);
+    const options = whaleOptions(state, dark, page);
     if (!whaleField) whaleField = createWhaleField(whaleEl, options);
     else whaleField.update(options);
   }
@@ -969,6 +1012,16 @@ export function createStage(options) {
     // 作用范围标记：只要当前页在范围内就存在，与「信号场是否开启」解耦，
     // 这样 HUD 玻璃、右栏背景这类跨区域能力在背景关掉时仍然可单独生效。
     setFlag(root, "data-mui-scope", page !== PAGE_NONE);
+    // v0.5.1：data-mui-active 的语义是「这一页**至少有一层动效图层**在跑」，即
+    // 「信号场在跑 **或** 鲸鱼在跑」。为什么从「信号场在跑」扩成「任一图层」：
+    // 这个属性在样式层同时承担三件事，而这三件事对鲸鱼同样成立——
+    //   1. 把内容容器（内容面 / 滚动容器 / 会话座位槽 / 输入框条）的底色清成透明；
+    //   2. 清掉「轨迹」「统计」视图根、分栏容器与表格的不透明底色；
+    //   3. 下推输入框座位上的 --dsw-alias-bg-base 并挂自己的背衬（否则消息会压到状态栏）。
+    // 鲸鱼图层在内容面里同样是 z-index:-1，任何一层不透明底色都会把它盖住；
+    // 只开鲸鱼时若缺这个属性，现象就是「设置里鲸鱼开着，但聊天页/轨迹页看不到鲸鱼」。
+    // 写入点收敛在这里：syncField() 不再自己写/清，避免两个写者互相覆盖。
+    setFlag(root, "data-mui-active", fieldWanted(state) || whaleWanted(state));
     setFlag(root, "data-mui-dark", dark);
     // 输入框毛玻璃（v0.5.0 按页）：该页总开关 + 该页「输入框毛玻璃效果」都开着才生效。
     const heroScope = pageScopeOf(state, PAGE_HERO);
@@ -1131,13 +1184,24 @@ export function createStage(options) {
     };
     lines.push(statLine("field", field ? field.stats : null));
     lines.push(statLine("hudField", hudField ? hudField.stats : null));
+    // v0.5.1：鲸鱼两页都能开，切视图时「看不见」既可能是开关没开，也可能是被视图底色盖住，
+    // 所以把「当前页 / 子视图 / 鲸鱼图层状态」一起回读出来。
+    lines.push(
+      `whale: page=${page} view=${resolveView()} layer=${whaleEl && whaleEl.isConnected ? "mounted" : "none"} ` +
+        `enabled=${whaleScopeOf(store.getSnapshot(), page).enabled ? 1 : 0} fallback=${whaleEl && whaleEl.hasAttribute("data-whale-fallback") ? "yes" : "no"}`,
+    );
+    const viewRoot = doc.querySelector("[data-conversation-content] [data-conversation-composer-overlay]");
+    lines.push(
+      `viewRoot: ${viewRoot ? short(viewRoot) : "null"} bg=${viewRoot ? css(viewRoot, "backgroundColor") : "-"}`,
+    );
     // v0.3.0：把两个实际生效的速度倍率也打出来，便于确认滑块值真的到达了引擎
     // （设置层与引擎层之间有任何一处漏传，这里会立刻暴露成 1×）。
     const snapshot = store.getSnapshot();
     // v0.5.0：速度按页取值。当前页不在作用范围时按聊天会话页打印（HUD 补场也跟随它）。
     const speedPage = page === PAGE_HERO || page === PAGE_CHAT ? page : PAGE_CHAT;
     lines.push(
-      `speeds: title=${titleScopeOf(snapshot).speed}x background[${speedPage}]=${backgroundScopeOf(snapshot, speedPage).speed}x hud=follow`,
+      `speeds: title=${titleScopeOf(snapshot).speed}x background[${speedPage}]=${backgroundScopeOf(snapshot, speedPage).speed}x ` +
+        `whale[${speedPage}]=${whaleScopeOf(snapshot, speedPage).speed}x hud=follow`,
     );
 
     if (history.length > 0) {

@@ -1,7 +1,17 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { PAGE_CHAT, PAGE_HERO, PAGE_NONE, resolvePageKind, resolvePanelTargets } from '../src/page.js';
+import {
+  PAGE_CHAT,
+  PAGE_HERO,
+  PAGE_NONE,
+  VIEW_STATS,
+  VIEW_THREAD,
+  VIEW_TRAJECTORY,
+  resolvePageKind,
+  resolvePanelTargets,
+  resolveViewKind,
+} from '../src/page.js';
 
 /**
  * 页面分类是本插件唯一的作用范围开关：
@@ -98,4 +108,32 @@ test('resolvePanelTargets: 垃圾输入不会抛错', () => {
       { hud: true },
     );
   }
+});
+
+/**
+ * 子视图判定（v0.5.1）。
+ *
+ * 「对话 / 轨迹 / 统计」共用同一个 `[data-conversation-content]`，所以页面分类与图层挂载点不变；
+ * 这个函数只服务自检与排查——把子视图打进 diagnose，才能区分
+ * 「开关没开」与「被视图底色盖住」这两种截然不同的原因。
+ */
+test('resolveViewKind: 三个子视图共用同一内容面，按宿主标记分类', () => {
+  assert.equal(resolveViewKind({ hasTrajectory: true }), VIEW_TRAJECTORY);
+  assert.equal(resolveViewKind({ hasStatsTable: true }), VIEW_STATS);
+  assert.equal(resolveViewKind({}), VIEW_THREAD);
+  // 轨迹优先：轨迹表格里也有 th，不能因为「有表头」就误判成统计
+  assert.equal(resolveViewKind({ hasTrajectory: true, hasStatsTable: true }), VIEW_TRAJECTORY);
+});
+
+test('resolveViewKind: 垃圾输入不抛错且回落到 thread', () => {
+  for (const input of [undefined, null, 0, '', [], true]) {
+    assert.equal(resolveViewKind(input), VIEW_THREAD, `输入 ${JSON.stringify(input)} 应回落到 thread`);
+  }
+});
+
+test('resolveViewKind: 三个常量互不相同且取值稳定', () => {
+  assert.equal(new Set([VIEW_THREAD, VIEW_TRAJECTORY, VIEW_STATS]).size, 3);
+  assert.equal(VIEW_THREAD, 'thread');
+  assert.equal(VIEW_TRAJECTORY, 'trajectory');
+  assert.equal(VIEW_STATS, 'stats');
 });

@@ -122,6 +122,13 @@ function documentStub(options) {
   const conversation = phase ? element('div') : null;
   if (conversation) conversation.setAttribute('data-content-phase', phase);
   doc.conversation = conversation;
+
+  // v0.5.1：模拟聊天页里的子视图标记（轨迹的滚动容器 / 统计表头），
+  // 用来验证「切到轨迹、统计视图后鲸鱼图层仍在，且 data-mui-active 不被收回」。
+  const view = options && options.conversationView;
+  const marked = {};
+  if (view === 'trajectory') marked.trajectory = element('div');
+  if (view === 'stats') marked.stats = element('div');
   doc.querySelector = (selector) => {
     if (!conversation) return null;
     const sel = String(selector);
@@ -129,6 +136,9 @@ function documentStub(options) {
     if (sel === '[data-content-phase="hero"]') {
       return conversation.getAttribute('data-content-phase') === 'hero' ? conversation : null;
     }
+    if (sel === '[data-trajectory-scroll]') return marked.trajectory || null;
+    if (sel === '[data-conversation-composer-overlay]') return marked.stats || null;
+    if (sel === 'table th') return null;
     return null;
   };
   return doc;
@@ -455,9 +465,10 @@ test('wiring: 自检文本可生成（覆盖座位背衬与 HUD 补场两段）'
 // ---- v0.4.0：鲸鱼图层的装配 ------------------------------------------------
 
 /** 在给定存档下装配一次，返回替身 DOM 与鲸鱼图层查询结果。 */
-async function mountWith(settings, conversationPhase = 'hero') {
+async function mountWith(settings, conversationPhase = 'hero', conversationView) {
   const { mod, doc } = await loadModule({
     conversationPhase,
+    conversationView,
     settings: settings === undefined ? undefined : JSON.stringify(settings),
   });
   const ctx = {
@@ -505,12 +516,76 @@ test('wiring: 「新建会话页」总开关关闭时不建图层（页面开关
   assert.equal(layers.length, 0, '页面总开关关闭时鲸鱼也应停用');
 });
 
-test('wiring: 聊天会话页不建鲸鱼图层（只在新增会话页渲染）', async () => {
+test('wiring: 聊天会话页默认也挂出鲸鱼图层（v0.5.1）', async () => {
   const { layers } = await mountWith(undefined, 'active');
-  assert.equal(layers.length, 0, '聊天页不该出现鲸鱼图层');
+  assert.equal(layers.length, 1, '聊天页默认应有一个鲸鱼图层');
+  assert.equal(layers[0].hasAttribute('data-mui-whale'), true);
+});
+
+test('wiring: 聊天页的鲸鱼开关独立于新建页', async () => {
+  // 只关聊天页：新建页那份仍开着
+  const off = await mountWith({ version: 3, pages: { chat: { whale: { enabled: false } } } }, 'active');
+  assert.equal(off.layers.length, 0, '关掉聊天页鲸鱼开关后不该有图层');
+  const heroStill = await mountWith({ version: 3, pages: { chat: { whale: { enabled: false } } } }, 'hero');
+  assert.equal(heroStill.layers.length, 1, '新建页不应被聊天页的鲸鱼开关牵连');
 });
 
 test('wiring: 总开关关闭时不建鲸鱼图层', async () => {
   const { layers } = await mountWith({ enabled: false });
   assert.equal(layers.length, 0, '总开关关闭后不该有任何鲸鱼图层');
+});
+
+// ---- v0.5.1：聊天页的「轨迹」「统计」子视图 ---------------------------------
+
+/**
+ * 三个子视图共用同一个 `[data-conversation-content]`，插件的页面分类与挂载点不变，
+ * 因此切视图**不应**销毁鲸鱼图层；真正可能出事的是视图根的不透明底色。
+ * 这里锁两件事：
+ *   1. 轨迹/统计视图下鲸鱼图层仍在内容面里；
+ *   2. `data-mui-active` 仍写着（样式层靠它清掉视图底色），且只开鲸鱼时也要写。
+ */
+test('wiring: 聊天页切到「轨迹」视图时鲸鱼图层仍在，且 data-mui-active 保留', async () => {
+  const { doc } = await mountWith(undefined, 'active', 'trajectory');
+  assert.equal(doc.documentElement.hasAttribute('data-mui-active'), true, '视图底色需要这个属性才能被清掉');
+  const layers = doc.conversation.children.filter((child) => child.hasAttribute('data-mui-whale'));
+  assert.equal(layers.length, 1, '轨迹视图下鲸鱼图层不应被拆掉');
+});
+
+test('wiring: 聊天页切到「统计」视图时鲸鱼图层仍在，且 data-mui-active 保留', async () => {
+  const { doc } = await mountWith(undefined, 'active', 'stats');
+  assert.equal(doc.documentElement.hasAttribute('data-mui-active'), true);
+  const layers = doc.conversation.children.filter((child) => child.hasAttribute('data-mui-whale'));
+  assert.equal(layers.length, 1, '统计视图下鲸鱼图层不应被拆掉');
+});
+
+test('wiring: 只开鲸鱼、关掉背景时 data-mui-active 仍要写（否则视图底色盖住鲸鱼）', async () => {
+  // 关掉聊天页背景，只留鲸鱼：这正是「轨迹页看不到鲸鱼」的高风险组合。
+  const { doc } = await mountWith(
+    { version: 3, pages: { chat: { background: { enabled: false }, whale: { enabled: true } } } },
+    'active',
+    'trajectory',
+  );
+  const root = doc.documentElement;
+  // data-mui-active 的语义是「这一页至少有一层图层在跑」，只开鲸鱼时同样要写：
+  // 内容容器、输入框座位与视图根的底色都靠它清掉，缺了鲸鱼就会被整片盖住。
+  assert.equal(root.hasAttribute('data-mui-active'), true, '只开鲸鱼时也必须写 data-mui-active');
+  const layers = doc.conversation.children.filter((child) => child.hasAttribute('data-mui-whale'));
+  assert.equal(layers.length, 1, '背景关掉不应牵连鲸鱼');
+  // 反证：背景图层本身不应再有 data-on
+  const fieldLayer = doc.conversation.children.find((child) => child.hasAttribute('data-mui-field'));
+  assert.equal(fieldLayer && fieldLayer.hasAttribute('data-on'), false, '背景关掉后信号场不应显示');
+});
+
+test('wiring: 两页都关掉动效后 data-mui-active 不残留', async () => {
+  const { doc } = await mountWith(
+    {
+      version: 3,
+      pages: {
+        hero: { enabled: true, background: { enabled: false }, whale: { enabled: false } },
+        chat: { enabled: true, background: { enabled: false }, whale: { enabled: false } },
+      },
+    },
+    'active',
+  );
+  assert.equal(doc.documentElement.hasAttribute('data-mui-active'), false, '没有任何图层时不得留下作用域标记');
 });

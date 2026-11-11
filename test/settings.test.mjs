@@ -80,12 +80,14 @@ test('defaults: v3 结构——全局帧率 + 两页各自的效果分组', () =
     },
     glass: true,
   });
-  // 聊天会话页没有标题与鲸鱼
+  // 聊天会话页没有标题；v0.5.1 起也有鲸鱼（默认值与新建页一致）
   assert.deepEqual(state.pages.chat, {
     enabled: true,
     background: { enabled: true, idle: true, interact: true, intensity: 0.3, speed: 1 },
+    whale: state.pages.hero.whale,
     glass: true,
   });
+  assert.notEqual(state.pages.chat.whale, state.pages.hero.whale, '两页的鲸鱼分组不得共享引用');
 });
 
 test('defaults: 两页的背景对象互不共享引用', () => {

@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "UI Motion",
-    "description": "Adds a dithered signal-field backdrop to the new-session and chat pages, a blueprint headline plus ASCII whale animation on the new-session page, and frosted glass for the composer — each page has its own switches, and every effect is tunable under Settings → UI Motion."
+    "description": "Adds a dithered signal-field backdrop and ASCII whale animation to the new-session and chat pages, a blueprint headline to the new-session page, and frosted glass for the composer — each page has its own switches and its own motion parameters, all tunable under Settings → UI Motion."
   },
   "runtime": {
     "title": "UI motion",
@@ -15,7 +15,7 @@
     "groupChatPage": "Chat session page",
     "pageMaster": "UI motion master switch",
     "pageHeroHint": "When off, the new session page returns to the stock DSH look (backdrop, headline, whales, composer glass and the HUD panel backing field all stop).",
-    "pageChatHint": "When off, the chat page returns to the stock DSH look (backdrop, composer glass and the HUD panel backing field all stop).",
+    "pageChatHint": "When off, the chat page returns to the stock DSH look (backdrop, whales, composer glass and the HUD panel backing field all stop).",
     "rowBackground": "Backdrop",
     "rowBackgroundHint": "Whether this page shows the signal field; when off this page shows no backdrop, and the HUD panel's backing field and glass turn off with it (headline, whales and composer glass are unaffected).",
     "rowBackgroundIdle": "Backdrop default motion",
@@ -35,12 +35,12 @@
     "rowTitleSpeed": "Headline animation speed",
     "rowTitleSpeedHint": "How fast the sweep runner, reveal lens and hover-to-outline transitions run; 1× is the current feel. Applies live while dragging, with no replay.",
     "rowWhale": "Whales",
-    "rowWhaleHint": "Stacks an ASCII whale layer on the new-session page, above the signal field.",
+    "rowWhaleHint": "Stacks an ASCII whale layer on the current page, above the signal field; the new-session and chat pages keep separate parameters, and the Trace and Stats views show it too.",
     "rowWhaleSpecies": "Whale species",
     "rowWhaleSpeciesHint": "Humpback has longer flippers and wider flukes; orca is slightly smaller with white markings.",
     "whaleHumpback": "Humpback",
     "whaleOrca": "Orca",
-    "whaleNumbersHint": "These apply immediately. Changing species, whale count, size, cell size or fish count rebuilds the whole ocean; the rest update in place without replaying.",
+    "whaleNumbersHint": "These apply to the whales on the current page only and take effect immediately. Changing species, whale count, size, cell size or fish count rebuilds the whole ocean; the rest update in place without replaying.",
     "rowWhaleCount": "Whale count",
     "rowWhaleSpeed": "Whale swim speed",
     "rowWhaleBodySwing": "Whale body swing",

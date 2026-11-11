@@ -397,7 +397,7 @@ v0.2.5 按面板外扩 24px 铺，实机上露出两个问题：
 - README 增加「演示」区，素材在 v0.2.10 内调整过两次：先是用 H.264 MP4，随后替换为 `docs/demo.gif`（原始录屏 1470×864 / 78MB 压缩为 720×423 / 12fps / 25MB），最终改为两张静态截图 `docs/screenshot-hero.png`（新增会话页）与 `docs/screenshot-chat.png`（聊天会话页）；GIF 与 MP4 均已移出仓库。（v0.3.0 起「演示」区再次改为两张主题动图 `docs/light_mode_preview.gif` 与 `docs/dark_mode_preview.gif`；上文的静态截图已不再被 README 引用，并已随演示动图更新一并从 `docs/` 删除。）
 - 截图处理：原图 2378×1708 RGBA（alpha 全 255）转 RGB 后仅做 `optimize`，282 KB / 422 KB。**不要降采样**——抖动细颗粒被重采样成噪点状灰阶后反而涨到 700 KB～1 MB，原尺寸保留硬边抖动图案压缩率更高。
 
-## 18. 鲸鱼图层（v0.4.0 新增）
+## 18. 鲸鱼图层（v0.4.0 新增，v0.5.1 起两页可用）
 
 迁移自 `dsh-ascii-whales@0.1.5` 的鲸鱼动画，作为**第二个绝对定位图层**与信号场同宿主：
 
@@ -411,11 +411,14 @@ v0.2.5 按面板外扩 24px 铺，实机上露出两个问题：
 | 尺寸 | `position:absolute;inset:0`，实际像素由 `ResizeObserver` + `dpr`（上限 2）决定 |
 | 字体 | `@font-face` 的 `Whales Mono`（`src/whale-fonts.js` 的 data URI），画布内联 `font-family` 保证引擎读到的 `getComputedStyle` 不依赖样式表生效时机 |
 
-- **可见性判定**收敛在 `src/page.js` 的 `resolveWhaleTarget({ page, heroPage, master, whaleEnabled })`：总开关 × 「新建会话页面」× 鲸鱼开关 × `page === hero` 四者全真才为 `true`。聊天会话页与非会话页一律为 `false`。
-- **生命周期**：不需要时**整层销毁**（引擎 + canvas + 图层 + 指针监听），不像信号场那样「留着但不画」。原因是鲸鱼只在 hero 出现、没有复用机会，而引擎持有 `ResizeObserver` / `IntersectionObserver` / window 指针监听，留着比拆掉更费。
+- **可见性判定**收敛在 `src/page.js` 的 `resolveWhaleTarget({ page, pageEnabled, master, whaleEnabled })`：总开关 × **当前所在页**总开关 × **当前所在页**鲸鱼开关 × `page` 属于 `hero`/`chat` 全部为真才为 `true`。非会话页一律 `false`。
+  v0.5.1 之前这里是 `page === hero` 硬判（继承自 `dsh-ascii-whales`），聊天页恒为 `false`；两页都要后改为「两个会话页都算」，闸门改读当前页那一份分组（`pages.hero.whale` / `pages.chat.whale`）。
+- **两页参数各一份**：`whaleScopeOf(state, page)` 按页取分组，`whaleOptions(state, dark, page)` 把参数与「该页背景鼠标交互」摊平给适配器；页面切换时适配器走的是增量 `update`，不会重播海洋。
+- **生命周期**：不需要时**整层销毁**（引擎 + canvas + 图层 + 指针监听），不像信号场那样「留着但不画」。引擎持有 `ResizeObserver` / `IntersectionObserver` / window 指针监听，留着比拆掉更费。
+  但**同一页内换子视图（对话 ↔ 轨迹 ↔ 统计）不销毁**：三者共用同一个 `[data-conversation-content]`，`whaleEl.parentElement` 仍是同一宿主，图层继续复用，画布尺寸由引擎自己的 `ResizeObserver` 跟随视图区高度重新量。
 - **内容面被重建**（切页、重挂）时靠 `whaleEl.parentElement !== surface` 识别，整层重建：引擎绑的是旧 canvas 的观察器，搬过去也不会重新量。
-- **帧率**复用 `background.fps`（同一滑块），门控在引擎 `frame()` 开头：不到点只续 rAF、不绘制、**不更新 `this.last`**，于是跳过的时长会在下次真正绘制时进入累加器，运动按真实时间推进。
-- **鼠标交互**复用 `background.interact`：关闭时 `detachPointer()` 把这 5 个监听全部摘掉并把 `world.pointer.active` 归零（否则鱼群会一直朝最后位置聚）。
+- **帧率**用顶层的 `frame.fps`（v0.5.0 起从 `background.fps` 提到顶层，两页共用同一滑块），门控在引擎 `frame()` 开头：不到点只续 rAF、不绘制、**不更新 `this.last`**，于是跳过的时长会在下次真正绘制时进入累加器，运动按真实时间推进。
+- **鼠标交互**复用同一页的 `background.interact`：关闭时 `detachPointer()` 把这 5 个监听全部摘掉并把 `world.pointer.active` 归零（否则鱼群会一直朝最后位置聚）。
 - **降级**：`getContext("2d")` 为空、`ResizeObserver`/`IntersectionObserver` 缺失等任何构造期异常都被 `src/whale-field.js` 的 `try/catch` 兜住，图层保留并打上 `data-whale-fallback`，不冒泡、不影响信号场与标题。
 - **移植边界**：上游代码整段包在 `src/whale-engine.js` 的 IIFE 里，只导出 `WHALE_ENGINE`。这不是洁癖——`src/stage.js` 已有顶层 `clamp`，与移植块的 `var clamp` 同处一个闭包会互相覆盖。`test/whale-source.test.mjs` 钉住这个边界、五处适配标注与「Kanji / prefers-reduced-motion 不得回来」。
 
@@ -491,7 +494,8 @@ DSH Web 前端用的是 **CSS Modules 哈希类名**。抽取 `app.asar` 内的
 - 升级语义：旧存档除 `enabled` 与 `background.fps`（搬进 `frame.fps`）外**一律回默认**；旧 `pages.hero` 是布尔，`group()` 会把它当空对象，于是自然回落到默认 `true`。毛玻璃半径只在当前结构版本的存档里读取，旧结构一律回默认 14px。
 - 闸门（`src/stage.js` 的 `pageScopeOf` / `backgroundScopeOf` / `titleScopeOf` / `whaleScopeOf` / `frameFpsOf`）：
   - 信号场 = 全局总开关 + 该页总开关 + 该页背景开关；
-  - 标题 / 鲸鱼 = 全局 + 新建会话页总开关 + 各自开关；
+  - 标题 = 全局 + 新建会话页总开关 + 标题开关（标题仍只在新建页）；
+  - 鲸鱼 = 全局 + **当前页**总开关 + **当前页**鲸鱼开关（v0.5.1 起两页都有，各用各的分组）；
   - 输入框玻璃 = 全局 + 该页总开关 + 该页玻璃开关；
   - HUD 补场与面板玻璃 = 全局 + 当前页在作用范围 + **当前所在页的总开关 + 当前所在页的背景开关**（新建页用新建页的、聊天页用聊天页的；参数也取当前页那一份，保证补场与所在页的信号场是同一片观感；「输入框毛玻璃」不影响面板）。
 - 降级到 v0.4.x：旧读取器把 `pages.hero` 当布尔兜底成 `true`、丢弃新键，表现为「全部开启 + 默认参数」，不会崩也不会写坏数据。
@@ -500,7 +504,7 @@ DSH Web 前端用的是 **CSS Modules 哈希类名**。抽取 `app.asar` 内的
 
 - `test/settings-page.test.mjs`：三卡片顺序、7 条分割线、完整行序、四个折叠区默认收起（`aria-expanded=false` + `hidden`）、点击展开/收起、锁定态置灰与提示、两页同名开关互不影响、帧率写回顶层 `frame`。
 - `test/settings.test.mjs`：v3 默认值、旧存档重置语义、深合并 patch、两页隔离。
-- `test/page.test.mjs` / `test/whale-view.test.mjs`：HUD 双闸门与鲸鱼四道闸门的真值表。
+- `test/page.test.mjs` / `test/whale-view.test.mjs`：HUD 双闸门、鲸鱼四道闸门与子视图分类（`resolveViewKind`）的真值表。
 
 ## 22. 会话内视图（轨迹 / 统计）的底色（v0.5.0）
 
@@ -538,3 +542,64 @@ html[data-mui-active] [data-conversation-content] [data-conversation-composer-ov
 - 选择器带 `html[data-mui-active]` 前缀，插件关闭（清掉作用域属性）后自动失效。
 - 视图内部自带底色的控件（轨迹工具栏、时间线图块等）**保持原样**，与聊天页的消息卡片一致，不做进一步穿透。
 - 回归测试：`test/parity.test.mjs` 锁定该规则存在、且只声明 `background-color`。
+
+## 23. 鲸鱼支持聊天会话页（v0.5.1）
+
+v0.4.0 迁移鲸鱼时原样继承了上游的「只在 hero 渲染」，v0.5.1 起聊天会话页也能开，且两页的参数各存一份。
+
+**数据结构（结构版本仍是 v3，纯加键）**
+
+```text
+pages.hero.whale = { enabled, species, count, speed, bodySwing, turnAgility, tailFrequency, size, opacity, gridScale, gridOpacity, fishCount, wake }
+pages.chat.whale = { …同上 13 个键，默认值与新建页完全一致… }
+```
+
+- 没有升 `SCHEMA_VERSION`：`pages.chat.whale` 是 v3 结构内的新增键，旧的 v3 存档缺这一组时 `normalizeChat()` 按默认值补齐（**默认打开**），符合「加键不破坏存档」的既有约定。
+- 两页互不牵连：`patch()` 走 `mergeGroup(base.whale, src.whale, WHALE_KEYS)`，改 `pages.chat.whale.count` 不会动 `pages.hero.whale`。`test/settings.test.mjs` 断言两份分组不是同一个对象。
+
+**闸门与参数**
+
+- `resolveWhaleTarget({ page, pageEnabled, master, whaleEnabled })`：`page` 属于 `hero`/`chat` 即可，`pageEnabled` 与 `whaleEnabled` 都取**当前页**那一份。
+- `whaleScopeOf(state, page)` / `whaleOptions(state, dark, page)`：参数与「背景鼠标交互」同样按当前页取。
+- 两页鲸鱼可以完全不同：新建页偏浓、聊天页偏淡，互不影响。
+
+**「轨迹」「统计」视图为什么也能看到**
+
+聊天页顶部的三个视图共用同一个 `[data-conversation-content]`（详见 §22），所以页面分类始终是 `chat`、图层宿主不变，切视图**不重建图层**。真正会挡住鲸鱼的是视图根的不透明底色，而清底色的那组 CSS 挂在 `html[data-mui-active]` 上：
+
+| 属性 | v0.5.0 语义 | v0.5.1 语义 |
+| --- | --- | --- |
+| `data-mui-active` | 信号场是否铺开（由 `syncField` 单独写） | **这一页是否有任意动效图层**（信号场 **或** 鲸鱼），由 `syncRoot()` 统一写 |
+
+v0.5.1 把写入点收敛到 `syncRoot()`（`syncField` 不再自己清/写这个属性），判定用 `fieldWanted(state) || whaleWanted(state)`。
+
+为什么是把**同一个**属性扩义，而不是新加一个只管视图底色的属性：`data-mui-active` 在样式层同时承担三件事，而这三件事对鲸鱼同样成立——
+
+| 该属性控制的规则 | 对鲸鱼同样必要的原因 |
+| --- | --- |
+| 内容容器（内容面 / 滚动容器 / 会话座位槽 / 输入框条）底色清成透明 | 鲸鱼图层挂在内容面内部，父级底色会挡住它 |
+| 「轨迹」「统计」视图根、分栏容器与表格底色清成透明 | 同上，视图根那层 `bg-layer-1` 会整片盖住鲸鱼 |
+| 输入框座位下推 `--dsw-alias-bg-base` 并挂自己的背衬 | 座位原生不透明渐变会盖住底部那一段鲸鱼，且消息会压到状态栏 |
+
+只开鲸鱼、关掉信号场时若缺这个属性，现象是「设置里鲸鱼开着，但聊天页底部与轨迹/统计页都看不到鲸鱼」。反之若把它拆成两个属性，只会得到「清了一半」的更隐蔽的错法——所以这里刻意保持单一属性。
+
+**自检**
+
+`diagnose()` 新增两行，用于区分「开关没开」与「被底色盖住」：
+
+```text
+whale: page=chat view=trajectory layer=mounted enabled=1 fallback=no
+viewRoot: <div.YRYrTq_root> bg=rgba(0, 0, 0, 0)
+speeds: title=1x background[chat]=1x whale[chat]=0.5x hud=follow
+```
+
+- `view` 由 `resolveViewKind({ hasTrajectory, hasStatsTable })` 给出（`page.js`，纯函数）：轨迹优先（轨迹表格里也有 `th`，不能因为「有表头」就误判成统计），否则看视图根 `[data-conversation-composer-overlay]` + 表格表头，都没有即 `thread`。
+- `viewRoot … bg` 必须读到 `rgba(0, 0, 0, 0)`；读到不透明色说明透明规则没命中（多半是 `data-mui-active` 缺失或宿主改了视图标记）。
+
+**回归测试**
+
+- `test/whale-view.test.mjs`：真值表改为「两个会话页都显示」，面板页仍为 `false`。
+- `test/wiring.test.mjs`：聊天页默认挂出鲸鱼图层；两页鲸鱼开关互不影响；轨迹/统计视图下图层仍在；只开鲸鱼时 `data-mui-active` 仍写；两页都关掉后属性不残留。
+- `test/page.test.mjs`：`resolveViewKind()` 的分类与「轨迹优先」。
+- `test/parity.test.mjs`：视图透明规则必须挂在 `data-mui-active` 上，且该属性由 `fieldWanted() || whaleWanted()` 决定。
+- `test/settings-page.test.mjs`：聊天页多出「鲸鱼」块后，分割线 8 条、折叠区 5 个、行序与 22 个数字框。

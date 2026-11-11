@@ -7,10 +7,14 @@ import React from "react";
  *
  *   1.「总开关」——全局启用 + 动画重绘帧率上限（帧率 v0.5.0 从「动效」卡片移到这里）
  *   2.「新建会话页」——页总开关 → 背景 → 标题文字 → 鲸鱼 → 输入框毛玻璃（块间分割线）
- *   3.「聊天会话页」——页总开关 → 背景 → 输入框毛玻璃（该页没有标题与鲸鱼）
+ *   3.「聊天会话页」——页总开关 → 背景 → 鲸鱼 → 输入框毛玻璃（该页仍没有标题）
  *
  * 每个效果行下面跟一个默认折叠的「…动效设置」：展开后才是细节参数。
  * 折叠状态只存在组件里，不写存储（需求：每次进入都折叠）。
+ *
+ * v0.5.1：鲸鱼在两个会话页都能用，两页的鲸鱼开关与 11 个参数各存一份
+ * （pages.hero.whale / pages.chat.whale），因此这里把鲸鱼行抽成 backgroundRows() 那样的
+ * 共用构造函数 whaleRows(pageKey, whale, locked)，避免两页各抄一遍 11 个数字框。
  *
  * 只做三件事：把设置渲染成开关/滑块/分段/数字框、把改动写回 store、在必要时说明降级状态。
  * 不依赖 DSH 的 Client 组件包（按插件实践要求自绘控件，只用主题 token 取色）。
@@ -219,6 +223,7 @@ export function SettingsPage(props) {
   const heroBg = hero.background && typeof hero.background === "object" ? hero.background : {};
   const heroTitle = hero.title && typeof hero.title === "object" ? hero.title : {};
   const heroWhale = hero.whale && typeof hero.whale === "object" ? hero.whale : {};
+  const chatWhale = chat.whale && typeof chat.whale === "object" ? chat.whale : {};
   const chatBg = chat.background && typeof chat.background === "object" ? chat.background : {};
   const fps = state.frame && Number.isFinite(state.frame.fps) ? state.frame.fps : 30;
 
@@ -229,6 +234,7 @@ export function SettingsPage(props) {
   const heroBgLocked = heroLocked || !heroBg.enabled;
   const heroTitleLocked = heroLocked || !heroTitle.enabled;
   const heroWhaleLocked = heroLocked || !heroWhale.enabled;
+  const chatWhaleLocked = chatLocked || !chatWhale.enabled;
 
   /** 一张卡片。卡片边框本身就是分隔，卡片之间不再放分割线。 */
   const card = (title, children) =>
@@ -280,6 +286,60 @@ export function SettingsPage(props) {
         lockedNote: t("detailLocked"),
       },
       ...rows,
+    ),
+  ];
+
+  /**
+   * 鲸鱼折叠区里的行（v0.5.1 两页共用同一套行与文案，只是写回不同的页面分组）。
+   *
+   * 注意这里不含折叠按钮本身，与 backgroundRows() 一样只返回「详情里的行」，
+   * 由调用方用 disclosure() 包成「按钮 + 详情」并分配各自的控制点 id。
+   */
+  const whaleRows = (pageKey, whale, locked) => [
+    // 字符风格固定 ASCII，故这里只有「种类」一个分段选择，没有字形切换。
+    h(
+      Row,
+      { key: `${pageKey}-whale-species`, label: t("rowWhaleSpecies"), hint: t("rowWhaleSpeciesHint") },
+      h(Segmented, {
+        label: t("rowWhaleSpecies"),
+        value: whale.species,
+        disabled: locked,
+        options: [
+          { value: "humpback", label: t("whaleHumpback") },
+          { value: "orca", label: t("whaleOrca") },
+        ],
+        onChange: (value) => set({ pages: { [pageKey]: { whale: { species: value } } } }),
+      }),
+    ),
+    h("p", { key: `${pageKey}-whale-numbers-hint`, className: "mui-row-hint" }, t("whaleNumbersHint")),
+    h(
+      "div",
+      { key: `${pageKey}-whale-numbers`, className: "mui-numgrid" },
+      WHALE_NUMBERS.map((field) =>
+        h(
+          "label",
+          { key: field.key, className: "mui-num" },
+          h("span", { className: "mui-num-label" }, t(field.row)),
+          h("input", {
+            type: "number",
+            className: "mui-num-input",
+            "aria-label": t(field.row),
+            min: field.min,
+            max: field.max,
+            step: field.step,
+            value: whale[field.key] === undefined ? "" : whale[field.key],
+            disabled: locked ? true : undefined,
+            onChange: (event) => {
+              // 清空输入框时不要写回：valueAsNumber 会变成 NaN，
+              // 而归一化会把非法值换回默认，等于「一删就跳回默认」，手感很糟。
+              const next = event.target.valueAsNumber;
+              if (event.target.value !== "" && Number.isFinite(next)) {
+                set({ pages: { [pageKey]: { whale: { [field.key]: next } } } });
+              }
+            },
+          }),
+        ),
+      ),
     ),
   ];
 
@@ -454,53 +514,7 @@ export function SettingsPage(props) {
           t("detailWhale"),
           "sf-hero-whale-detail",
           heroWhaleLocked,
-          [
-            // 字符风格固定 ASCII，故这里只有「种类」一个分段选择，没有字形切换。
-            h(
-              Row,
-              { key: "hero-whale-species", label: t("rowWhaleSpecies"), hint: t("rowWhaleSpeciesHint") },
-              h(Segmented, {
-                label: t("rowWhaleSpecies"),
-                value: heroWhale.species,
-                disabled: heroWhaleLocked,
-                options: [
-                  { value: "humpback", label: t("whaleHumpback") },
-                  { value: "orca", label: t("whaleOrca") },
-                ],
-                onChange: (value) => set({ pages: { hero: { whale: { species: value } } } }),
-              }),
-            ),
-            h("p", { key: "hero-whale-numbers-hint", className: "mui-row-hint" }, t("whaleNumbersHint")),
-            h(
-              "div",
-              { key: "hero-whale-numbers", className: "mui-numgrid" },
-              WHALE_NUMBERS.map((field) =>
-                h(
-                  "label",
-                  { key: field.key, className: "mui-num" },
-                  h("span", { className: "mui-num-label" }, t(field.row)),
-                  h("input", {
-                    type: "number",
-                    className: "mui-num-input",
-                    "aria-label": t(field.row),
-                    min: field.min,
-                    max: field.max,
-                    step: field.step,
-                    value: heroWhale[field.key] === undefined ? "" : heroWhale[field.key],
-                    disabled: heroWhaleLocked ? true : undefined,
-                    onChange: (event) => {
-                      // 清空输入框时不要写回：valueAsNumber 会变成 NaN，
-                      // 而归一化会把非法值换回默认，等于「一删就跳回默认」，手感很糟。
-                      const next = event.target.valueAsNumber;
-                      if (event.target.value !== "" && Number.isFinite(next)) {
-                        set({ pages: { hero: { whale: { [field.key]: next } } } });
-                      }
-                    },
-                  }),
-                ),
-              ),
-            ),
-          ],
+          whaleRows("hero", heroWhale, heroWhaleLocked),
         ),
         divider(),
         switchRow(
@@ -514,7 +528,7 @@ export function SettingsPage(props) {
       ),
     ),
 
-    // ===== 卡片 3：聊天会话页（没有标题与鲸鱼）=====
+    // ===== 卡片 3：聊天会话页（没有标题，v0.5.1 起有鲸鱼）=====
     card(
       t("groupChatPage"),
       h(
@@ -543,6 +557,22 @@ export function SettingsPage(props) {
           "sf-chat-background-detail",
           chatLocked || !chatBg.enabled,
           backgroundRows("chat", chatBg, chatLocked || !chatBg.enabled),
+        ),
+        divider(),
+        switchRow(
+          "chat-whale",
+          t("rowWhale"),
+          t("rowWhaleHint"),
+          chatWhale.enabled,
+          chatLocked,
+          (value) => set({ pages: { chat: { whale: { enabled: value } } } }),
+        ),
+        ...disclosure(
+          "chat-whale",
+          t("detailWhale"),
+          "sf-chat-whale-detail",
+          chatWhaleLocked,
+          whaleRows("chat", chatWhale, chatWhaleLocked),
         ),
         divider(),
         switchRow(

@@ -19,7 +19,7 @@ window.__ModuleLoader__.load({
         "groupChatPage": "聊天会话页",
         "pageMaster": "UI动效总开关",
         "pageHeroHint": "关闭后新建会话页恢复 DSH 原生外观（背景、标题、鲸鱼、输入框毛玻璃与 HUD 面板补场一并停用）。",
-        "pageChatHint": "关闭后聊天会话页恢复 DSH 原生外观（背景、输入框毛玻璃与 HUD 面板补场一并停用）。",
+        "pageChatHint": "关闭后聊天会话页恢复 DSH 原生外观（背景、鲸鱼、输入框毛玻璃与 HUD 面板补场一并停用）。",
         "rowBackground": "背景",
         "rowBackgroundHint": "该页是否显示信号场；关闭后这一页不再显示背景，HUD 面板区域的补场与面板毛玻璃也随之关闭（标题、鲸鱼、输入框毛玻璃不受影响）。",
         "rowBackgroundIdle": "背景默认动效",
@@ -39,12 +39,12 @@ window.__ModuleLoader__.load({
         "rowTitleSpeed": "标题动画速度",
         "rowTitleSpeedHint": "扫光跑马灯、揭示镜头与悬停转虚线的快慢；1× 即当前观感。拖动即时生效，不会重播。",
         "rowWhale": "鲸鱼",
-        "rowWhaleHint": "在新建会话页叠一层 ASCII 鲸鱼，压在信号场之上。",
+        "rowWhaleHint": "在当前会话页叠一层 ASCII 鲸鱼，压在信号场之上；新建页与聊天页各有一套参数，「轨迹」「统计」视图同样可见。",
         "rowWhaleSpecies": "鲸鱼种类",
         "rowWhaleSpeciesHint": "座头鲸胸鳍更长、尾鳍更宽；虎鲸体型略小并带白色斑纹。",
         "whaleHumpback": "座头鲸",
         "whaleOrca": "虎鲸",
-        "whaleNumbersHint": "以下参数即时生效。改动「种类 / 数量 / 大小 / 字符栅格 / 小鱼数量」会重建整片海洋；其余参数是热更新，不会重播。",
+        "whaleNumbersHint": "以下参数只作用于当前页的鲸鱼，即时生效。改动「种类 / 数量 / 大小 / 字符栅格 / 小鱼数量」会重建整片海洋；其余参数是热更新，不会重播。",
         "rowWhaleCount": "鲸鱼数量",
         "rowWhaleSpeed": "鲸鱼游动速度",
         "rowWhaleBodySwing": "鲸鱼身体摆动幅度",
@@ -79,7 +79,7 @@ window.__ModuleLoader__.load({
         "groupChatPage": "Chat session page",
         "pageMaster": "UI motion master switch",
         "pageHeroHint": "When off, the new session page returns to the stock DSH look (backdrop, headline, whales, composer glass and the HUD panel backing field all stop).",
-        "pageChatHint": "When off, the chat page returns to the stock DSH look (backdrop, composer glass and the HUD panel backing field all stop).",
+        "pageChatHint": "When off, the chat page returns to the stock DSH look (backdrop, whales, composer glass and the HUD panel backing field all stop).",
         "rowBackground": "Backdrop",
         "rowBackgroundHint": "Whether this page shows the signal field; when off this page shows no backdrop, and the HUD panel's backing field and glass turn off with it (headline, whales and composer glass are unaffected).",
         "rowBackgroundIdle": "Backdrop default motion",
@@ -99,12 +99,12 @@ window.__ModuleLoader__.load({
         "rowTitleSpeed": "Headline animation speed",
         "rowTitleSpeedHint": "How fast the sweep runner, reveal lens and hover-to-outline transitions run; 1× is the current feel. Applies live while dragging, with no replay.",
         "rowWhale": "Whales",
-        "rowWhaleHint": "Stacks an ASCII whale layer on the new-session page, above the signal field.",
+        "rowWhaleHint": "Stacks an ASCII whale layer on the current page, above the signal field; the new-session and chat pages keep separate parameters, and the Trace and Stats views show it too.",
         "rowWhaleSpecies": "Whale species",
         "rowWhaleSpeciesHint": "Humpback has longer flippers and wider flukes; orca is slightly smaller with white markings.",
         "whaleHumpback": "Humpback",
         "whaleOrca": "Orca",
-        "whaleNumbersHint": "These apply immediately. Changing species, whale count, size, cell size or fish count rebuilds the whole ocean; the rest update in place without replaying.",
+        "whaleNumbersHint": "These apply to the whales on the current page only and take effect immediately. Changing species, whale count, size, cell size or fish count rebuilds the whole ocean; the rest update in place without replaying.",
         "rowWhaleCount": "Whale count",
         "rowWhaleSpeed": "Whale swim speed",
         "rowWhaleBodySwing": "Whale body swing",
@@ -141,11 +141,16 @@ window.__ModuleLoader__.load({
      *   frame.fps    —— 全局面板帧率上限（v0.5.0 从 background.fps 提到顶层）
      *   glass.blur   —— 毛玻璃半径（固定 14px，不暴露给界面）
      *   pages.hero   —— 新建会话页：页总开关 + 背景（含参数）+ 标题 + 鲸鱼 + 毛玻璃
-     *   pages.chat   —— 聊天会话页：页总开关 + 背景（含参数）+ 毛玻璃
+     *   pages.chat   —— 聊天会话页：页总开关 + 背景（含参数）+ 鲸鱼 + 毛玻璃
+     *
+     * v0.5.1 起鲸鱼两页都能用（此前只在新会话页）：`pages.chat.whale` 是新增的**同级分组**，
+     * 参数与默认值和 `pages.hero.whale` 完全一致，但两页各存一份、互不影响。
+     * 这是纯增量改动：结构版本仍是 v3，旧存档读出来只是多出这一组默认值（默认打开）。
      *
      * 为什么每个效果都带一个自己的 `enabled`：设置页按页分卡片后，
      * 「背景（开/关）」表示该页是否显示背景层（关闭即整层不创建），
      * 而「背景默认动效（自走/静止）」下沉到折叠区，两者是不同的概念。
+     * 鲸鱼的 `enabled` 同理：它管「这一页要不要鲸鱼这一层」，参数在折叠区里单独调。
      */
 
     /** 语言资源命名空间。 */
@@ -235,10 +240,6 @@ window.__ModuleLoader__.load({
     /** title 分组里可由 patch() 合并的键。 */
     const TITLE_KEYS = Object.freeze(['enabled', 'idle', 'interact', 'speed']);
 
-    /** 两张页面卡片各自的子键（chat 没有 title / whale）。 */
-    const HERO_KEYS = Object.freeze(['enabled', 'background', 'title', 'whale', 'glass']);
-    const CHAT_KEYS = Object.freeze(['enabled', 'background', 'glass']);
-
     /**
      * 归一化一个速度倍率：非有限值一律回落 1×，其余钳到 SPEED_RANGE。
      *
@@ -284,6 +285,8 @@ window.__ModuleLoader__.load({
     /**
      * 鲸鱼默认值（v0.4.0 从 dsh-ascii-whales 迁移）：
      * 默认值 = 迁移当时用户的实际取值，不是上游出厂默认（差异见 README）。
+     *
+     * v0.5.1 起两页共用这一份默认值（产品决策：两页初始观感一致，之后各调各的）。
      */
     function whaleDefaults() {
       return {
@@ -330,6 +333,7 @@ window.__ModuleLoader__.load({
           chat: {
             enabled: true,
             background: backgroundDefaults(),
+            whale: whaleDefaults(),
             glass: true,
           },
         },
@@ -410,12 +414,13 @@ window.__ModuleLoader__.load({
       };
     }
 
-    /** 归一化聊天会话页：页总开关 + 背景 + 毛玻璃（该页没有标题与鲸鱼）。 */
+    /** 归一化聊天会话页：页总开关 + 背景 + 鲸鱼 + 毛玻璃（该页没有标题）。 */
     function normalizeChat(value, base) {
       const src = group(value);
       return {
         enabled: bool(src.enabled, base.enabled),
         background: normalizeBackground(src.background, base.background),
+        whale: normalizeWhale(src.whale, base.whale),
         glass: bool(src.glass, base.glass),
       };
     }
@@ -430,6 +435,8 @@ window.__ModuleLoader__.load({
      *   - 唯一保留的旧值是帧率：新路径 `frame.fps` 优先，缺失时回落到旧 `background.fps`；
      *   - 毛玻璃半径只在**当前结构版本**的存档里读取：旧结构没有这个可调项，
      *     按「升级即重置」的决策一律回默认 14px。
+     *   - v0.5.1 的 `pages.chat.whale` 是 v3 结构内的**新增键**，因此不升版本号：
+     *     旧的 v3 存档缺这一组时按默认值补（默认打开），符合「加键不破坏存档」的既有约定。
      *
      * @param {unknown} input 已解析的设置对象（可为 null/undefined/垃圾值）。
      * @returns {ReturnType<typeof defaults>} 全新对象，永不与输入共享引用。
@@ -492,6 +499,7 @@ window.__ModuleLoader__.load({
       return {
         enabled: mergeFlag(base.enabled, src, 'enabled'),
         background: mergeGroup(base.background, src.background, BACKGROUND_KEYS),
+        whale: mergeGroup(base.whale, src.whale, WHALE_KEYS),
         glass: mergeFlag(base.glass, src, 'glass'),
       };
     }
@@ -502,6 +510,7 @@ window.__ModuleLoader__.load({
      * 支持任意深度，例如：
      *   patch(state, { pages: { hero: { background: { intensity: 0.6 } } } })
      * 只会改新建会话页的背景强度，聊天会话页与标题、鲸鱼都不动。
+     * 鲸鱼同理：两页各有一个 whale 分组，改 `pages.chat.whale` 不会牵动新建页那一份。
      *
      * @param {unknown} state 当前设置。
      * @param {unknown} partial 局部改动。
@@ -749,19 +758,18 @@ window.__ModuleLoader__.load({
     }
 
     /**
-     * 决定「鲸鱼动画」这一图层是否应该存在（v0.4.0，v0.5.0 改为按页模型）。
+     * 决定「鲸鱼动画」这一图层是否应该存在（v0.4.0，v0.5.0 改为按页模型，v0.5.1 两页都可开）。
      *
-     * 三道上级闸门都要开，缺一不可：
+     * 三道闸门都要开，缺一不可：
      *   1. 总开关（启用全部动效）；
-     *   2. 新建会话页的「UI动效总开关」——它代表「这一页要不要动效」，鲸鱼只是其中一层；
-     *   3. 鲸鱼自己的开关。
-     * 最后才是页面判定：鲸鱼**只**在新增会话页渲染。
+     *   2. **当前所在页**的「UI动效总开关」——它代表「这一页要不要动效」，鲸鱼只是其中一层；
+     *   3. **当前所在页**的鲸鱼开关。
+     * 最后才是页面判定：只有 hero 与 chat 两个会话页有鲸鱼，其它面板页一律没有。
      *
-     * 为什么只在 hero：这是从 dsh-ascii-whales 原样继承的行为
-     * （它自己用 `contentPhase === "hero"` 硬判），也是性能上的选择——
-     * 聊天会话页正在流式输出，再叠一层满帧 Canvas 栅格化不划算。
-     *
-     * 本函数不含任何 DOM API，故可被 `node --test` 直接导入断言。
+     * 为什么闸门看「当前页」而不是固定某一页：v0.5.1 起两页各有一份鲸鱼分组
+     * （`pages.hero.whale` / `pages.chat.whale`），参数与开关都由各自页面卡片的开关控制。
+     * 调用方（stage.js）负责把该页的分组传进来，本函数只做「这一页要不要画」的真值判定，
+     * 因此仍是纯函数、可被 `node --test` 直接导入断言。
      *
      * @param {{ page?: string, pageEnabled?: unknown, master?: unknown, whaleEnabled?: unknown }} input
      * @returns {boolean}
@@ -771,7 +779,41 @@ window.__ModuleLoader__.load({
       if (!src.master) return false;
       if (!src.pageEnabled) return false;
       if (!src.whaleEnabled) return false;
-      return src.page === PAGE_HERO;
+      return src.page === PAGE_HERO || src.page === PAGE_CHAT;
+    }
+
+    /** 聊天会话页里的「对话」子视图（消息流）。 */
+    const VIEW_THREAD = "thread";
+
+    /** 聊天会话页里的「轨迹」子视图。 */
+    const VIEW_TRAJECTORY = "trajectory";
+
+    /** 聊天会话页里的「统计」子视图。 */
+    const VIEW_STATS = "stats";
+
+    /**
+     * 判定聊天会话页内部当前是哪个子视图（v0.5.1，只用于自检与排查）。
+     *
+     * 为什么要区分：聊天页顶部的「对话 / 轨迹 / 统计」不是三个页面，而是同一个
+     * `[data-conversation-content]` 里切换的三个视图，所以**页面分类与图层挂载点完全相同**
+     * （插件不需要、也不应该为此重建图层）。真正需要区分的原因是排查：
+     * 轨迹/统计视图根自带不透明底色，一旦哪天宿主改结构把底色盖回来，
+     * 现象就是「对话页有鲸鱼、轨迹页没有」，而设置页开关看起来全都是开的。
+     * 把子视图打进自检信息，就能一眼分辨是「开关没开」还是「被底色盖住」。
+     *
+     * 判定依据都是宿主发布的稳定标记：
+     *   - 轨迹：视图内部有 `[data-trajectory-scroll]`（轨迹表格唯一的滚动容器）；
+     *   - 统计：视图根带 `data-conversation-composer-overlay` 且内部没有轨迹滚动容器，
+     *     并且存在统计表格的表头（`th`）——统计视图的结构标记最少，用「没有轨迹容器」反证。
+     *
+     * @param {{ hasTrajectory?: unknown, hasStatsTable?: unknown }} input
+     * @returns {"thread" | "trajectory" | "stats"}
+     */
+    function resolveViewKind(input) {
+      const src = input && typeof input === "object" ? input : {};
+      if (src.hasTrajectory) return VIEW_TRAJECTORY;
+      if (src.hasStatsTable) return VIEW_STATS;
+      return VIEW_THREAD;
     }
 
 
@@ -4775,7 +4817,12 @@ window.__ModuleLoader__.load({
     html[data-mui-active] [data-slot="conversation.session"],
     html[data-mui-active] [data-slot="conversation.composer.bar"]{background-color:transparent}
     /* v0.5.0：聊天页里的「轨迹」「统计」等会话视图会在同一个内容容器内切换，
-       它们的节点自带不透明底色，把整片信号场盖住（统计视图没有底色，所以一直能透出来）。
+       它们的节点自带不透明底色，把整片信号场与鲸鱼一起盖住（统计视图根没有底色，能透出来）。
+       v0.5.1：这组规则与上面那组同样挂在 html[data-mui-active] 上，而该属性的语义已经扩成
+       「这一页至少有一层动效图层在跑」（信号场**或**鲸鱼，见 stage.js 的 syncRoot）。
+       为什么必须一起扩：鲸鱼图层在内容面里是 z-index:-1，任何一层不透明底色（内容容器、
+       视图根、分栏、表格）都会把它盖住；只开鲸鱼时若不留这个属性，现象就是
+       「设置里鲸鱼开着，但轨迹/统计页看不到鲸鱼」。
        轨迹视图有三层都要清，少一层都看不到场：
          1. 视图根节点：带 data-conversation-composer-overlay（宿主用它判断「视图与输入框重叠」）；
          2. 根里的分栏容器（.rh_gBW_split）：background: var(--dsw-alias-bg-layer-1)，铺满整个视图区。
@@ -4783,7 +4830,9 @@ window.__ModuleLoader__.load({
          3. 表格本体（table）：同样写着 bg-layer-1，不清的话行与行之间仍是白底。
             限定在这个视图根内部，不会波及聊天正文里的 Markdown 表格。
        只清背景色、不动布局与子元素；用 background-color 而不是 background 简写，
-       避免误伤视图自定义的渐变/背景图。插件关闭（清掉 data-mui-active）后整组规则自动失效。 */
+       避免误伤视图自定义的渐变/背景图。插件关闭（清掉 data-mui-active）后整组规则自动失效。
+       视图内部的工具栏、时间线图块、表格行高亮、右侧详情面板保持它们自己的底色——
+       它们与聊天页的消息卡片同级，属于「内容控件」而不是「视图底板」。 */
     html[data-mui-active] [data-conversation-content] [data-conversation-composer-overlay],
     html[data-mui-active] [data-conversation-content] [data-conversation-composer-overlay] :has(> [data-trajectory-scroll]),
     html[data-mui-active] [data-conversation-content] [data-conversation-composer-overlay] table{background-color:transparent}
@@ -5204,9 +5253,16 @@ window.__ModuleLoader__.load({
       return title && typeof title === "object" ? title : {};
     }
 
-    /** 取新建会话页的鲸鱼分组。 */
-    function whaleScopeOf(state) {
-      const whale = pageScopeOf(state, PAGE_HERO).whale;
+    /**
+     * 取某一页的鲸鱼分组（v0.5.1 起两页各一份）。
+     *
+     * 不传 page 时按新建会话页取值，仅供历史调用点兜底；新代码一律显式传页面。
+     * @param {object} state 设置快照
+     * @param {string} [page] PAGE_HERO / PAGE_CHAT
+     */
+    function whaleScopeOf(state, page) {
+      const target = page === PAGE_CHAT ? PAGE_CHAT : PAGE_HERO;
+      const whale = pageScopeOf(state, target).whale;
       return whale && typeof whale === "object" ? whale : {};
     }
 
@@ -5401,6 +5457,23 @@ window.__ModuleLoader__.load({
         });
       }
 
+      /**
+       * 聊天页内部的子视图（对话 / 轨迹 / 统计），v0.5.1 起只用于自检与排查。
+       *
+       * 三个子视图共用同一份 `[data-conversation-content]`，所以页面分类与图层挂载点不变、
+       * 切视图不重建图层。但它们的视图根底色不同，排查「鲸鱼/信号场在某视图下不见」时
+       * 必须能分清是「开关没开」还是「被视图底色盖住」，故把结论打进自检。
+       */
+      function resolveView() {
+        if (page !== PAGE_CHAT) return "thread";
+        const root = conversationRoot();
+        if (!root) return "thread";
+        return resolveViewKind({
+          hasTrajectory: !!root.querySelector("[data-trajectory-scroll]"),
+          hasStatsTable: !!(root.querySelector("[data-conversation-composer-overlay]") && root.querySelector("table th")),
+        });
+      }
+
       /** hero 里字号最大的叶子文本块就是主标题。 */
       function findHeadline(root) {
         const nodes = root.querySelectorAll("h1, h2, h3, h4, p, div, span");
@@ -5443,6 +5516,23 @@ window.__ModuleLoader__.load({
         return !!pageScopeOf(state, page).enabled && !!backgroundScopeOf(state, page).enabled;
       }
 
+      /**
+       * 鲸鱼这一层要不要画（v0.5.1 两页都可能要）。
+       *
+       * 单独抽出来是为了让 syncRoot() 与 syncWhale() 用同一份判定：
+       * 根属性 data-mui-active 的语义是「这一页至少有一层动效图层在跑」，
+       * 只开鲸鱼、关掉背景时也必须保留它——否则「轨迹」「统计」视图的不透明底色会回来，
+       * 鲸鱼就被整片盖住（这正是本轮要修的「聊天页鲸鱼在轨迹/统计看不到」）。
+       */
+      function whaleWanted(state) {
+        return resolveWhaleTarget({
+          page,
+          pageEnabled: pageScopeOf(state, page).enabled,
+          master: state.enabled,
+          whaleEnabled: whaleScopeOf(state, page).enabled,
+        });
+      }
+
       function syncField(state, dark) {
         const wanted = fieldWanted(state);
         const surface = resolveSurface();
@@ -5474,10 +5564,10 @@ window.__ModuleLoader__.load({
         if (!wanted) {
           layerEl.removeAttribute("data-on");
           if (field) field.update({ idle: false, interact: false });
-          doc.documentElement.removeAttribute("data-mui-active");
+          // data-mui-active 由 syncRoot() 统一维护（背景关掉但鲸鱼还开着时它必须留着），
+          // 这里不再动它，避免两个写者互相覆盖。
           return;
         }
-        doc.documentElement.setAttribute("data-mui-active", "");
 
         // v0.5.0：参数来自**当前页**的背景分组（两页各调各的），帧率是全局的。
         const fieldBackground = backgroundScopeOf(state, page);
@@ -5517,11 +5607,11 @@ window.__ModuleLoader__.load({
       /**
        * 把设置摊平成鲸鱼适配器要的形状。
        *
-       * v0.5.0：参数取新建会话页的鲸鱼分组；帧率是全局的，
-       * 鼠标交互复用该页「背景鼠标交互」——不再新增第二套概念。
+       * v0.5.1：参数取**当前所在页**的鲸鱼分组（新建页用 pages.hero.whale、聊天页用 pages.chat.whale）；
+       * 帧率是全局的，鼠标交互复用该页「背景鼠标交互」——不再新增第二套概念。
        */
-      function whaleOptions(state, dark) {
-        const whale = whaleScopeOf(state);
+      function whaleOptions(state, dark, pageKind) {
+        const whale = whaleScopeOf(state, pageKind || page);
         return {
           dark: !!dark,
           species: whale.species,
@@ -5537,7 +5627,7 @@ window.__ModuleLoader__.load({
           wake: whale.wake,
           opacity: whale.opacity,
           fps: frameFpsOf(state),
-          interact: !!backgroundScopeOf(state, PAGE_HERO).interact,
+          interact: !!backgroundScopeOf(state, pageKind || page).interact,
         };
       }
 
@@ -5559,19 +5649,21 @@ window.__ModuleLoader__.load({
        * 判定收敛在 resolveWhaleTarget()（纯函数、可单测）；这里只做三件事：
        * 该有时把图层挂进内容面、该没时整层销毁、其余情况把设置推给适配器做增量更新。
        *
+       * v0.5.1：鲸鱼在**两个会话页都能出现**，闸门与参数都取「当前所在页」那一份
+       * （新建页听 pages.hero.whale，聊天页听 pages.chat.whale），因此：
+       *   - 页面切换（hero ↔ chat）时参数会随之切换，适配器做的是增量 update；
+       *   - 「轨迹」「统计」视图与「对话」共用同一个 `[data-conversation-content]`，
+       *     页面分类仍是 chat，所以切视图不会销毁图层——但视图根自带不透明底色，
+       *     必须在样式层把它清掉，否则鲸鱼与信号场一起被盖住（见 styles.js 的视图底色规则）。
+       *
        * 为什么整层销毁而不是像信号场那样「留着但不画」：
-       * 鲸鱼只在新增会话页出现，离开这一页就没有再复用的机会；
-       * 而且它的引擎持有 ResizeObserver / IntersectionObserver / window 指针监听，
-       * 留着不画比拆掉更费，也更容易在切页后留下幽灵监听。
+       * 该页关掉鲸鱼后没有复用机会，而且引擎持有 ResizeObserver / IntersectionObserver /
+       * window 指针监听，留着不画比拆掉更费，也更容易在切页后留下幽灵监听。
+       * 但**同一页内换视图不销毁**：内容面没变，图层继续复用，画布尺寸由引擎自己的
+       * ResizeObserver 跟随视图区高度变化重新量。
        */
       function syncWhale(state, dark) {
-        const heroScope = pageScopeOf(state, PAGE_HERO);
-        const wanted = resolveWhaleTarget({
-          page,
-          pageEnabled: heroScope.enabled,
-          master: state.enabled,
-          whaleEnabled: whaleScopeOf(state).enabled,
-        });
+        const wanted = whaleWanted(state);
         const surface = wanted ? resolveSurface() : null;
         if (!wanted || !surface) {
           destroyWhale();
@@ -5592,7 +5684,7 @@ window.__ModuleLoader__.load({
           surface.append(whaleEl);
         }
 
-        const options = whaleOptions(state, dark);
+        const options = whaleOptions(state, dark, page);
         if (!whaleField) whaleField = createWhaleField(whaleEl, options);
         else whaleField.update(options);
       }
@@ -6098,6 +6190,16 @@ window.__ModuleLoader__.load({
         // 作用范围标记：只要当前页在范围内就存在，与「信号场是否开启」解耦，
         // 这样 HUD 玻璃、右栏背景这类跨区域能力在背景关掉时仍然可单独生效。
         setFlag(root, "data-mui-scope", page !== PAGE_NONE);
+        // v0.5.1：data-mui-active 的语义是「这一页**至少有一层动效图层**在跑」，即
+        // 「信号场在跑 **或** 鲸鱼在跑」。为什么从「信号场在跑」扩成「任一图层」：
+        // 这个属性在样式层同时承担三件事，而这三件事对鲸鱼同样成立——
+        //   1. 把内容容器（内容面 / 滚动容器 / 会话座位槽 / 输入框条）的底色清成透明；
+        //   2. 清掉「轨迹」「统计」视图根、分栏容器与表格的不透明底色；
+        //   3. 下推输入框座位上的 --dsw-alias-bg-base 并挂自己的背衬（否则消息会压到状态栏）。
+        // 鲸鱼图层在内容面里同样是 z-index:-1，任何一层不透明底色都会把它盖住；
+        // 只开鲸鱼时若缺这个属性，现象就是「设置里鲸鱼开着，但聊天页/轨迹页看不到鲸鱼」。
+        // 写入点收敛在这里：syncField() 不再自己写/清，避免两个写者互相覆盖。
+        setFlag(root, "data-mui-active", fieldWanted(state) || whaleWanted(state));
         setFlag(root, "data-mui-dark", dark);
         // 输入框毛玻璃（v0.5.0 按页）：该页总开关 + 该页「输入框毛玻璃效果」都开着才生效。
         const heroScope = pageScopeOf(state, PAGE_HERO);
@@ -6260,13 +6362,24 @@ window.__ModuleLoader__.load({
         };
         lines.push(statLine("field", field ? field.stats : null));
         lines.push(statLine("hudField", hudField ? hudField.stats : null));
+        // v0.5.1：鲸鱼两页都能开，切视图时「看不见」既可能是开关没开，也可能是被视图底色盖住，
+        // 所以把「当前页 / 子视图 / 鲸鱼图层状态」一起回读出来。
+        lines.push(
+          `whale: page=${page} view=${resolveView()} layer=${whaleEl && whaleEl.isConnected ? "mounted" : "none"} ` +
+            `enabled=${whaleScopeOf(store.getSnapshot(), page).enabled ? 1 : 0} fallback=${whaleEl && whaleEl.hasAttribute("data-whale-fallback") ? "yes" : "no"}`,
+        );
+        const viewRoot = doc.querySelector("[data-conversation-content] [data-conversation-composer-overlay]");
+        lines.push(
+          `viewRoot: ${viewRoot ? short(viewRoot) : "null"} bg=${viewRoot ? css(viewRoot, "backgroundColor") : "-"}`,
+        );
         // v0.3.0：把两个实际生效的速度倍率也打出来，便于确认滑块值真的到达了引擎
         // （设置层与引擎层之间有任何一处漏传，这里会立刻暴露成 1×）。
         const snapshot = store.getSnapshot();
         // v0.5.0：速度按页取值。当前页不在作用范围时按聊天会话页打印（HUD 补场也跟随它）。
         const speedPage = page === PAGE_HERO || page === PAGE_CHAT ? page : PAGE_CHAT;
         lines.push(
-          `speeds: title=${titleScopeOf(snapshot).speed}x background[${speedPage}]=${backgroundScopeOf(snapshot, speedPage).speed}x hud=follow`,
+          `speeds: title=${titleScopeOf(snapshot).speed}x background[${speedPage}]=${backgroundScopeOf(snapshot, speedPage).speed}x ` +
+            `whale[${speedPage}]=${whaleScopeOf(snapshot, speedPage).speed}x hud=follow`,
         );
 
         if (history.length > 0) {
@@ -6404,10 +6517,14 @@ window.__ModuleLoader__.load({
      *
      *   1.「总开关」——全局启用 + 动画重绘帧率上限（帧率 v0.5.0 从「动效」卡片移到这里）
      *   2.「新建会话页」——页总开关 → 背景 → 标题文字 → 鲸鱼 → 输入框毛玻璃（块间分割线）
-     *   3.「聊天会话页」——页总开关 → 背景 → 输入框毛玻璃（该页没有标题与鲸鱼）
+     *   3.「聊天会话页」——页总开关 → 背景 → 鲸鱼 → 输入框毛玻璃（该页仍没有标题）
      *
      * 每个效果行下面跟一个默认折叠的「…动效设置」：展开后才是细节参数。
      * 折叠状态只存在组件里，不写存储（需求：每次进入都折叠）。
+     *
+     * v0.5.1：鲸鱼在两个会话页都能用，两页的鲸鱼开关与 11 个参数各存一份
+     * （pages.hero.whale / pages.chat.whale），因此这里把鲸鱼行抽成 backgroundRows() 那样的
+     * 共用构造函数 whaleRows(pageKey, whale, locked)，避免两页各抄一遍 11 个数字框。
      *
      * 只做三件事：把设置渲染成开关/滑块/分段/数字框、把改动写回 store、在必要时说明降级状态。
      * 不依赖 DSH 的 Client 组件包（按插件实践要求自绘控件，只用主题 token 取色）。
@@ -6616,6 +6733,7 @@ window.__ModuleLoader__.load({
       const heroBg = hero.background && typeof hero.background === "object" ? hero.background : {};
       const heroTitle = hero.title && typeof hero.title === "object" ? hero.title : {};
       const heroWhale = hero.whale && typeof hero.whale === "object" ? hero.whale : {};
+      const chatWhale = chat.whale && typeof chat.whale === "object" ? chat.whale : {};
       const chatBg = chat.background && typeof chat.background === "object" ? chat.background : {};
       const fps = state.frame && Number.isFinite(state.frame.fps) ? state.frame.fps : 30;
 
@@ -6626,6 +6744,7 @@ window.__ModuleLoader__.load({
       const heroBgLocked = heroLocked || !heroBg.enabled;
       const heroTitleLocked = heroLocked || !heroTitle.enabled;
       const heroWhaleLocked = heroLocked || !heroWhale.enabled;
+      const chatWhaleLocked = chatLocked || !chatWhale.enabled;
 
       /** 一张卡片。卡片边框本身就是分隔，卡片之间不再放分割线。 */
       const card = (title, children) =>
@@ -6677,6 +6796,60 @@ window.__ModuleLoader__.load({
             lockedNote: t("detailLocked"),
           },
           ...rows,
+        ),
+      ];
+
+      /**
+       * 鲸鱼折叠区里的行（v0.5.1 两页共用同一套行与文案，只是写回不同的页面分组）。
+       *
+       * 注意这里不含折叠按钮本身，与 backgroundRows() 一样只返回「详情里的行」，
+       * 由调用方用 disclosure() 包成「按钮 + 详情」并分配各自的控制点 id。
+       */
+      const whaleRows = (pageKey, whale, locked) => [
+        // 字符风格固定 ASCII，故这里只有「种类」一个分段选择，没有字形切换。
+        h(
+          Row,
+          { key: `${pageKey}-whale-species`, label: t("rowWhaleSpecies"), hint: t("rowWhaleSpeciesHint") },
+          h(Segmented, {
+            label: t("rowWhaleSpecies"),
+            value: whale.species,
+            disabled: locked,
+            options: [
+              { value: "humpback", label: t("whaleHumpback") },
+              { value: "orca", label: t("whaleOrca") },
+            ],
+            onChange: (value) => set({ pages: { [pageKey]: { whale: { species: value } } } }),
+          }),
+        ),
+        h("p", { key: `${pageKey}-whale-numbers-hint`, className: "mui-row-hint" }, t("whaleNumbersHint")),
+        h(
+          "div",
+          { key: `${pageKey}-whale-numbers`, className: "mui-numgrid" },
+          WHALE_NUMBERS.map((field) =>
+            h(
+              "label",
+              { key: field.key, className: "mui-num" },
+              h("span", { className: "mui-num-label" }, t(field.row)),
+              h("input", {
+                type: "number",
+                className: "mui-num-input",
+                "aria-label": t(field.row),
+                min: field.min,
+                max: field.max,
+                step: field.step,
+                value: whale[field.key] === undefined ? "" : whale[field.key],
+                disabled: locked ? true : undefined,
+                onChange: (event) => {
+                  // 清空输入框时不要写回：valueAsNumber 会变成 NaN，
+                  // 而归一化会把非法值换回默认，等于「一删就跳回默认」，手感很糟。
+                  const next = event.target.valueAsNumber;
+                  if (event.target.value !== "" && Number.isFinite(next)) {
+                    set({ pages: { [pageKey]: { whale: { [field.key]: next } } } });
+                  }
+                },
+              }),
+            ),
+          ),
         ),
       ];
 
@@ -6851,53 +7024,7 @@ window.__ModuleLoader__.load({
               t("detailWhale"),
               "sf-hero-whale-detail",
               heroWhaleLocked,
-              [
-                // 字符风格固定 ASCII，故这里只有「种类」一个分段选择，没有字形切换。
-                h(
-                  Row,
-                  { key: "hero-whale-species", label: t("rowWhaleSpecies"), hint: t("rowWhaleSpeciesHint") },
-                  h(Segmented, {
-                    label: t("rowWhaleSpecies"),
-                    value: heroWhale.species,
-                    disabled: heroWhaleLocked,
-                    options: [
-                      { value: "humpback", label: t("whaleHumpback") },
-                      { value: "orca", label: t("whaleOrca") },
-                    ],
-                    onChange: (value) => set({ pages: { hero: { whale: { species: value } } } }),
-                  }),
-                ),
-                h("p", { key: "hero-whale-numbers-hint", className: "mui-row-hint" }, t("whaleNumbersHint")),
-                h(
-                  "div",
-                  { key: "hero-whale-numbers", className: "mui-numgrid" },
-                  WHALE_NUMBERS.map((field) =>
-                    h(
-                      "label",
-                      { key: field.key, className: "mui-num" },
-                      h("span", { className: "mui-num-label" }, t(field.row)),
-                      h("input", {
-                        type: "number",
-                        className: "mui-num-input",
-                        "aria-label": t(field.row),
-                        min: field.min,
-                        max: field.max,
-                        step: field.step,
-                        value: heroWhale[field.key] === undefined ? "" : heroWhale[field.key],
-                        disabled: heroWhaleLocked ? true : undefined,
-                        onChange: (event) => {
-                          // 清空输入框时不要写回：valueAsNumber 会变成 NaN，
-                          // 而归一化会把非法值换回默认，等于「一删就跳回默认」，手感很糟。
-                          const next = event.target.valueAsNumber;
-                          if (event.target.value !== "" && Number.isFinite(next)) {
-                            set({ pages: { hero: { whale: { [field.key]: next } } } });
-                          }
-                        },
-                      }),
-                    ),
-                  ),
-                ),
-              ],
+              whaleRows("hero", heroWhale, heroWhaleLocked),
             ),
             divider(),
             switchRow(
@@ -6911,7 +7038,7 @@ window.__ModuleLoader__.load({
           ),
         ),
 
-        // ===== 卡片 3：聊天会话页（没有标题与鲸鱼）=====
+        // ===== 卡片 3：聊天会话页（没有标题，v0.5.1 起有鲸鱼）=====
         card(
           t("groupChatPage"),
           h(
@@ -6940,6 +7067,22 @@ window.__ModuleLoader__.load({
               "sf-chat-background-detail",
               chatLocked || !chatBg.enabled,
               backgroundRows("chat", chatBg, chatLocked || !chatBg.enabled),
+            ),
+            divider(),
+            switchRow(
+              "chat-whale",
+              t("rowWhale"),
+              t("rowWhaleHint"),
+              chatWhale.enabled,
+              chatLocked,
+              (value) => set({ pages: { chat: { whale: { enabled: value } } } }),
+            ),
+            ...disclosure(
+              "chat-whale",
+              t("detailWhale"),
+              "sf-chat-whale-detail",
+              chatWhaleLocked,
+              whaleRows("chat", chatWhale, chatWhaleLocked),
             ),
             divider(),
             switchRow(

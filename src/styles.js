@@ -50,7 +50,12 @@ html[data-mui-active] [data-slot="main.conversation"],
 html[data-mui-active] [data-slot="conversation.session"],
 html[data-mui-active] [data-slot="conversation.composer.bar"]{background-color:transparent}
 /* v0.5.0：聊天页里的「轨迹」「统计」等会话视图会在同一个内容容器内切换，
-   它们的节点自带不透明底色，把整片信号场盖住（统计视图没有底色，所以一直能透出来）。
+   它们的节点自带不透明底色，把整片信号场与鲸鱼一起盖住（统计视图根没有底色，能透出来）。
+   v0.5.1：这组规则与上面那组同样挂在 html[data-mui-active] 上，而该属性的语义已经扩成
+   「这一页至少有一层动效图层在跑」（信号场**或**鲸鱼，见 stage.js 的 syncRoot）。
+   为什么必须一起扩：鲸鱼图层在内容面里是 z-index:-1，任何一层不透明底色（内容容器、
+   视图根、分栏、表格）都会把它盖住；只开鲸鱼时若不留这个属性，现象就是
+   「设置里鲸鱼开着，但轨迹/统计页看不到鲸鱼」。
    轨迹视图有三层都要清，少一层都看不到场：
      1. 视图根节点：带 data-conversation-composer-overlay（宿主用它判断「视图与输入框重叠」）；
      2. 根里的分栏容器（.rh_gBW_split）：background: var(--dsw-alias-bg-layer-1)，铺满整个视图区。
@@ -58,7 +63,9 @@ html[data-mui-active] [data-slot="conversation.composer.bar"]{background-color:t
      3. 表格本体（table）：同样写着 bg-layer-1，不清的话行与行之间仍是白底。
         限定在这个视图根内部，不会波及聊天正文里的 Markdown 表格。
    只清背景色、不动布局与子元素；用 background-color 而不是 background 简写，
-   避免误伤视图自定义的渐变/背景图。插件关闭（清掉 data-mui-active）后整组规则自动失效。 */
+   避免误伤视图自定义的渐变/背景图。插件关闭（清掉 data-mui-active）后整组规则自动失效。
+   视图内部的工具栏、时间线图块、表格行高亮、右侧详情面板保持它们自己的底色——
+   它们与聊天页的消息卡片同级，属于「内容控件」而不是「视图底板」。 */
 html[data-mui-active] [data-conversation-content] [data-conversation-composer-overlay],
 html[data-mui-active] [data-conversation-content] [data-conversation-composer-overlay] :has(> [data-trajectory-scroll]),
 html[data-mui-active] [data-conversation-content] [data-conversation-composer-overlay] table{background-color:transparent}

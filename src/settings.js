@@ -10,11 +10,16 @@
  *   frame.fps    —— 全局面板帧率上限（v0.5.0 从 background.fps 提到顶层）
  *   glass.blur   —— 毛玻璃半径（固定 14px，不暴露给界面）
  *   pages.hero   —— 新建会话页：页总开关 + 背景（含参数）+ 标题 + 鲸鱼 + 毛玻璃
- *   pages.chat   —— 聊天会话页：页总开关 + 背景（含参数）+ 毛玻璃
+ *   pages.chat   —— 聊天会话页：页总开关 + 背景（含参数）+ 鲸鱼 + 毛玻璃
+ *
+ * v0.5.1 起鲸鱼两页都能用（此前只在新会话页）：`pages.chat.whale` 是新增的**同级分组**，
+ * 参数与默认值和 `pages.hero.whale` 完全一致，但两页各存一份、互不影响。
+ * 这是纯增量改动：结构版本仍是 v3，旧存档读出来只是多出这一组默认值（默认打开）。
  *
  * 为什么每个效果都带一个自己的 `enabled`：设置页按页分卡片后，
  * 「背景（开/关）」表示该页是否显示背景层（关闭即整层不创建），
  * 而「背景默认动效（自走/静止）」下沉到折叠区，两者是不同的概念。
+ * 鲸鱼的 `enabled` 同理：它管「这一页要不要鲸鱼这一层」，参数在折叠区里单独调。
  */
 
 /** 语言资源命名空间。 */
@@ -104,10 +109,6 @@ const BACKGROUND_KEYS = Object.freeze(['enabled', 'idle', 'interact', 'intensity
 /** title 分组里可由 patch() 合并的键。 */
 const TITLE_KEYS = Object.freeze(['enabled', 'idle', 'interact', 'speed']);
 
-/** 两张页面卡片各自的子键（chat 没有 title / whale）。 */
-const HERO_KEYS = Object.freeze(['enabled', 'background', 'title', 'whale', 'glass']);
-const CHAT_KEYS = Object.freeze(['enabled', 'background', 'glass']);
-
 /**
  * 归一化一个速度倍率：非有限值一律回落 1×，其余钳到 SPEED_RANGE。
  *
@@ -153,6 +154,8 @@ function titleDefaults() {
 /**
  * 鲸鱼默认值（v0.4.0 从 dsh-ascii-whales 迁移）：
  * 默认值 = 迁移当时用户的实际取值，不是上游出厂默认（差异见 README）。
+ *
+ * v0.5.1 起两页共用这一份默认值（产品决策：两页初始观感一致，之后各调各的）。
  */
 function whaleDefaults() {
   return {
@@ -199,6 +202,7 @@ export function defaults() {
       chat: {
         enabled: true,
         background: backgroundDefaults(),
+        whale: whaleDefaults(),
         glass: true,
       },
     },
@@ -279,12 +283,13 @@ function normalizeHero(value, base) {
   };
 }
 
-/** 归一化聊天会话页：页总开关 + 背景 + 毛玻璃（该页没有标题与鲸鱼）。 */
+/** 归一化聊天会话页：页总开关 + 背景 + 鲸鱼 + 毛玻璃（该页没有标题）。 */
 function normalizeChat(value, base) {
   const src = group(value);
   return {
     enabled: bool(src.enabled, base.enabled),
     background: normalizeBackground(src.background, base.background),
+    whale: normalizeWhale(src.whale, base.whale),
     glass: bool(src.glass, base.glass),
   };
 }
@@ -299,6 +304,8 @@ function normalizeChat(value, base) {
  *   - 唯一保留的旧值是帧率：新路径 `frame.fps` 优先，缺失时回落到旧 `background.fps`；
  *   - 毛玻璃半径只在**当前结构版本**的存档里读取：旧结构没有这个可调项，
  *     按「升级即重置」的决策一律回默认 14px。
+ *   - v0.5.1 的 `pages.chat.whale` 是 v3 结构内的**新增键**，因此不升版本号：
+ *     旧的 v3 存档缺这一组时按默认值补（默认打开），符合「加键不破坏存档」的既有约定。
  *
  * @param {unknown} input 已解析的设置对象（可为 null/undefined/垃圾值）。
  * @returns {ReturnType<typeof defaults>} 全新对象，永不与输入共享引用。
@@ -361,6 +368,7 @@ function mergeChat(base, partial) {
   return {
     enabled: mergeFlag(base.enabled, src, 'enabled'),
     background: mergeGroup(base.background, src.background, BACKGROUND_KEYS),
+    whale: mergeGroup(base.whale, src.whale, WHALE_KEYS),
     glass: mergeFlag(base.glass, src, 'glass'),
   };
 }
@@ -371,6 +379,7 @@ function mergeChat(base, partial) {
  * 支持任意深度，例如：
  *   patch(state, { pages: { hero: { background: { intensity: 0.6 } } } })
  * 只会改新建会话页的背景强度，聊天会话页与标题、鲸鱼都不动。
+ * 鲸鱼同理：两页各有一个 whale 分组，改 `pages.chat.whale` 不会牵动新建页那一份。
  *
  * @param {unknown} state 当前设置。
  * @param {unknown} partial 局部改动。

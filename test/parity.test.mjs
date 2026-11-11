@@ -150,5 +150,37 @@ test('parity: 会话内视图（轨迹 / 统计）的不透明底色必须被清
   for (const block of rules) {
     if (!block.selector.includes(root)) continue;
     assert.doesNotMatch(block.body, /(?:^|[;\s])background\s*:/, '只用 background-color，避免覆盖视图自定义背景');
+    // v0.5.1：这组规则与内容容器那组同挂 data-mui-active，而该属性已扩成
+    // 「信号场或鲸鱼在跑」——只开鲸鱼时视图底色也必须被清掉，否则鲸鱼被整片盖住。
+    assert.match(block.selector, /\[data-mui-active\]/, '视图透明规则应受「有任意动效图层」控制');
   }
+});
+
+test('parity: data-mui-active 由「信号场或鲸鱼」共同决定，只开鲸鱼时也生效', async () => {
+  // 这一条防的是「设置里鲸鱼开着，但聊天页/轨迹页看不到鲸鱼」：
+  // 内容容器、座位与视图根的底色都靠 data-mui-active 清掉；
+  // 若该属性只跟背景开关走，只开鲸鱼时这些底色会回来把鲸鱼盖住。
+  const stage = await readFile(new URL('../src/stage.js', import.meta.url), 'utf8');
+  assert.match(
+    stage,
+    /setFlag\(root, "data-mui-active", fieldWanted\(state\) \|\| whaleWanted\(state\)\)/,
+    'data-mui-active 必须由信号场与鲸鱼共同决定',
+  );
+  // 写入点必须唯一：syncField 仍会自己清这个属性的话，两个写者会互相覆盖。
+  assert.doesNotMatch(
+    stage,
+    /doc\.documentElement\.removeAttribute\("data-mui-active"\)/,
+    '背景路径不应再单独清掉 data-mui-active',
+  );
+  // 样式层依赖该属性的三组规则必须都在（内容容器 / 视图底色 / 座位背衬）
+  const css = await readFile(new URL('../src/styles.js', import.meta.url), 'utf8');
+  const gated = [...css.matchAll(/html\[data-mui-active\][^{]*\{([^{}]*)\}/g)].map((m) => m[0]);
+  assert.ok(
+    gated.some((block) => block.includes('[data-conversation-composer-overlay]')),
+    '视图底色规则应受 data-mui-active 控制',
+  );
+  assert.ok(
+    gated.some((block) => block.includes('[data-composer-seat]::before')),
+    '座位背衬规则应受 data-mui-active 控制',
+  );
 });

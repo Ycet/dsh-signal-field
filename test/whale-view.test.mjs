@@ -1,7 +1,7 @@
 /**
- * 鲸鱼图层可见性测试（v0.4.0）
+ * 鲸鱼图层可见性测试（v0.4.0，v0.5.1 起两页都可开）
  *
- * resolveWhaleTarget() 是「总开关 × 新建会话页总开关 × 鲸鱼开关 × 当前页面」四者的唯一判定点。
+ * resolveWhaleTarget() 是「总开关 × 当前页总开关 × 当前页鲸鱼开关 × 当前页面」的唯一判定点。
  * 之所以把它单独抽成纯函数，就是为了能在没有 DOM 的情况下把真值表钉死：
  * 任何一处闸门写错，表现都是「明明开着却看不到鲸鱼」或「关掉了还在跑」，
  * 这两种都只能在浏览器里靠肉眼发现，代价太高。
@@ -25,9 +25,10 @@ test('whale-view: 任一上级闸门关闭都不显示', () => {
   assert.equal(resolveWhaleTarget({ ...ALL_ON, whaleEnabled: false }), false, '鲸鱼开关关闭');
 });
 
-test('whale-view: 只在新增会话页显示，聊天页与面板页都不显示', () => {
+test('whale-view: 两个会话页都显示，面板页不显示', () => {
   assert.equal(resolveWhaleTarget({ ...ALL_ON, page: PAGE_HERO }), true);
-  assert.equal(resolveWhaleTarget({ ...ALL_ON, page: PAGE_CHAT }), false, '聊天会话页不铺鲸鱼');
+  // v0.5.1：聊天会话页也能开鲸鱼（含「轨迹」「统计」子视图，它们与「对话」共用同一内容面）
+  assert.equal(resolveWhaleTarget({ ...ALL_ON, page: PAGE_CHAT }), true, '聊天会话页也应铺鲸鱼');
   assert.equal(resolveWhaleTarget({ ...ALL_ON, page: PAGE_NONE }), false, '非会话页面不铺鲸鱼');
   assert.equal(resolveWhaleTarget({ ...ALL_ON, page: undefined }), false);
   assert.equal(resolveWhaleTarget({ ...ALL_ON, page: 'unknown' }), false);

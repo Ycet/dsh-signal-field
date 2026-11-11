@@ -208,9 +208,10 @@ test('设置页: 三张卡片——总开关 / 新建会话页 / 聊天会话页
   assert.deepEqual(cardTitles(page.tree), ['groupMaster', 'groupHeroPage', 'groupChatPage']);
 });
 
-test('设置页: 卡片内共 7 条分割线（总开关 1 + 新建页 4 + 聊天页 2）', () => {
+test('设置页: 卡片内共 8 条分割线（总开关 1 + 新建页 4 + 聊天页 3）', () => {
   const { dividers } = collect(createPage(defaults()).tree);
-  assert.equal(dividers.length, 7, '分割线数量与需求给的结构一一对应');
+  // v0.5.1：聊天页多了「鲸鱼」块，于是比 v0.5.0 多一条分割线。
+  assert.equal(dividers.length, 8, '分割线数量与需求给的结构一一对应');
   for (const props of dividers) assert.equal(props.role, 'separator');
 });
 
@@ -234,24 +235,32 @@ test('设置页: 行顺序符合按页结构（含折叠区里的行）', () => 
     'rowWhale',
     'rowWhaleSpecies',
     'rowGlass',
-    // 卡片 3：聊天会话页（没有标题与鲸鱼）
+    // 卡片 3：聊天会话页（v0.5.1 起有鲸鱼，仍然没有标题）
     'pageMaster',
     'rowBackground',
     'rowBackgroundIdle',
     'rowBackgroundInteract',
     'rowIntensity',
     'rowBackgroundSpeed',
+    'rowWhale',
+    'rowWhaleSpecies',
     'rowGlass',
   ]);
 });
 
-test('设置页: 四个折叠区默认收起，详情仍渲染（hidden）', () => {
+test('设置页: 五个折叠区默认收起，详情仍渲染（hidden）', () => {
   const { disclosures, details } = collect(createPage(defaults()).tree);
-  assert.equal(disclosures.length, 4, '新建页 3 个 + 聊天页 1 个');
-  assert.equal(details.length, 4);
+  assert.equal(disclosures.length, 5, '新建页 3 个 + 聊天页 2 个');
+  assert.equal(details.length, 5);
   assert.deepEqual(
     disclosures.map((node) => node.props['aria-controls']),
-    ['sf-hero-background-detail', 'sf-hero-title-detail', 'sf-hero-whale-detail', 'sf-chat-background-detail'],
+    [
+      'sf-hero-background-detail',
+      'sf-hero-title-detail',
+      'sf-hero-whale-detail',
+      'sf-chat-background-detail',
+      'sf-chat-whale-detail',
+    ],
   );
   for (const node of disclosures) assert.equal(node.props['aria-expanded'], 'false', '默认必须收起');
   for (const node of details) assert.equal(node.props.hidden, true, '收起时详情必须 hidden');
@@ -363,7 +372,7 @@ test('设置页: 两页同名开关互不影响，各自写回自己的页面分
 
 test('设置页: 鲸鱼数字网格的标签顺序（两列，逐行铺开）', () => {
   const { numbers } = collect(createPage(defaults()).tree);
-  assert.deepEqual(numbers, [
+  const pageNumbers = [
     'rowWhaleCount',
     'rowWhaleSpeed',
     'rowWhaleBodySwing',
@@ -375,7 +384,9 @@ test('设置页: 鲸鱼数字网格的标签顺序（两列，逐行铺开）', 
     'rowWhaleGridOpacity',
     'rowWhaleFishCount',
     'rowWhaleWake',
-  ]);
+  ];
+  // v0.5.1：新建页与聊天页各有一份 11 项，顺序完全一致。
+  assert.deepEqual(numbers, [...pageNumbers, ...pageNumbers]);
 });
 
 test('设置页: 鲸鱼不提供字符风格与字体切换（固定 ASCII）', async () => {
@@ -390,7 +401,8 @@ test('设置页: 鲸鱼数字项都是 number 输入且带 min/max/step', () => 
     createPage(defaults()).tree,
     (node) => node.props && node.props.className === 'mui-num-input',
   );
-  assert.equal(inputs.length, 11, '鲸鱼应有 11 个数字输入框');
+  // v0.5.1：两页各 11 个。
+  assert.equal(inputs.length, 22, '两页各有 11 个鲸鱼数字输入框');
   for (const node of inputs) {
     assert.equal(node.props.type, 'number');
     assert.equal(typeof node.props.min, 'number', `${node.props['aria-label']} 缺少 min`);
@@ -402,8 +414,9 @@ test('设置页: 鲸鱼数字项都是 number 输入且带 min/max/step', () => 
 
 test('设置页: 鲸鱼数字输入写回新建会话页的鲸鱼分组', () => {
   const page = createPage(defaults());
+  const heroCard = cardOf(page.tree, 'groupHeroPage');
   const countInput = elementsOf(
-    page.tree,
+    heroCard,
     (node) => node.props && node.props.className === 'mui-num-input' && node.props['aria-label'] === 'rowWhaleCount',
   )[0];
   countInput.props.onChange({ target: { value: '4', valueAsNumber: 4 } });
@@ -411,6 +424,67 @@ test('设置页: 鲸鱼数字输入写回新建会话页的鲸鱼分组', () => 
   // 清空输入框不写回（否则会立刻跳回默认值）
   countInput.props.onChange({ target: { value: '', valueAsNumber: Number.NaN } });
   assert.equal(page.updates.length, 1);
+});
+
+test('设置页: 聊天页鲸鱼数字输入写回聊天页的鲸鱼分组（不与新建页串味）', () => {
+  const page = createPage(defaults());
+  const chatCard = cardOf(page.tree, 'groupChatPage');
+  const inputs = elementsOf(
+    chatCard,
+    (node) => node.props && node.props.className === 'mui-num-input',
+  );
+  assert.equal(inputs.length, 11, '聊天页也应有 11 个鲸鱼数字输入框');
+  // 第 1 项是「鲸鱼数量」，第 6 项是「鲸鱼大小」
+  inputs[0].props.onChange({ target: { value: '4', valueAsNumber: 4 } });
+  assert.deepEqual(page.updates[0], { pages: { chat: { whale: { count: 4 } } } });
+  inputs[5].props.onChange({ target: { value: '0.8', valueAsNumber: 0.8 } });
+  assert.deepEqual(page.updates[1], { pages: { chat: { whale: { size: 0.8 } } } });
+  // 清空输入框仍不写回
+  inputs[0].props.onChange({ target: { value: '', valueAsNumber: Number.NaN } });
+  assert.equal(page.updates.length, 2);
+});
+
+test('设置页: 聊天页鲸鱼种类切换写回该页分组', () => {
+  const page = createPage(defaults());
+  const chatCard = cardOf(page.tree, 'groupChatPage');
+  const segmented = elementsOf(
+    chatCard,
+    (node) => node.props && node.props.className === 'mui-seg',
+  )[0];
+  assert.ok(segmented, '聊天页缺少「鲸鱼种类」分段控件');
+  const orca = elementsOf(segmented, (node) => node.props && node.props.className === 'mui-seg-item').find(
+    (node) => node.children[0] === 'whaleOrca',
+  );
+  assert.ok(orca, '缺少虎鲸选项');
+  orca.props.onClick();
+  assert.deepEqual(page.updates[0], { pages: { chat: { whale: { species: 'orca' } } } });
+});
+
+test('设置页: 聊天页鲸鱼开关关闭后该页鲸鱼折叠区控件置灰，新建页不受影响', () => {
+  const state = defaults();
+  state.pages.chat.whale.enabled = false;
+  const page = createPage(state);
+
+  const detail = detailById(page.tree, 'sf-chat-whale-detail');
+  const controls = elementsOf(
+    detail,
+    (node) =>
+      node.props &&
+      (node.props.className === 'mui-num-input' ||
+        node.props.className === 'mui-seg-item' ||
+        node.props.className === 'mui-switch'),
+  );
+  assert.ok(controls.length > 0, '聊天页鲸鱼折叠区应有控件');
+  for (const node of controls) assert.equal(node.props.disabled, true);
+
+  // 新建页那份鲸鱼开关与数字框仍是可用的
+  const heroDetail = detailById(page.tree, 'sf-hero-whale-detail');
+  const heroInputs = elementsOf(
+    heroDetail,
+    (node) => node.props && node.props.className === 'mui-num-input',
+  );
+  assert.equal(heroInputs.length, 11);
+  for (const node of heroInputs) assert.equal(node.props.disabled, undefined);
 });
 
 test('设置页: 帧率滑块移到总开关卡片，并写回顶层 frame', () => {

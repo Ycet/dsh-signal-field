@@ -60,19 +60,18 @@ export function resolvePanelTargets(input) {
 }
 
 /**
- * 决定「鲸鱼动画」这一图层是否应该存在（v0.4.0，v0.5.0 改为按页模型）。
+ * 决定「鲸鱼动画」这一图层是否应该存在（v0.4.0，v0.5.0 改为按页模型，v0.5.1 两页都可开）。
  *
- * 三道上级闸门都要开，缺一不可：
+ * 三道闸门都要开，缺一不可：
  *   1. 总开关（启用全部动效）；
- *   2. 新建会话页的「UI动效总开关」——它代表「这一页要不要动效」，鲸鱼只是其中一层；
- *   3. 鲸鱼自己的开关。
- * 最后才是页面判定：鲸鱼**只**在新增会话页渲染。
+ *   2. **当前所在页**的「UI动效总开关」——它代表「这一页要不要动效」，鲸鱼只是其中一层；
+ *   3. **当前所在页**的鲸鱼开关。
+ * 最后才是页面判定：只有 hero 与 chat 两个会话页有鲸鱼，其它面板页一律没有。
  *
- * 为什么只在 hero：这是从 dsh-ascii-whales 原样继承的行为
- * （它自己用 `contentPhase === "hero"` 硬判），也是性能上的选择——
- * 聊天会话页正在流式输出，再叠一层满帧 Canvas 栅格化不划算。
- *
- * 本函数不含任何 DOM API，故可被 `node --test` 直接导入断言。
+ * 为什么闸门看「当前页」而不是固定某一页：v0.5.1 起两页各有一份鲸鱼分组
+ * （`pages.hero.whale` / `pages.chat.whale`），参数与开关都由各自页面卡片的开关控制。
+ * 调用方（stage.js）负责把该页的分组传进来，本函数只做「这一页要不要画」的真值判定，
+ * 因此仍是纯函数、可被 `node --test` 直接导入断言。
  *
  * @param {{ page?: string, pageEnabled?: unknown, master?: unknown, whaleEnabled?: unknown }} input
  * @returns {boolean}
@@ -82,5 +81,39 @@ export function resolveWhaleTarget(input) {
   if (!src.master) return false;
   if (!src.pageEnabled) return false;
   if (!src.whaleEnabled) return false;
-  return src.page === PAGE_HERO;
+  return src.page === PAGE_HERO || src.page === PAGE_CHAT;
+}
+
+/** 聊天会话页里的「对话」子视图（消息流）。 */
+export const VIEW_THREAD = "thread";
+
+/** 聊天会话页里的「轨迹」子视图。 */
+export const VIEW_TRAJECTORY = "trajectory";
+
+/** 聊天会话页里的「统计」子视图。 */
+export const VIEW_STATS = "stats";
+
+/**
+ * 判定聊天会话页内部当前是哪个子视图（v0.5.1，只用于自检与排查）。
+ *
+ * 为什么要区分：聊天页顶部的「对话 / 轨迹 / 统计」不是三个页面，而是同一个
+ * `[data-conversation-content]` 里切换的三个视图，所以**页面分类与图层挂载点完全相同**
+ * （插件不需要、也不应该为此重建图层）。真正需要区分的原因是排查：
+ * 轨迹/统计视图根自带不透明底色，一旦哪天宿主改结构把底色盖回来，
+ * 现象就是「对话页有鲸鱼、轨迹页没有」，而设置页开关看起来全都是开的。
+ * 把子视图打进自检信息，就能一眼分辨是「开关没开」还是「被底色盖住」。
+ *
+ * 判定依据都是宿主发布的稳定标记：
+ *   - 轨迹：视图内部有 `[data-trajectory-scroll]`（轨迹表格唯一的滚动容器）；
+ *   - 统计：视图根带 `data-conversation-composer-overlay` 且内部没有轨迹滚动容器，
+ *     并且存在统计表格的表头（`th`）——统计视图的结构标记最少，用「没有轨迹容器」反证。
+ *
+ * @param {{ hasTrajectory?: unknown, hasStatsTable?: unknown }} input
+ * @returns {"thread" | "trajectory" | "stats"}
+ */
+export function resolveViewKind(input) {
+  const src = input && typeof input === "object" ? input : {};
+  if (src.hasTrajectory) return VIEW_TRAJECTORY;
+  if (src.hasStatsTable) return VIEW_STATS;
+  return VIEW_THREAD;
 }
