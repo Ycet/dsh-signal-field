@@ -603,3 +603,89 @@ speeds: title=1x background[chat]=1x whale[chat]=0.5x hud=follow
 - `test/page.test.mjs`：`resolveViewKind()` 的分类与「轨迹优先」。
 - `test/parity.test.mjs`：视图透明规则必须挂在 `data-mui-active` 上，且该属性由 `fieldWanted() || whaleWanted()` 决定。
 - `test/settings-page.test.mjs`：聊天页多出「鲸鱼」块后，分割线 8 条、折叠区 5 个、行序与 22 个数字框。
+
+## 24. HUD 面板左停靠补场与底部信息栏上沿羽化（v0.5.2）
+
+两处都是「设置里都开着，但看起来没有动效」的观感缺陷，成因都在几何/合成层，与开关无关。
+
+### 24.1 HUD 补场跟着面板走
+
+`dsh-awesome-hud` 的面板可以被拖到内容区的**左侧或右侧**。v0.5.1 及之前的 `placeHudBackdrop()` 把带子写死成：
+
+```text
+left  = 内容区右缘
+width = 视口宽 - left        // 一路铺到视口右缘
+```
+
+面板停靠左侧时，这条带子要么落在面板**对面**那条空缝里，要么因为内容区已经铺到视口右缘而宽度为 0 —— 后者直接 `data-on=false`，表现就是「面板在左边时，面板背后没有动效背景」。
+
+v0.5.2 把几何抽成纯函数 `resolveHudStrip()`（`src/stage.js`，可被 `node --test` 直接调用）。侧别判**面板贴住内容区的哪一条边**：
+
+| 情形 | 判定 | 带子 |
+| --- | --- | --- |
+| `panel.left <= 内容区左缘 + 2` | `left` | **侧栏右缘** → `max(面板右缘, 内容区左缘)` |
+| `panel.right >= 内容区右缘 - 2` | `right` | 内容区右缘 → 视口右缘 |
+| 两边都不贴（面板浮在内容区中间） | `none` | 不铺（那一带本来就有内容区的场，叠上去会发脏） |
+| 没有内容区（面板页/首帧） | `right` | 面板左缘外扩 pad → 视口右缘 |
+
+**为什么不是「面板有没有伸出内容区」**（v0.5.2 第一次修复失败的原因）：`dsh-awesome-hud` 从 0.18 起在左停靠时会把正文向右**让位**（改写 `[data-conversation-scroll]` 一带的内联 padding/left），于是面板左缘常与内容区左缘齐平，「伸出」恒为 false，整条带子不铺。实测报障截图里面板位于侧栏（0–260）与正文之间，面板左缘 = 内容区左缘 = 260，旧判据算出的就是 `none`。
+
+**为什么左侧右界取 `max(面板右缘, 内容区左缘)`**：左侧有两种常见布局——面板与内容区之间有空缝（取内容区左缘，把空缝一并铺上），或面板与内容区左缘齐平（取面板右缘，只铺面板自己那一段，不越过内容区的场）。
+
+左界的两个约束：
+
+1. **不能从 0 开始**。左侧栏（会话列表）是不透明底板，而补场是 `position:fixed` 挂在 `shell.overlay`（z-index 20）上的浮层，从 0 开始会把整个会话列表盖掉。所以左界取侧栏右缘，用 `[data-slot="sidebar"]` 的 `getBoundingClientRect().right` 读取。
+2. **不能越过面板自身左缘**。面板被拖到侧栏上方时，`min(panel.left, sidebarRight)` 会退回 `panel.left`，只铺面板自己那一段。
+
+`[data-slot="sidebar"]` 的来源是布局包：`@deepseek-ai/dsh-client-ui-layout` 用 `renderSlot("sidebar", …)` 渲染侧栏，而 `@deepseek-ai/dsh-client-ui-renderer` 的 `renderSlot` 宿主固定输出 `div[data-slot="<slotKey>"]`（`inline: true` 的槽才是 `span`）。拿不到这个锚点时退回面板左缘——宁可少铺，也不越界。
+
+同理，`data-slot="main"` / `data-slot="sidebar"` 都是**稳定锚点**，而 `PIRFFq_sidebarCol` 这类哈希类名不稳定，插件一律不依赖后者。
+
+自检新增侧别回读：
+
+```text
+hudBackdrop: <div[data-mui-field]> 535x1509 side=left on=yes z=0 parent=<div> sameAsPanel=yes engine=webgl2
+```
+
+### 24.2 底部信息栏背衬的上沿羽化
+
+聊天页底部那条承载状态栏小字（「19 轮 864 步 · 162 tok/s」）的纯色背衬，与上方抖动的信号场之间原本是一条**硬边**：场里的颗粒在边界上被突然切断，像两块不同材质拼接。
+
+**位置踩过两次坑**，值得记下来：
+
+| 版本 | 羽化挂在哪 | 实机表现 |
+| --- | --- | --- |
+| 初版 | 座位顶边之外（`[data-composer-seat]::after`，`bottom:calc(100% - 6px)`） | 卡片**上方**浮出一条比卡片更宽的浅色横带，左右悬在场里，像多出来一个控件 |
+| 二版 | 输入框卡片顶边之外（`[data-composer-card]::after`，`bottom:100%`） | 宽度与圆角跟上了卡片，但位置仍错：用户要的是**输入框下方那条底板的上沿**，不是卡片上方 |
+| 定版 | 背衬**自己**的上沿（`[data-composer-seat]::before` 的 mask 自上而下渐显） | 纯色底板从透明渐显到满强度，底板「向上方模糊延展」出一小段 |
+
+**关键认识：只渐变底色不够。** `backdrop-filter` 作用于元素的整个盒子，与 `background` 的透明度无关——把底色写成渐变，模糊依然是「到边即断」。要让模糊本身渐隐，必须用 `mask-image` 掩膜整个元素（掩膜同时作用于模糊结果与底色）。
+
+定版实现（`src/styles.js`，节选）：
+
+```css
+html[data-mui-active] [data-content-phase="active"] [data-composer-seat]::before{
+  --mui-seat-feather:min(20px, calc(var(--mui-seat-band-h, 34px) * .5));
+  bottom:0; height:var(--mui-seat-band-h, 34px);
+  background:color-mix(in srgb, var(--mui-seat-scrim) 94%, transparent);  /* 实色，透明度交给 mask */
+  backdrop-filter:blur(calc(var(--mui-blur, 14px) * .9)) saturate(1.04);
+  mask-image:linear-gradient(to bottom, transparent 0, … #000 var(--mui-seat-feather), #000 100%);
+}
+```
+
+四个细节，每一个都对应一种踩过的错法：
+
+| 细节 | 为什么 |
+| --- | --- |
+| 羽化高度取 `min(20px, 条带高 × 0.5)` | 条带本身只有三四十像素高（卡片底边 → 座位底边），羽化太大就会把状态栏小字也泡进半透明区 |
+| 底色用实色、透明度全交给 mask | 两边都写渐变色，中段会乘出亮度塌陷（一条更亮的横带） |
+| 下沿保持满强度（`#000 100%`） | 这条背衬同时是「消息滚到状态栏上方时的遮挡」，下沿不能半透明，否则文字会压上来 |
+| `@supports not (mask-image: …)` 退回纯色渐变 | 掩膜不可用时边界仍是渐变的，只是模糊会整条突然出现——比整块实色盖上去安全 |
+
+只作用于聊天页（`[data-content-phase="active"]`）：hero 页的座位在流内、没有底部信息栏。
+
+### 24.3 回归测试
+
+- `test/hud-strip.test.mjs`（新增 10 条）：左右停靠、空缝覆盖、面板压在侧栏上、内容区铺满视口、面板落在内容区里、内容区缺失、垃圾输入、零尺寸视口。
+- `test/parity.test.mjs`：新增「背衬上沿羽化必须用 mask、方向自上而下、下沿满强度」一条；座位仍然禁止任何 `::after` 覆盖层；`mask` 只允许出现在座位背衬上。
+- `test/whale-source.test.mjs`：毛玻璃声明条数基线从按字符串计数改为按规则计数（3 → 4）。

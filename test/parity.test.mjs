@@ -52,14 +52,24 @@ test('parity: 底部遮挡只由座位自己的 ::before 背衬承担，且只�
   // 状态栏文字、盖住展开的提问卡片；v0.2.4 把 mask 挂在滚动容器上又把整条座位一起渐隐，
   // 并且 mask 建立的 backdrop root 让输入框玻璃失效。v0.2.5 只能让座位自己背衬：
   // ::before + z-index:-1，永远位于卡片与状态栏文字之下。
-  const overlays = blocks(CSS).filter(
-    (block) => /composer-seat]:?:?:?after/.test(block.selector) || /seat-shade/.test(block.selector),
+  const seatOverlays = blocks(CSS).filter(
+    (block) => /composer-seat]:?:?:?after/.test(block.selector) && /position:absolute/.test(block.body),
   );
-  assert.deepEqual(overlays.map((b) => b.selector), [], '不应存在叠在座位上的覆盖层');
+  assert.deepEqual(seatOverlays.map((b) => b.selector), [], '座位不得挂任何覆盖层（羽化做在 ::before 自己的上沿）');
+  const shades = blocks(CSS).filter((block) => /seat-shade/.test(block.selector));
+  assert.deepEqual(shades.map((b) => b.selector), [], '不应存在 seat-shade 覆盖层');
 
-  // 不许再给滚动容器 / 消息容器挂 mask（v0.2.4 的写法）
+  // mask 只允许用在「座位背衬的上沿羽化」上：v0.2.4 把它挂在滚动容器上导致整条座位渐隐、
+  // 输入框玻璃还采样不到背后的场，那一类写法永远不许回来。
   const masks = blocks(CSS).filter((block) => /mask-image/.test(block.body));
-  assert.deepEqual(masks.map((b) => b.selector), [], '不应再对滚动容器或消息容器使用 mask');
+  assert.ok(masks.length >= 1, '缺少背衬上沿的 mask');
+  for (const block of masks) {
+    assert.match(
+      block.selector,
+      /composer-seat]\s*::before$/,
+      `mask 只允许用于座位背衬的上沿羽化，实际：${block.selector}`,
+    );
+  }
 
   const seat = blocks(CSS).find(
     (block) => /\[data-composer-seat\]::before$/.test(block.selector) && /backdrop-filter/.test(block.body),
@@ -92,6 +102,36 @@ test('parity: 底部遮挡只由座位自己的 ::before 背衬承担，且只�
   assert.ok(iso, '座位需要 isolation:isolate 才能让负 z 背衬遮住消息');
 });
 
+test('parity: 底部信息栏背衬的上沿羽化，模糊与压色一起渐隐', () => {
+  // v0.5.2：输入框下方这条纯色背衬（状态栏底板）与上方动效背景之间原本是一条硬边——
+  // 场里的颗粒在边界上被切断。羽化必须做在**背衬自己的上沿**（蓝框位置），而不是卡片上方：
+  // 卡片上方那条带子在实机上表现为一条比卡片更宽的浅色横带（v0.5.2 初版踩过）。
+  const seat = blocks(CSS).find(
+    (block) =>
+      /\[data-composer-seat\]::before$/.test(block.selector) && /backdrop-filter/.test(block.body),
+  );
+  assert.ok(seat, '缺少座位背衬规则');
+  // 羽化高度按条带高度取，避免把状态栏小字泡进半透明区
+  assert.match(seat.body, /--mui-seat-feather:min\(20px, calc\(var\(--mui-seat-band-h/, '羽化高度应按条带高度取上限');
+  // 关键：mask 同时作用于模糊结果与底色。只渐变背景色时 backdrop-filter 仍会在边界处
+  // 突然出现（它不受 background 透明度影响），那正是 v0.5.1 之前 8px 渐变仍显生硬的原因。
+  assert.match(seat.body, /mask-image:linear-gradient\(to bottom/, '羽化必须靠 mask，且方向是从上往下渐显');
+  assert.match(seat.body, /transparent 0,/, '上沿必须从全透明起步');
+  assert.match(seat.body, /#000 100%/, '下沿必须是满强度（状态栏文字要清楚）');
+  // 底色必须是实色 + mask，而不是「自己再写一条渐变」：两边都渐变会在中段乘出亮度塌陷
+  assert.match(
+    seat.body,
+    /background:color-mix\(in srgb, var\(--mui-seat-scrim\) 94%, transparent\)/,
+    '底色应为实色（透明度交给 mask）',
+  );
+  assert.doesNotMatch(seat.body, /background:linear-gradient/, '底色不得再写成渐变');
+  // 掩膜不可用 / 没有 backdrop-filter 时的两条退路都要在
+  const fallback = blocks(CSS).find(
+    (block) => /\[data-composer-seat\]::before$/.test(block.selector) && /linear-gradient\(180deg/.test(block.body),
+  );
+  assert.ok(fallback, '缺少 mask 不可用时的渐变兜底');
+});
+
 test('parity: 座位仍然保留下推透明，场不会被白底盖住', () => {
   const push = blocks(CSS).find((block) =>
     /^html\[data-mui-active\] \[data-composer-seat\]$/.test(block.selector),
@@ -112,15 +152,27 @@ test('parity: HUD 补场图层压在页面内容之上、面板之下', () => {
   assert.match(hud.body, /z-index:\s*0/, 'HUD 补场应与面板同层、排在面板之前');
 });
 
-test('parity: HUD 补场对齐内容区那条带子，铺到视口右下角且不压进内容区', async () => {
+test('parity: HUD 补场按面板所在侧取带子，且不压进内容区', async () => {
   const source = await readFile(new URL('../src/stage.js', import.meta.url), 'utf8');
   assert.match(source, /parent\.insertBefore\(hudBackdropEl, panel\)/, '补场必须插在面板之前');
-  assert.match(source, /viewportWidth - left/, '补场宽度应铺到视口右缘');
-  assert.match(source, /viewportHeight - top/, '补场高度应铺到视口底部');
-  // 左缘必须与内容区右缘对齐：压进去会盖住滚动条，也会把两层场叠成一条发脏的竖带。
-  assert.match(source, /box\.right/, '补场左缘应对齐内容区右缘');
-  // 上缘必须对齐内容区上沿；比内容区高出一截就会在顶栏那片白里浮出一块带硬边的补丁。
-  assert.match(source, /Math\.min\(box\.top, rect\.top\)/, '补场上缘应与内容区上沿对齐');
+  // v0.5.2：几何计算抽成纯函数 resolveHudStrip()，由 placeHudBackdrop 调用
+  assert.match(source, /function resolveHudStrip/, '几何计算应抽成可单测的纯函数');
+  assert.match(source, /resolveHudStrip\(\{/, 'placeHudBackdrop 必须走纯函数');
+  // 右侧停靠：带子右缘铺到视口边；上缘对齐内容区上沿（高出一截会在顶栏浮出带硬边的补丁）。
+  assert.match(source, /right = viewportWidth/, '右侧带子应铺到视口右缘');
+  assert.match(source, /height = Math\.max\(0, viewportHeight - top\)/, '带子高度应铺到视口底部');
+  assert.match(source, /Math\.min\(box\.top, panel\.top\)/, '上缘应与内容区上沿对齐');
+  // 侧别用「贴住内容区哪条边」判定，而不是「面板是否伸出内容区」：
+  // awesome-hud 左停靠会把正文向右让位，面板左缘与内容区左缘齐平，「伸出」恒为 false。
+  assert.match(source, /panel\.left <= box\.left \+ 2/, '左贴边判定：面板左缘贴住（或越过）内容区左缘');
+  assert.match(source, /panelRight >= box\.right - 2/, '右贴边判定：面板右缘贴住内容区右缘');
+  assert.doesNotMatch(source, /panelRight > box\.right \+ 2\) side = "right"/, '不得再用「伸出内容区」作为唯一判据');
+  // 左右两条带子都不得压进内容区的正文区域
+  assert.match(source, /left = clamp\(box \? box\.right : panel\.left - pad/, '右侧带子左缘取内容区右缘');
+  assert.match(source, /Math\.max\(panelRight, box\.left\)/, '左侧带子右缘取 max(面板右缘, 内容区左缘)');
+  // 左侧停靠时用侧栏右缘作左界：场不能盖住侧栏（会话列表），否则列表会被整块藏起来。
+  assert.match(source, /\[data-slot="sidebar"\]/, '左停靠需要读侧栏右缘');
+  assert.match(source, /Math\.min\(panel\.left, sidebarEdge\)/, '左界不得越过面板自身左缘');
 });
 
 test('parity: HUD 补场自带不透明同源底色，不与内容区的场叠加', () => {

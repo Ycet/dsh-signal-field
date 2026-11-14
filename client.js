@@ -4950,6 +4950,8 @@ window.__ModuleLoader__.load({
            连输入框卡片自己采到的也变成了糊过的场，观感反而离新增会话页更远。
          - 这一条同时要挡住滚上来的消息、让「19 轮 864 步 · 162 tok/s」这类小字清楚，
            所以用「模糊 + 压色」：模糊压掉文字，压色把残留压成底色。
+         - v0.5.2 起它的**上沿**做羽化（mask 渐隐，见下方规则）：让纯色条与上方动效背景
+           平滑衔接，而不是一条把颗粒切断的硬边。
        不遮滚动容器、不遮消息容器，因此不可能影响浮层、弹层与任何座位外的 UI。 */
 
     html[data-mui-active] [data-composer-seat]{--dsw-alias-bg-base:transparent}
@@ -4960,16 +4962,42 @@ window.__ModuleLoader__.load({
     html[data-mui-active] [data-content-phase="active"] [data-composer-seat]{
       isolation:isolate;
     }
+    /* v0.5.2：背衬的**上沿**改为羽化过渡（模糊 + 压色一起渐隐）。
+       原先上沿只有 8px 渐变，且只渐变背景色——backdrop-filter 不受 background 透明度影响，
+       模糊仍然「到边即断」，所以那条纯色条与上方动效背景之间是一条硬边（场里的颗粒被切断）。
+       现在把渐隐交给 mask（它同时作用于模糊结果与底色），羽化高度取
+       min(20px, 半个条带高)：条带本身只有三四十像素高，羽化太大就会把状态栏小字也泡进半透明区。
+       条带下沿仍是满强度——状态栏文字必须清楚，滚上来的消息也必须被挡住。 */
     html[data-mui-active] [data-content-phase="active"] [data-composer-seat]::before{
+      --mui-seat-feather:min(20px, calc(var(--mui-seat-band-h, 34px) * .5));
       content:"";position:absolute;left:0;right:0;bottom:0;
       height:var(--mui-seat-band-h, 34px);
       z-index:-1;pointer-events:none;
-      background:linear-gradient(0deg,
-        color-mix(in srgb, var(--mui-seat-scrim) 94%, transparent) 0,
-        color-mix(in srgb, var(--mui-seat-scrim) 94%, transparent) calc(100% - 8px),
-        transparent 100%);
+      background:color-mix(in srgb, var(--mui-seat-scrim) 94%, transparent);
       -webkit-backdrop-filter:blur(calc(var(--mui-blur, 14px) * .9)) saturate(1.04);
       backdrop-filter:blur(calc(var(--mui-blur, 14px) * .9)) saturate(1.04);
+      -webkit-mask-image:linear-gradient(to bottom,
+        transparent 0,
+        rgba(0,0,0,.42) calc(var(--mui-seat-feather) * .45),
+        rgba(0,0,0,.82) calc(var(--mui-seat-feather) * .8),
+        #000 var(--mui-seat-feather),
+        #000 100%);
+      mask-image:linear-gradient(to bottom,
+        transparent 0,
+        rgba(0,0,0,.42) calc(var(--mui-seat-feather) * .45),
+        rgba(0,0,0,.82) calc(var(--mui-seat-feather) * .8),
+        #000 var(--mui-seat-feather),
+        #000 100%);
+    }
+    @supports not (mask-image: linear-gradient(#000, transparent)){
+      html[data-mui-active] [data-content-phase="active"] [data-composer-seat]::before{
+        background:linear-gradient(180deg,
+          transparent 0,
+          color-mix(in srgb, var(--mui-seat-scrim) 40%, transparent) calc(var(--mui-seat-feather) * .45),
+          color-mix(in srgb, var(--mui-seat-scrim) 80%, transparent) calc(var(--mui-seat-feather) * .8),
+          color-mix(in srgb, var(--mui-seat-scrim) 94%, transparent) var(--mui-seat-feather),
+          color-mix(in srgb, var(--mui-seat-scrim) 94%, transparent) 100%);
+      }
     }
     @supports not (backdrop-filter: blur(1px)){
       html[data-mui-active] [data-content-phase="active"] [data-composer-seat]::before{
@@ -5303,6 +5331,82 @@ window.__ModuleLoader__.load({
       const elapsed = now - lastSyncAt;
       if (elapsed >= window) return { run: true, waitMs: 0 };
       return { run: false, waitMs: window - elapsed };
+    }
+
+    /**
+     * 计算 HUD 补场该铺哪一条带子（纯函数，供 `node --test` 直接断言）。
+     *
+     * 补场存在的唯一理由是「给面板玻璃一片真实的场去模糊」，所以它必须跟着面板走：
+     *
+     *   - 面板贴住内容区**右侧**（默认停靠）：带子 = 内容区右缘 → 视口右缘，
+     *     右侧是视口边，不会有硬边；
+     *   - 面板贴住内容区**左侧**（含 dsh-awesome-hud 左停靠时正文让位的布局）：
+     *     带子 = 侧栏右缘 → max(面板右缘, 内容区左缘)。左界不用 0：
+     *     侧栏（会话列表）是不透明底板，用场盖住它等于把列表藏起来，
+     *     所以宁可让带子从侧栏右缘开始（面板与侧栏之间的空缝一并铺上）。
+     *     面板若被拖到侧栏上方，左界退回面板自身左缘，绝不越界。
+     *
+     * 两侧都遵守同一条铁律：**不压进内容区**。内容区自己有场，叠上去会发脏。
+     * 面板整体落在内容区里时返回 `side: "none"`：那一带已被内容区自己的场盖住，补场是多余的。
+     *
+     * @param {{
+     *   panel?: { left: number, top: number, width: number, height: number, right: number },
+     *   box?: { left: number, top: number, right: number, width: number, height: number } | null,
+     *   sidebarRight?: number,
+     *   viewportWidth?: number,
+     *   viewportHeight?: number,
+     *   pad?: number
+     * }} input
+     * @returns {{ side: "left" | "right" | "none", left: number, top: number, width: number, height: number }}
+     */
+    function resolveHudStrip(input) {
+      const src = input && typeof input === "object" ? input : {};
+      const panel = src.panel && typeof src.panel === "object" ? src.panel : null;
+      const box = src.box && typeof src.box === "object" ? src.box : null;
+      const viewportWidth = typeof src.viewportWidth === "number" && Number.isFinite(src.viewportWidth) ? src.viewportWidth : 0;
+      const viewportHeight = typeof src.viewportHeight === "number" && Number.isFinite(src.viewportHeight) ? src.viewportHeight : 0;
+      const pad = typeof src.pad === "number" && Number.isFinite(src.pad) ? src.pad : 24;
+      const sidebarRight =
+        typeof src.sidebarRight === "number" && Number.isFinite(src.sidebarRight) ? src.sidebarRight : 0;
+      const empty = { side: "none", left: 0, top: 0, width: 0, height: 0 };
+      if (!panel || viewportWidth < 2 || viewportHeight < 2) return empty;
+
+      const panelRight = Number.isFinite(panel.right) ? panel.right : panel.left + panel.width;
+      // 侧别判定用「面板贴住内容区的哪一条边」，**不用**中心比较，也不要求面板伸出内容区：
+      // dsh-awesome-hud 从 0.18 起在左停靠时会把正文向右让位（写内联 padding/left），
+      // 于是面板左缘常与内容区左缘**齐平**——「是否伸出」在这种布局下恒为 false，
+      // 补场就永远不铺，表现正是「面板在左边时背后没有场」。现在按贴边判定：
+      //   贴左缘（含面板落在侧栏与内容区之间）→ 左侧带子；
+      //   贴右缘 → 右侧带子；
+      //   两边都不贴（面板浮在内容区中间）→ 不铺，那一带本来就有内容区自己的场。
+      let side = "none";
+      if (!box) side = "right";
+      else if (panel.left <= box.left + 2) side = "left";
+      else if (panelRight >= box.right - 2) side = "right";
+
+      let left = 0;
+      let right = 0;
+      if (side === "left") {
+        // 左界：侧栏右缘（拿不到侧栏就退回面板左缘），绝不用场盖住侧栏的会话列表。
+        const sidebarEdge = sidebarRight > 0 ? sidebarRight : panel.left;
+        left = clamp(Math.min(panel.left, sidebarEdge), 0, viewportWidth);
+        // 右界：内容区左缘与面板右缘取大者——
+        //   面板在侧栏与内容区之间时把两者之间的空缝一并铺上；
+        //   面板与内容区左缘齐平时（让位布局）则只铺面板自己那一段，不越过内容区的场。
+        right = clamp(box ? Math.max(panelRight, box.left) : panelRight + pad, 0, viewportWidth);
+      } else if (side === "right") {
+        left = clamp(box ? box.right : panel.left - pad, 0, viewportWidth);
+        right = viewportWidth;
+      }
+
+      // 上缘：与内容区上沿对齐，避免在顶栏那片白里浮出一块矩形；内容区缺失时退回面板外扩。
+      // 内容区上沿比面板顶还低时（少见）就停在面板顶上，至少不会露出面板上方的白缝。
+      const top = clamp(box ? Math.min(box.top, panel.top) : panel.top - pad, 0, viewportHeight - 2);
+
+      const width = Math.max(0, right - left);
+      const height = Math.max(0, viewportHeight - top);
+      if (width < 2 || height < 2) return empty;
+      return { side, left, top, width, height };
     }
 
     /**
@@ -5838,14 +5942,19 @@ window.__ModuleLoader__.load({
       }
 
       /**
-       * 把补场图层的盒子对齐到「右侧那条带子」而不是面板本身。
+       * 把补场图层的盒子对齐到「面板所在那一侧的带子」而不是面板本身。
        *
        * v0.2.5 按「面板矩形外扩 24px」铺，实机上露出两个问题：
        *   1. 顶边成了一条直线——补场比会话内容区高出十几像素，右栏就浮出一块带硬边的「补丁」；
        *   2. 面板左侧那圈外扩区落在内容区之上，两层场叠在一起，亮格 233 → 243、暗格 233 → 218，
        *      肉眼就是一条发脏的竖带。
-       * 所以：左缘不得进入内容区（内容区自己那层场已经在那儿），上缘对齐内容区上沿，
-       * 右缘/下缘一直铺到视口边——这样它和内容区的场并成同一条带子，只是相位不同。
+       * 所以：补场不得压进内容区（内容区自己那层场已经在那儿），上缘对齐内容区上沿，
+       * 另一侧一直铺到视口边——这样它和内容区的场并成同一条带子，只是相位不同。
+       *
+       * v0.5.2：面板可以被停靠到内容区**左侧**（dsh-awesome-hud 的位置切换），
+       * 而 v0.5.1 及之前这里硬编码「left = 内容区右缘、width 铺到视口右缘」，
+       * 于是面板停靠左侧时补场要么落在面板对面那条空缝里、要么宽度为 0 直接不显示——
+       * 表现就是「面板在左边时，面板背后没有动效背景」。现在按面板所在的那一侧取带子。
        */
       function placeHudBackdrop(panel) {
         if (!hudBackdropEl) return;
@@ -5856,11 +5965,8 @@ window.__ModuleLoader__.load({
           if (hudField) hudField.update({ idle: false, interact: false });
           return;
         }
-        const viewportWidth = doc.documentElement.clientWidth;
-        const viewportHeight = doc.documentElement.clientHeight;
-        const pad = 24;
 
-        // 会话内容区：场的宿主，同时给出补场要贴合的那条带子的上下边界。
+        // 会话内容区：场的宿主，同时给出补场要贴合的那条带子的边界。
         let box = null;
         try {
           const content = conversationRoot();
@@ -5869,20 +5975,27 @@ window.__ModuleLoader__.load({
           box = null;
         }
 
-        // 左缘：直接贴住内容区右缘——内容区右侧若还有空缝就补上，内容区若已伸到面板下面
-        // 就停在它边上，绝不压进内容区（压进去会盖住滚动条，还会把两层场叠成脏带）。
-        const padLeft = rect.left - pad;
-        const left = clamp(box ? box.right : padLeft, 0, viewportWidth - 2);
+        // 侧栏右缘：左停靠时用它决定带子的左界。DSH 用 renderSlot("sidebar") 渲染侧栏，
+        // 宿主固定打 [data-slot="sidebar"]；拿不到就退回面板自身左缘（宁可少铺，也不盖住侧栏）。
+        let sidebarRight = 0;
+        try {
+          const sidebar = doc.querySelector('[data-slot="sidebar"]');
+          if (sidebar) sidebarRight = sidebar.getBoundingClientRect().right;
+        } catch {
+          sidebarRight = 0;
+        }
 
-        // 上缘：与内容区上沿对齐，避免在顶栏那片白里浮出一块矩形；内容区缺失时退回面板外扩。
-        // 内容区上沿比面板顶还低时（少见）就停在面板顶上，至少不会露出面板上方的白缝。
-        const top = clamp(box ? Math.min(box.top, rect.top) : rect.top - pad, 0, viewportHeight - 2);
+        const strip = resolveHudStrip({
+          panel: rect,
+          box,
+          sidebarRight,
+          viewportWidth: doc.documentElement.clientWidth,
+          viewportHeight: doc.documentElement.clientHeight,
+          pad: 24,
+        });
 
-        const width = Math.max(0, viewportWidth - left);
-        const height = Math.max(0, viewportHeight - top);
-
-        // 面板完全落在内容区里（这一竖条已被内容区自己的场盖住）：不需要补场。
-        if (width < 2 || height < 2) {
+        // 面板完全落在内容区里（那一带已被内容区自己的场盖住）：不需要补场。
+        if (strip.width < 2 || strip.height < 2) {
           setFlag(hudBackdropEl, "data-on", false);
           hudBoxSignature = "";
           if (hudField) hudField.update({ idle: false, interact: false });
@@ -5890,14 +6003,15 @@ window.__ModuleLoader__.load({
         }
 
         // 几何没变就不重写这 4 个 style：ResizeObserver 与同步都会频繁调到这里，
-        // 而面板尺寸在绝大多数同步里是同一个值。
-        const boxSignature = `${Math.round(left)}|${Math.round(top)}|${Math.round(width)}|${Math.round(height)}`;
+        // 而面板尺寸在绝大多数同步里是同一个值。侧别也进签名：左右切换时要做一次过渡。
+        const boxSignature = `${strip.side}|${Math.round(strip.left)}|${Math.round(strip.top)}|${Math.round(strip.width)}|${Math.round(strip.height)}`;
         if (boxSignature !== hudBoxSignature) {
           hudBoxSignature = boxSignature;
-          hudBackdropEl.style.left = `${Math.round(left)}px`;
-          hudBackdropEl.style.top = `${Math.round(top)}px`;
-          hudBackdropEl.style.width = `${Math.round(width)}px`;
-          hudBackdropEl.style.height = `${Math.round(height)}px`;
+          hudBackdropEl.setAttribute("data-mui-hud-side", strip.side);
+          hudBackdropEl.style.left = `${Math.round(strip.left)}px`;
+          hudBackdropEl.style.top = `${Math.round(strip.top)}px`;
+          hudBackdropEl.style.width = `${Math.round(strip.width)}px`;
+          hudBackdropEl.style.height = `${Math.round(strip.height)}px`;
         }
         setFlag(hudBackdropEl, "data-on", true);
       }
@@ -6338,7 +6452,7 @@ window.__ModuleLoader__.load({
         // HUD 补场：面板背后没有场时玻璃只能模糊到白，所以这里直接回读补场图层是否就位。
         // parent 也要回读：它必须和面板同层（面板之前），挂在 body 上用负 z-index 会被外壳底色盖掉。
         lines.push(
-          `hudBackdrop: ${short(hudBackdropEl)} ${size(hudBackdropEl)} on=${hudBackdropEl && hudBackdropEl.hasAttribute("data-on") ? "yes" : "no"} z=${hudBackdropEl ? css(hudBackdropEl, "zIndex") : "-"} parent=${short(hudBackdropEl && hudBackdropEl.parentElement)} sameAsPanel=${hudBackdropEl && hudPanel && hudBackdropEl.parentElement === hudPanel.parentElement ? "yes" : "no"} engine=${hudNote}`,
+          `hudBackdrop: ${short(hudBackdropEl)} ${size(hudBackdropEl)} side=${hudBackdropEl ? String(hudBackdropEl.getAttribute("data-mui-hud-side") || "-") : "-"} on=${hudBackdropEl && hudBackdropEl.hasAttribute("data-on") ? "yes" : "no"} z=${hudBackdropEl ? css(hudBackdropEl, "zIndex") : "-"} parent=${short(hudBackdropEl && hudBackdropEl.parentElement)} sameAsPanel=${hudBackdropEl && hudPanel && hudBackdropEl.parentElement === hudPanel.parentElement ? "yes" : "no"} engine=${hudNote}`,
         );
         // 座位背衬：只该盖住「输入框下方信息行」那一条，回读实测高度与伪元素是否命中。
         const seatEl = doc.querySelector("[data-composer-seat]");

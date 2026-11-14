@@ -183,6 +183,8 @@ html[data-mui-scope] body{
        连输入框卡片自己采到的也变成了糊过的场，观感反而离新增会话页更远。
      - 这一条同时要挡住滚上来的消息、让「19 轮 864 步 · 162 tok/s」这类小字清楚，
        所以用「模糊 + 压色」：模糊压掉文字，压色把残留压成底色。
+     - v0.5.2 起它的**上沿**做羽化（mask 渐隐，见下方规则）：让纯色条与上方动效背景
+       平滑衔接，而不是一条把颗粒切断的硬边。
    不遮滚动容器、不遮消息容器，因此不可能影响浮层、弹层与任何座位外的 UI。 */
 
 html[data-mui-active] [data-composer-seat]{--dsw-alias-bg-base:transparent}
@@ -193,16 +195,42 @@ html[data-mui-active] [data-composer-seat]{--dsw-alias-bg-base:transparent}
 html[data-mui-active] [data-content-phase="active"] [data-composer-seat]{
   isolation:isolate;
 }
+/* v0.5.2：背衬的**上沿**改为羽化过渡（模糊 + 压色一起渐隐）。
+   原先上沿只有 8px 渐变，且只渐变背景色——backdrop-filter 不受 background 透明度影响，
+   模糊仍然「到边即断」，所以那条纯色条与上方动效背景之间是一条硬边（场里的颗粒被切断）。
+   现在把渐隐交给 mask（它同时作用于模糊结果与底色），羽化高度取
+   min(20px, 半个条带高)：条带本身只有三四十像素高，羽化太大就会把状态栏小字也泡进半透明区。
+   条带下沿仍是满强度——状态栏文字必须清楚，滚上来的消息也必须被挡住。 */
 html[data-mui-active] [data-content-phase="active"] [data-composer-seat]::before{
+  --mui-seat-feather:min(20px, calc(var(--mui-seat-band-h, 34px) * .5));
   content:"";position:absolute;left:0;right:0;bottom:0;
   height:var(--mui-seat-band-h, 34px);
   z-index:-1;pointer-events:none;
-  background:linear-gradient(0deg,
-    color-mix(in srgb, var(--mui-seat-scrim) 94%, transparent) 0,
-    color-mix(in srgb, var(--mui-seat-scrim) 94%, transparent) calc(100% - 8px),
-    transparent 100%);
+  background:color-mix(in srgb, var(--mui-seat-scrim) 94%, transparent);
   -webkit-backdrop-filter:blur(calc(var(--mui-blur, 14px) * .9)) saturate(1.04);
   backdrop-filter:blur(calc(var(--mui-blur, 14px) * .9)) saturate(1.04);
+  -webkit-mask-image:linear-gradient(to bottom,
+    transparent 0,
+    rgba(0,0,0,.42) calc(var(--mui-seat-feather) * .45),
+    rgba(0,0,0,.82) calc(var(--mui-seat-feather) * .8),
+    #000 var(--mui-seat-feather),
+    #000 100%);
+  mask-image:linear-gradient(to bottom,
+    transparent 0,
+    rgba(0,0,0,.42) calc(var(--mui-seat-feather) * .45),
+    rgba(0,0,0,.82) calc(var(--mui-seat-feather) * .8),
+    #000 var(--mui-seat-feather),
+    #000 100%);
+}
+@supports not (mask-image: linear-gradient(#000, transparent)){
+  html[data-mui-active] [data-content-phase="active"] [data-composer-seat]::before{
+    background:linear-gradient(180deg,
+      transparent 0,
+      color-mix(in srgb, var(--mui-seat-scrim) 40%, transparent) calc(var(--mui-seat-feather) * .45),
+      color-mix(in srgb, var(--mui-seat-scrim) 80%, transparent) calc(var(--mui-seat-feather) * .8),
+      color-mix(in srgb, var(--mui-seat-scrim) 94%, transparent) var(--mui-seat-feather),
+      color-mix(in srgb, var(--mui-seat-scrim) 94%, transparent) 100%);
+  }
 }
 @supports not (backdrop-filter: blur(1px)){
   html[data-mui-active] [data-content-phase="active"] [data-composer-seat]::before{

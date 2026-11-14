@@ -1,8 +1,24 @@
 {
   "name": "dsh-signal-field",
-  "version": "0.5.1",
-  "private": true,
+  "version": "0.5.2",
   "description": "DSH 动效界面插件：抖动信号场背景、蓝图标题、毛玻璃输入框与 ASCII 鲸鱼动画（新建会话页与聊天会话页各有独立参数），可在「设置 → UI 动画」按页面分别调整。",
+  "keywords": [
+    "dsh",
+    "deepseek",
+    "deepseek-harness",
+    "plugin",
+    "ui",
+    "motion",
+    "animation",
+    "signal-field",
+    "backdrop",
+    "webgl",
+    "glass",
+    "frosted-glass",
+    "ascii",
+    "whale",
+    "theme"
+  ],
   "type": "module",
   "main": "index.js",
   "icon": "icon.svg",
@@ -21,7 +37,8 @@
     "locale/*.json",
     "README.md",
     "README_en.md",
-    "THIRD_PARTY_NOTICES.md"
+    "THIRD_PARTY_NOTICES.md",
+    "LICENSE"
   ],
   "dsh": {
     "bundle": {
@@ -47,5 +64,17 @@
   "engines": {
     "node": ">=22"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ycet/dsh-signal-field.git"
+  },
+  "homepage": "https://github.com/Ycet/dsh-signal-field#readme",
+  "bugs": {
+    "url": "https://github.com/Ycet/dsh-signal-field/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
 }

@@ -158,8 +158,14 @@ test('styles: 鲸鱼图层与字体声明就位，且没有新增 backdrop-filte
   assert.match(CSS, /@font-face\{[\s\S]*?font-family:"Whales Mono"/);
   assert.match(CSS, /\[data-mui-whale\]\{[\s\S]*?z-index:-1/);
   assert.match(CSS, /\[data-mui-whale\] > canvas\{/);
-  // 本轮不允许碰毛玻璃：总条数必须仍是 v0.3.1 的 14 条
-  assert.equal((CSS.match(/backdrop-filter/g) || []).length, 14, 'backdrop-filter 数量不该变化');
+  // 毛玻璃**规则**条数基线：输入框卡片 / 座位背衬 / HUD 面板 = 3 条。
+  // v0.5.2 的羽化过渡没有新增规则，而是给座位背衬本身加了 mask（模糊随上沿一起渐隐），
+  // 所以这里仍是 3。只数声明位置而不数字符串出现次数：注释里提到 backdrop-filter 不该让基线漂移。
+  const glassDecls = new Set();
+  for (const m of CSS.matchAll(/(?:^|[;{])\s*(?:-webkit-)?backdrop-filter\s*:/g)) {
+    glassDecls.add(CSS.lastIndexOf('{', m.index));
+  }
+  assert.equal(glassDecls.size, 3, '毛玻璃规则条数应为 3（卡片 / 座位背衬 / HUD 面板）');
   // 鲸鱼段落里不得出现 backdrop-filter
   const whaleBlock = CSS.slice(CSS.indexOf('[data-mui-whale]'));
   assert.equal(whaleBlock.slice(0, 400).includes('backdrop-filter'), false, '鲸鱼图层不做毛玻璃');
