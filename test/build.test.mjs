@@ -113,15 +113,18 @@ test('build: 产物不再包含已移出作用范围的面板页实现', async (
 
 test('build: 产物包含当前版本的作用域钩子', async () => {
   const source = await readFile(join(ROOT, 'client.js'), 'utf8');
-  // 输入框条带的下推、HUD 玻璃、HUD 补场、座位遮罩层与页面判定纯函数
+  // 输入框条带的下推、HUD 玻璃、HUD 补场、HUD 网格层、座位遮罩层与页面判定纯函数
   for (const token of [
     '[data-composer-seat]',
     '[data-conversation-scroll]',
     '.hud-panel',
     'data-mui-field-hud',
+    'data-mui-whale-hud',
     'data-mui-hud-glass',
+    'gridOnly',
     'function measureTitle',
     'function resolvePanelTargets',
+    'function resolvePanelGridTarget',
   ]) {
     assert.equal(source.includes(token), true, `产物缺少作用域钩子：${token}`);
   }

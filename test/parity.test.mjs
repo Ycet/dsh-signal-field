@@ -154,7 +154,15 @@ test('parity: HUD 补场图层压在页面内容之上、面板之下', () => {
 
 test('parity: HUD 补场按面板所在侧取带子，且不压进内容区', async () => {
   const source = await readFile(new URL('../src/stage.js', import.meta.url), 'utf8');
-  assert.match(source, /parent\.insertBefore\(hudBackdropEl, panel\)/, '补场必须插在面板之前');
+  // v0.5.3：补场仍插在面板之前，但若网格层已存在，则以网格层为参照——顺序必须是
+  // 「补场 → 网格 → 面板」，否则补场会重新插到网格之后，把网格盖住。
+  assert.match(source, /parent\.insertBefore\(hudBackdropEl, target\)/, '补场必须插在面板/网格层之前');
+  assert.match(
+    source,
+    /const target = hudWhaleEl && hudWhaleEl\.parentElement === parent \? hudWhaleEl : panel/,
+    '有网格层时应排在网格层之前',
+  );
+  assert.match(source, /parent\.insertBefore\(hudWhaleEl, panel\)/, '网格层必须插在面板之前');
   // v0.5.2：几何计算抽成纯函数 resolveHudStrip()，由 placeHudBackdrop 调用
   assert.match(source, /function resolveHudStrip/, '几何计算应抽成可单测的纯函数');
   assert.match(source, /resolveHudStrip\(\{/, 'placeHudBackdrop 必须走纯函数');

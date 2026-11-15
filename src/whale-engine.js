@@ -8,7 +8,7 @@
  *
  * 保留：固定步长引擎、鱼群集群/追逐、柔性脊柱、单元格栅格化、光照、字形浓淡与尾迹扩散。
  *
- * 与本插件不同的适配（共 5 处，均在下方用「[适配 N]」标出）：
+ * 与本插件不同的适配（共 6 处，均在下方用「[适配 N]」标出）：
  *   1. 整块包进 IIFE 并只导出 WHALE_ENGINE。
  *      原因不是洁癖：src/stage.js 已有顶层 `clamp`，与移植块的 `var clamp` 同处一个闭包会互相覆盖。
  *      IIFE 边界让上游代码可以逐字保留，也免疫将来的一切重名。
@@ -18,6 +18,8 @@
  *      鲸鱼按配置帧率运行（这是明确的产品决策，不是遗漏）。
  *   4. 帧率上限：frame() 开头按 fpsCap 门控。
  *   5. 指针监听可拆装：interact=false 时不注册 window 级监听。
+ *   6. gridOnly：只画底纹网格与指针交互，不生成鲸鱼与鱼群；同时放大指针能量增益，
+ *      让没有鲸鱼/鱼群尾迹时指针亮斑仍能越过绘制阈值（v0.5.3，供 HUD 面板区域使用）。
  *
  * 构建约定：本文件由 scripts/build.mjs 原样拼进 client.js，只允许一个具名导出。
  */
@@ -952,6 +954,9 @@ var AsciiRenderer = class {
     this.setTheme(dark);
   }
   bodySwing = 1;
+  /** [适配 6] 指针能量增益 / 半径；完整海洋用 1 / 1（上游行为），网格-only 由工厂放大。 */
+  pointerGain = 1;
+  pointerRadius = 1;
   ctx;
   bg;
   dpr = 1;
@@ -1143,7 +1148,9 @@ var AsciiRenderer = class {
       }
     }
     if (world.pointer.active) {
-      this.stamp(energy, world.pointer.x, world.pointer.y, 1, 0.08);
+      // [适配 6] 网格-only 模式靠这个增益让指针亮斑越过 0.45 的绘制阈值；
+      // 完整海洋保持 pointerGain/Radius = 1，行为与上游逐字一致。
+      this.stamp(energy, world.pointer.x, world.pointer.y, this.pointerRadius, 0.08 * this.pointerGain);
     }
   }
   /** Blur + decay so wakes spread out like ripples and fade. */
@@ -1605,7 +1612,7 @@ var AsciiRenderer = class {
   }
 
   var OceanEngine = class {
-    constructor(canvas, sharks, speed = 1, dark = false, gridScale = 1, gridOpacity = 0.05, fishCount, wake = 1, color = WHALE_COLOR, glyphMode = "ascii", colorfulShimmer = false, eyeColor = "primary", bodySwing = 1, turnAgility = 1, tailFrequency = 1, fpsCap = 30, interact = true) {
+    constructor(canvas, sharks, speed = 1, dark = false, gridScale = 1, gridOpacity = 0.05, fishCount, wake = 1, color = WHALE_COLOR, glyphMode = "ascii", colorfulShimmer = false, eyeColor = "primary", bodySwing = 1, turnAgility = 1, tailFrequency = 1, fpsCap = 30, interact = true, pointerGain = 1, pointerRadius = 1) {
       this.canvas = canvas;
       this.speed = speed;
       // [适配 4] 帧率上限：0/负数表示不限帧。
@@ -1618,6 +1625,11 @@ var AsciiRenderer = class {
       this.renderer = new AsciiRenderer(canvas, dark, gridScale, gridOpacity, wake, glyphMode);
       this.renderer.setTheme(dark, gridOpacity, wake, color, colorfulShimmer, eyeColor);
       this.renderer.bodySwing = bodySwing;
+      // [适配 6] 指针能量增益/半径：网格-only 模式没有鱼群与鲸鱼制造尾迹，
+      // 上游 0.08/半径 1 的指针写入永远越不过 0.45 的绘制阈值（实测稳态仅 0.27），
+      // 所以网格层需要更强的指针亮斑，否则「交互效果」根本看不见。完整海洋保持上游值。
+      this.renderer.pointerGain = typeof pointerGain === "number" && Number.isFinite(pointerGain) ? Math.max(1, pointerGain) : 1;
+      this.renderer.pointerRadius = typeof pointerRadius === "number" && Number.isFinite(pointerRadius) ? Math.max(1, Math.round(pointerRadius)) : 1;
       this.world.turnAgility = turnAgility;
       this.world.tailFrequency = tailFrequency;
       this.renderer.setFontFamily(getComputedStyle(canvas).fontFamily);
@@ -1825,17 +1837,30 @@ var AsciiRenderer = class {
    * @param {number} [options.tailFrequency] 摆尾频率
    * @param {number} [options.fps] 帧率上限（0 = 不限）
    * @param {boolean} [options.interact] 是否响应鼠标
+   * @param {boolean} [options.gridOnly] 只画底纹网格与指针交互，不生成鲸鱼与鱼群（v0.5.3）
    * @returns {InstanceType<typeof OceanEngine>}
    */
   function create(canvas, options) {
     const src = options && typeof options === "object" ? options : {};
+    // [适配 6] gridOnly：HUD 面板区域只需要底纹网格，不需要任何实体。
+    // 实现方式是「空鲸鱼列表 + 0 条小鱼」而不是在渲染器里加分支：World 对空数组的
+    // seed / step / rasterize 都是安全空循环；指针移动会经 depositWake 写能量亮斑、
+    // 点击会经 splash 写一圈快速扩散的能量点，网格因此仍然可交互；
+    // 这样也避免改动上游渲染主循环。
+    const gridOnly = src.gridOnly === true;
     const kind = src.species === "orca" ? "orca" : "whale";
     const baseSize = typeof src.size === "number" && Number.isFinite(src.size) ? src.size : 1;
     const whales = [];
-    const count = whaleCount(src.count);
+    const count = gridOnly ? 0 : whaleCount(src.count);
     for (let index = 0; index < count; index += 1) {
       whales.push({ kind, size: baseSize * WHALE_SIZE_STEPS[index % WHALE_SIZE_STEPS.length] });
     }
+    // fishCount 必须显式传 0：World 用 `??` 取默认值，undefined 会按面积生成鱼群。
+    const fishCount = gridOnly ? 0 : src.fishCount;
+    // [适配 6] 网格-only 没有鲸鱼/鱼群制造尾迹，指针必须更强才看得见（实测 4×/半径 2 才有
+    // 稳定的亮斑与拖尾，中心亮到最高桶；完整海洋仍用 1×/半径 1，观感零回归）。
+    const pointerGain = gridOnly ? 4 : 1;
+    const pointerRadius = gridOnly ? 2 : 1;
     return new OceanEngine(
       canvas,
       whales,
@@ -1843,7 +1868,7 @@ var AsciiRenderer = class {
       !!src.dark,
       src.gridScale,
       src.gridOpacity,
-      src.fishCount,
+      fishCount,
       src.wake,
       WHALE_COLOR,
       "ascii",
@@ -1854,6 +1879,8 @@ var AsciiRenderer = class {
       src.tailFrequency,
       src.fps,
       src.interact,
+      pointerGain,
+      pointerRadius,
     );
   }
 

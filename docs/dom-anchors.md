@@ -1,4 +1,4 @@
-# DOM 锚点标定记录（dsh-signal-field v0.2.9）
+# DOM 锚点标定记录（dsh-signal-field v0.5.3）
 
 本环境没有页面 DOM / 截图控制能力（认证后的页面不可从 shell 探测），因此锚点来自三处：
 **DSH 0.2.1-rc.3 自带 Client 包源码**、**已装插件的实测用法**、以及插件内置 `diagnose()` 自检能力在运行中回读的真实计算结果。
@@ -325,6 +325,17 @@ v0.2.5 按面板外扩 24px 铺，实机上露出两个问题：
   左缘不能取「面板左缘 - pad」再往左推：那样会压进内容区，既叠场又盖住滚动条。
 - **不透明同源底色**：补场的 CSS 带 `background:var(--mui-surface-base)`。即使某些布局下补场
   仍与内容区重叠，也是被它**盖住**而不是叠成两层场——与内容区同源的基底保证观感一致。
+
+**HUD 网格层（v0.5.3 补录）**：`.hud-panel` 所在竖带再叠一个 `div[data-mui-whale-hud]`，
+与补场同级、DOM 顺序在补场之后、面板之前（`parent.insertBefore(hudWhaleEl, panel)`），
+`position:fixed; z-index:0; pointer-events:none; overflow:hidden`，内部一个 Canvas2D。
+几何复用 `measureHudStrip()` / `resolveHudStrip()`，与补场完全同一块带子；两层分别写
+`data-mui-hud-side` 便于自检。锚定函数在网格层存在时以网格层为参照插入补场
+（`hudBackdropEl` 必须排在 `hudWhaleEl` 之前），否则补场会盖住网格。Canvas2D 不可用时
+适配器只打 `data-whale-fallback`、不画网格，不影响补场 / 面板玻璃 / 其它图层。
+该层的闸门跟随「鲸鱼」而不是「背景」，交互也跟随「鲸鱼」开关（见 `src/page.js`
+的 `resolvePanelGridTarget`）。它**不改变面板玻璃**：面板玻璃仍由 `resolvePanelTargets`
+（当前页总开关 + 背景）控制，只开鲸鱼、关掉背景时面板保持原生外观。
 
 **包含块陷阱（v0.2.0 踩过，v0.2.1 修正）**：该插件把弹层直接渲染在面板子树里，且都是
 `position:fixed`——`.hud-modal{position:fixed;inset:0}`（git graph、分支/提交/确认/计划弹窗）、

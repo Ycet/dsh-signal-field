@@ -9,6 +9,7 @@ import {
   VIEW_THREAD,
   VIEW_TRAJECTORY,
   resolvePageKind,
+  resolvePanelGridTarget,
   resolvePanelTargets,
   resolveViewKind,
 } from '../src/page.js';
@@ -107,6 +108,52 @@ test('resolvePanelTargets: 垃圾输入不会抛错', () => {
       resolvePanelTargets({ page: PAGE_CHAT, pageEnabled: truthy, backgroundEnabled: truthy }),
       { hud: true },
     );
+  }
+});
+
+/**
+ * HUD 面板区域的鲸鱼网格闸门（v0.5.3）。
+ *
+ * 这条规则最容易被「顺手统一」改坏：补场与玻璃跟随「背景」，网格跟随「鲸鱼」，
+ * 两者刻意不同。下面的用例把「不看背景开关」这件事钉死——输入里根本没有背景键也应当开启，
+ * 这样将来若有人把它改成 `resolvePanelTargets`，这里会立刻红。
+ */
+test('resolvePanelGridTarget: 与内容区鲸鱼层同一套三道闸门', () => {
+  const all = { page: PAGE_HERO, master: true, pageEnabled: true, whaleEnabled: true };
+  assert.equal(resolvePanelGridTarget(all), true, '三道闸门都开时生效');
+  assert.equal(resolvePanelGridTarget({ ...all, page: PAGE_CHAT }), true, '聊天页同样生效');
+  // 任一闸门关闭都不生效
+  assert.equal(resolvePanelGridTarget({ ...all, master: false }), false, '全局总开关是上级');
+  assert.equal(resolvePanelGridTarget({ ...all, pageEnabled: false }), false, '页总开关是上级');
+  assert.equal(resolvePanelGridTarget({ ...all, whaleEnabled: false }), false, '鲸鱼开关是该层的开关');
+  // 非会话页一律不生效
+  assert.equal(resolvePanelGridTarget({ ...all, page: PAGE_NONE }), false);
+  assert.equal(resolvePanelGridTarget({ ...all, page: undefined }), false);
+});
+
+test('resolvePanelGridTarget: 刻意不读「背景」开关（网格不是补场的延伸）', () => {
+  // 只给鲸鱼这三道闸门、完全没有 backgroundEnabled 键：仍须开启。
+  // 这正是「只开鲸鱼、关掉背景」的组合——内容区有鲸鱼网格，面板区域也必须有。
+  assert.equal(
+    resolvePanelGridTarget({ page: PAGE_CHAT, master: true, pageEnabled: true, whaleEnabled: true }),
+    true,
+  );
+  // 即使显式传入 backgroundEnabled:false 也不影响结论（函数签名里本就没有它）。
+  assert.equal(
+    resolvePanelGridTarget({
+      page: PAGE_CHAT,
+      master: true,
+      pageEnabled: true,
+      whaleEnabled: true,
+      backgroundEnabled: false,
+    }),
+    true,
+  );
+});
+
+test('resolvePanelGridTarget: 垃圾输入不抛错且回落到 false', () => {
+  for (const input of [undefined, null, 0, '', [], true]) {
+    assert.equal(resolvePanelGridTarget(input), false, `输入 ${JSON.stringify(input)} 应回落到 false`);
   }
 });
 

@@ -39,7 +39,7 @@ window.__ModuleLoader__.load({
         "rowTitleSpeed": "标题动画速度",
         "rowTitleSpeedHint": "扫光跑马灯、揭示镜头与悬停转虚线的快慢；1× 即当前观感。拖动即时生效，不会重播。",
         "rowWhale": "鲸鱼",
-        "rowWhaleHint": "在当前会话页叠一层 ASCII 鲸鱼，压在信号场之上；新建页与聊天页各有一套参数，「轨迹」「统计」视图同样可见。",
+        "rowWhaleHint": "在当前会话页叠一层 ASCII 鲸鱼，压在信号场之上；新建页与聊天页各有一套参数，「轨迹」「统计」视图同样可见。HUD 面板所在竖带也会铺同一套底纹网格与指针/点击交互（不含鲸鱼），它跟随本开关、不受背景开关影响。",
         "rowWhaleSpecies": "鲸鱼种类",
         "rowWhaleSpeciesHint": "座头鲸胸鳍更长、尾鳍更宽；虎鲸体型略小并带白色斑纹。",
         "whaleHumpback": "座头鲸",
@@ -99,7 +99,7 @@ window.__ModuleLoader__.load({
         "rowTitleSpeed": "Headline animation speed",
         "rowTitleSpeedHint": "How fast the sweep runner, reveal lens and hover-to-outline transitions run; 1× is the current feel. Applies live while dragging, with no replay.",
         "rowWhale": "Whales",
-        "rowWhaleHint": "Stacks an ASCII whale layer on the current page, above the signal field; the new-session and chat pages keep separate parameters, and the Trace and Stats views show it too.",
+        "rowWhaleHint": "Stacks an ASCII whale layer on the current page, above the signal field; the new-session and chat pages keep separate parameters, and the Trace and Stats views show it too. The HUD panel's band also gets the same ASCII grid with pointer/click interaction (no whales); it follows this switch, not the backdrop switch.",
         "rowWhaleSpecies": "Whale species",
         "rowWhaleSpeciesHint": "Humpback has longer flippers and wider flukes; orca is slightly smaller with white markings.",
         "whaleHumpback": "Humpback",
@@ -747,6 +747,9 @@ window.__ModuleLoader__.load({
      * 没有可模糊的内容，补场与面板玻璃就应该一起回到原生外观。
      * 它**不**受当前页「输入框毛玻璃效果」开关控制（那个开关只管输入框卡片）。
      *
+     * v0.5.3 的鲸鱼网格**不改变**这条规则：网格只在自己的图层里绘制，
+     * 面板玻璃仍然只跟随「背景」，不会因为鲸鱼开着就变成毛玻璃。
+     *
      * @param {{ page?: string, pageEnabled?: unknown, backgroundEnabled?: unknown }} input
      * @returns {{ hud: boolean }}
      */
@@ -755,6 +758,26 @@ window.__ModuleLoader__.load({
       const inScope = src.page === PAGE_HERO || src.page === PAGE_CHAT;
       if (!inScope) return { hud: false };
       return { hud: !!src.pageEnabled && !!src.backgroundEnabled };
+    }
+
+    /**
+     * 决定「HUD 面板区域的鲸鱼网格层」是否应该存在（v0.5.3）。
+     *
+     * 与 {@link resolvePanelTargets}（信号场补场 + 面板毛玻璃）刻意分成两套闸门：
+     *   - 补场存在的理由是「给面板玻璃一片真实的场去模糊」，所以它跟随该页「背景」开关；
+     *   - 面板网格存在的理由是「鲸鱼那一层的观感向面板区域延伸」，所以它跟随该页「鲸鱼」开关，
+     *     **不看背景**。否则「只开鲸鱼、关掉背景」时，内容区有鲸鱼网格、面板区域却光秃秃的，
+     *     两层本来是同一套观感，接缝会很突兀。
+     *
+     * 具体闸门与内容区鲸鱼层完全一致（全局总开关 + 当前页总开关 + 当前页鲸鱼开关 + 会话页），
+     * 因此直接复用 {@link resolveWhaleTarget}；本函数只承担「语义命名 + 单一出口」的职责，
+     * 面板是否存在、带子几何是否有效由调用方（stage.js）继续判定。
+     *
+     * @param {{ page?: string, pageEnabled?: unknown, master?: unknown, whaleEnabled?: unknown }} input
+     * @returns {boolean}
+     */
+    function resolvePanelGridTarget(input) {
+      return resolveWhaleTarget(input);
     }
 
     /**
@@ -2696,7 +2719,7 @@ window.__ModuleLoader__.load({
      *
      * 保留：固定步长引擎、鱼群集群/追逐、柔性脊柱、单元格栅格化、光照、字形浓淡与尾迹扩散。
      *
-     * 与本插件不同的适配（共 5 处，均在下方用「[适配 N]」标出）：
+     * 与本插件不同的适配（共 6 处，均在下方用「[适配 N]」标出）：
      *   1. 整块包进 IIFE 并只导出 WHALE_ENGINE。
      *      原因不是洁癖：src/stage.js 已有顶层 `clamp`，与移植块的 `var clamp` 同处一个闭包会互相覆盖。
      *      IIFE 边界让上游代码可以逐字保留，也免疫将来的一切重名。
@@ -2706,6 +2729,8 @@ window.__ModuleLoader__.load({
      *      鲸鱼按配置帧率运行（这是明确的产品决策，不是遗漏）。
      *   4. 帧率上限：frame() 开头按 fpsCap 门控。
      *   5. 指针监听可拆装：interact=false 时不注册 window 级监听。
+     *   6. gridOnly：只画底纹网格与指针交互，不生成鲸鱼与鱼群；同时放大指针能量增益，
+     *      让没有鲸鱼/鱼群尾迹时指针亮斑仍能越过绘制阈值（v0.5.3，供 HUD 面板区域使用）。
      *
      * 构建约定：本文件由 scripts/build.mjs 原样拼进 client.js，只允许一个具名导出。
      */
@@ -3640,6 +3665,9 @@ window.__ModuleLoader__.load({
         this.setTheme(dark);
       }
       bodySwing = 1;
+      /** [适配 6] 指针能量增益 / 半径；完整海洋用 1 / 1（上游行为），网格-only 由工厂放大。 */
+      pointerGain = 1;
+      pointerRadius = 1;
       ctx;
       bg;
       dpr = 1;
@@ -3831,7 +3859,9 @@ window.__ModuleLoader__.load({
           }
         }
         if (world.pointer.active) {
-          this.stamp(energy, world.pointer.x, world.pointer.y, 1, 0.08);
+          // [适配 6] 网格-only 模式靠这个增益让指针亮斑越过 0.45 的绘制阈值；
+          // 完整海洋保持 pointerGain/Radius = 1，行为与上游逐字一致。
+          this.stamp(energy, world.pointer.x, world.pointer.y, this.pointerRadius, 0.08 * this.pointerGain);
         }
       }
       /** Blur + decay so wakes spread out like ripples and fade. */
@@ -4293,7 +4323,7 @@ window.__ModuleLoader__.load({
       }
 
       var OceanEngine = class {
-        constructor(canvas, sharks, speed = 1, dark = false, gridScale = 1, gridOpacity = 0.05, fishCount, wake = 1, color = WHALE_COLOR, glyphMode = "ascii", colorfulShimmer = false, eyeColor = "primary", bodySwing = 1, turnAgility = 1, tailFrequency = 1, fpsCap = 30, interact = true) {
+        constructor(canvas, sharks, speed = 1, dark = false, gridScale = 1, gridOpacity = 0.05, fishCount, wake = 1, color = WHALE_COLOR, glyphMode = "ascii", colorfulShimmer = false, eyeColor = "primary", bodySwing = 1, turnAgility = 1, tailFrequency = 1, fpsCap = 30, interact = true, pointerGain = 1, pointerRadius = 1) {
           this.canvas = canvas;
           this.speed = speed;
           // [适配 4] 帧率上限：0/负数表示不限帧。
@@ -4306,6 +4336,11 @@ window.__ModuleLoader__.load({
           this.renderer = new AsciiRenderer(canvas, dark, gridScale, gridOpacity, wake, glyphMode);
           this.renderer.setTheme(dark, gridOpacity, wake, color, colorfulShimmer, eyeColor);
           this.renderer.bodySwing = bodySwing;
+          // [适配 6] 指针能量增益/半径：网格-only 模式没有鱼群与鲸鱼制造尾迹，
+          // 上游 0.08/半径 1 的指针写入永远越不过 0.45 的绘制阈值（实测稳态仅 0.27），
+          // 所以网格层需要更强的指针亮斑，否则「交互效果」根本看不见。完整海洋保持上游值。
+          this.renderer.pointerGain = typeof pointerGain === "number" && Number.isFinite(pointerGain) ? Math.max(1, pointerGain) : 1;
+          this.renderer.pointerRadius = typeof pointerRadius === "number" && Number.isFinite(pointerRadius) ? Math.max(1, Math.round(pointerRadius)) : 1;
           this.world.turnAgility = turnAgility;
           this.world.tailFrequency = tailFrequency;
           this.renderer.setFontFamily(getComputedStyle(canvas).fontFamily);
@@ -4513,17 +4548,30 @@ window.__ModuleLoader__.load({
        * @param {number} [options.tailFrequency] 摆尾频率
        * @param {number} [options.fps] 帧率上限（0 = 不限）
        * @param {boolean} [options.interact] 是否响应鼠标
+       * @param {boolean} [options.gridOnly] 只画底纹网格与指针交互，不生成鲸鱼与鱼群（v0.5.3）
        * @returns {InstanceType<typeof OceanEngine>}
        */
       function create(canvas, options) {
         const src = options && typeof options === "object" ? options : {};
+        // [适配 6] gridOnly：HUD 面板区域只需要底纹网格，不需要任何实体。
+        // 实现方式是「空鲸鱼列表 + 0 条小鱼」而不是在渲染器里加分支：World 对空数组的
+        // seed / step / rasterize 都是安全空循环；指针移动会经 depositWake 写能量亮斑、
+        // 点击会经 splash 写一圈快速扩散的能量点，网格因此仍然可交互；
+        // 这样也避免改动上游渲染主循环。
+        const gridOnly = src.gridOnly === true;
         const kind = src.species === "orca" ? "orca" : "whale";
         const baseSize = typeof src.size === "number" && Number.isFinite(src.size) ? src.size : 1;
         const whales = [];
-        const count = whaleCount(src.count);
+        const count = gridOnly ? 0 : whaleCount(src.count);
         for (let index = 0; index < count; index += 1) {
           whales.push({ kind, size: baseSize * WHALE_SIZE_STEPS[index % WHALE_SIZE_STEPS.length] });
         }
+        // fishCount 必须显式传 0：World 用 `??` 取默认值，undefined 会按面积生成鱼群。
+        const fishCount = gridOnly ? 0 : src.fishCount;
+        // [适配 6] 网格-only 没有鲸鱼/鱼群制造尾迹，指针必须更强才看得见（实测 4×/半径 2 才有
+        // 稳定的亮斑与拖尾，中心亮到最高桶；完整海洋仍用 1×/半径 1，观感零回归）。
+        const pointerGain = gridOnly ? 4 : 1;
+        const pointerRadius = gridOnly ? 2 : 1;
         return new OceanEngine(
           canvas,
           whales,
@@ -4531,7 +4579,7 @@ window.__ModuleLoader__.load({
           !!src.dark,
           src.gridScale,
           src.gridOpacity,
-          src.fishCount,
+          fishCount,
           src.wake,
           WHALE_COLOR,
           "ascii",
@@ -4542,6 +4590,8 @@ window.__ModuleLoader__.load({
           src.tailFrequency,
           src.fps,
           src.interact,
+          pointerGain,
+          pointerRadius,
         );
       }
 
@@ -4644,11 +4694,14 @@ window.__ModuleLoader__.load({
        * @param {number} [input.opacity]
        * @param {number} [input.fps]
        * @param {boolean} [input.interact]
+       * @param {boolean} [input.gridOnly] 只画底纹网格与指针交互，不生成鲸鱼与鱼群（v0.5.3）
        */
       function update(input) {
         if (disposed || failed) return;
         const src = read(input);
         const dark = !!src.dark;
+        // 网格-only 是「种群级」开关：它决定引擎里有没有实体，只能重建不能热更新。
+        const gridOnly = src.gridOnly === true;
         const species = src.species === "orca" ? "orca" : "humpback";
         const count = finite(src.count, 1);
         const size = finite(src.size, 1);
@@ -4671,7 +4724,8 @@ window.__ModuleLoader__.load({
         }
 
         // 种群签名：只有这些决定「有几个实体、多大、格子多细」，改动必须重建引擎。
-        const nextPopulation = `${species}|${count}|${size}|${gridScale}|${fishCount}`;
+        // v0.5.3 把 gridOnly 也放进来：网格-only 与完整海洋是两种引擎形态，切换必须重建。
+        const nextPopulation = `${gridOnly ? "grid" : "full"}|${species}|${count}|${size}|${gridScale}|${fishCount}`;
         // 观感签名：其余能热更新的参数，外加主题。
         const nextAppearance = `${speed}|${bodySwing}|${turnAgility}|${tailFrequency}|${dark}|${gridOpacity}|${wake}`;
 
@@ -4698,6 +4752,7 @@ window.__ModuleLoader__.load({
               wake,
               fps,
               interact,
+              gridOnly,
             });
           } catch (error) {
             // 兜底：鲸鱼画不出来不该拖垮信号场、标题、毛玻璃。
@@ -4860,6 +4915,22 @@ window.__ModuleLoader__.load({
       opacity:var(--mui-whale-opacity,1);
     }
     [data-mui-whale] > canvas{
+      position:absolute;inset:0;display:block;width:100%;height:100%;
+      font-family:"Whales Mono",ui-monospace,Menlo,monospace;font-weight:600;
+    }
+    /* HUD 面板区域的鲸鱼网格层（v0.5.3）。
+       与信号场补场是同级兄弟：固定在面板所在的悬浮层里、插在补场之后与面板之前，
+       所以它压在信号场之上、面板之下，z-index:0 就够（不需要负 z）。
+       定位（left/top/width/height）由 JS 按与补场相同的竖带写成内联样式；
+       这里只保留固定定位、裁剪、不吃指针事件与鲸鱼透明度。
+       data-off 只在带子暂时无效（面板折叠/尺寸为 0/浮在内容区中间）时隐藏图层，
+       不销毁引擎：下一帧 ResizeObserver 会把它放回来，重建一次只会白丢字形烘焙。 */
+    [data-mui-whale-hud]{
+      position:fixed;inset:auto;z-index:0;pointer-events:none;overflow:hidden;
+      opacity:var(--mui-whale-opacity,1);
+    }
+    [data-mui-whale-hud][data-off]{visibility:hidden}
+    [data-mui-whale-hud] > canvas{
       position:absolute;inset:0;display:block;width:100%;height:100%;
       font-family:"Whales Mono",ui-monospace,Menlo,monospace;font-weight:600;
     }
@@ -5033,7 +5104,6 @@ window.__ModuleLoader__.load({
         background:color-mix(in srgb, var(--dsw-alias-bg-layer-1) 92%, transparent);
       }
     }
-
     /* ===== 「UI 动画」设置页 ===== */.mui-page{display:flex;flex-direction:column;gap:16px;padding:2px 0 24px;font-size:13px;line-height:20px;color:var(--dsw-alias-label-primary)}
     .mui-lead{margin:0;color:var(--dsw-alias-label-secondary);font-size:13px;line-height:20px}
     /* 卡片（v0.4.0）：每个模块一张。只用主题 token 的**描边式**卡片（圆角 + 1px 边 + 透明底），
@@ -5434,9 +5504,19 @@ window.__ModuleLoader__.load({
       /** HUD 面板背后的补场：面板浮在内容区右侧，那里没有信号场，玻璃只能模糊到一片白。 */
       let hudBackdropEl = null;
       let hudField = null;
+      /**
+       * HUD 面板区域的鲸鱼网格层（v0.5.3）。
+       *
+       * 与补场是**两个独立图层**，因为两者的开关不同：补场跟随「背景」，网格跟随「鲸鱼」。
+       * 只开鲸鱼、关掉背景时，补场不存在但网格仍然要有；共用一个容器会把两套生命周期绑死。
+       * DOM 顺序固定为「补场 → 网格 → 面板」，网格因此压在补场之上、面板之下。
+       */
+      let hudWhaleEl = null;
+      let hudWhaleField = null;
       let hudPanelWatched = null;
       let hudObserver = null;
       let hudNote = "-";
+      let hudWhaleNote = "-";
       /** 输入框下方信息行那一条的高度（px），写成 --mui-seat-band-h。 */
       let seatBandH = -1;
       let seatBandWatched = null;
@@ -5537,6 +5617,8 @@ window.__ModuleLoader__.load({
 
       /** HUD 补场盒子的上次位置签名：几何没变就不重写 4 个 style。 */
       let hudBoxSignature = "";
+      /** HUD 鲸鱼网格盒子的上次位置签名（v0.5.3）。 */
+      let hudWhaleBoxSignature = "";
 
       // ---- 锚点解析 ---------------------------------------------------------
 
@@ -5827,6 +5909,8 @@ window.__ModuleLoader__.load({
         // v0.4.0：鲸鱼图层与信号场同宿主，离开作用范围时一起拆。
         destroyWhale();
         destroyHudBackdrop();
+        // v0.5.3：HUD 面板区域的鲸鱼网格层也属于本插件的现场，离开时一并拆掉。
+        destroyHudWhale();
         if (layerEl) {
           layerEl.remove();
           layerEl = null;
@@ -5936,35 +6020,48 @@ window.__ModuleLoader__.load({
           return;
         }
         hudBackdropEl.style.zIndex = "0";
-        if (hudBackdropEl.parentElement !== parent || hudBackdropEl.nextElementSibling !== panel) {
-          parent.insertBefore(hudBackdropEl, panel);
+        // v0.5.3：网格层要压在补场之上，所以补场必须排在网格层之前。
+        // 有网格层时以它为参照，否则以面板为参照；两者都满足时不做任何移动（幂等）。
+        const target = hudWhaleEl && hudWhaleEl.parentElement === parent ? hudWhaleEl : panel;
+        if (hudBackdropEl.parentElement !== parent || hudBackdropEl.nextElementSibling !== target) {
+          parent.insertBefore(hudBackdropEl, target);
         }
       }
 
       /**
-       * 把补场图层的盒子对齐到「面板所在那一侧的带子」而不是面板本身。
+       * 把鲸鱼网格层插到面板之前（v0.5.3）。
        *
-       * v0.2.5 按「面板矩形外扩 24px」铺，实机上露出两个问题：
-       *   1. 顶边成了一条直线——补场比会话内容区高出十几像素，右栏就浮出一块带硬边的「补丁」；
-       *   2. 面板左侧那圈外扩区落在内容区之上，两层场叠在一起，亮格 233 → 243、暗格 233 → 218，
-       *      肉眼就是一条发脏的竖带。
-       * 所以：补场不得压进内容区（内容区自己那层场已经在那儿），上缘对齐内容区上沿，
-       * 另一侧一直铺到视口边——这样它和内容区的场并成同一条带子，只是相位不同。
-       *
-       * v0.5.2：面板可以被停靠到内容区**左侧**（dsh-awesome-hud 的位置切换），
-       * 而 v0.5.1 及之前这里硬编码「left = 内容区右缘、width 铺到视口右缘」，
-       * 于是面板停靠左侧时补场要么落在面板对面那条空缝里、要么宽度为 0 直接不显示——
-       * 表现就是「面板在左边时，面板背后没有动效背景」。现在按面板所在的那一侧取带子。
+       * 与补场同一套锚定语义：同父、z-index:0、面板之前的最后一个兄弟。
+       * 顺序固定为「补场 → 网格 → 面板」，因此每次 sync 都先锚定补场、再锚定网格。
+       * body 兜底沿用补场的处理（负 z-index 会沉到外壳底色之下，等于不可见——这是退化路径，
+       * 真实布局里 HUD 面板始终挂在 shell.overlay 里）。
        */
-      function placeHudBackdrop(panel) {
-        if (!hudBackdropEl) return;
-        const rect = panelRectOf(panel);
-        if (!rect) {
-          setFlag(hudBackdropEl, "data-on", false);
-          hudBoxSignature = "";
-          if (hudField) hudField.update({ idle: false, interact: false });
+      function anchorHudWhale(panel) {
+        if (!hudWhaleEl || !panel) return;
+        const parent = panel.parentElement;
+        if (!parent || parent === doc.body || parent === doc.documentElement) {
+          if (hudWhaleEl.parentElement !== doc.body) doc.body.append(hudWhaleEl);
+          hudWhaleEl.style.zIndex = "-1";
           return;
         }
+        hudWhaleEl.style.zIndex = "0";
+        if (hudWhaleEl.parentElement !== parent || hudWhaleEl.nextElementSibling !== panel) {
+          parent.insertBefore(hudWhaleEl, panel);
+        }
+      }
+
+      /**
+       * 量一次「面板所在那一侧的竖带」（v0.5.3 抽公共）。
+       *
+       * 补场与鲸鱼网格必须铺同一块区域，否则两层会在接缝处错位。把输入与
+       * `resolveHudStrip` 的调用收敛到这里，两处判定就不会各写一份而漂移。
+       *
+       * @param {HTMLElement} panel
+       * @returns {{ rect: {left:number, top:number, width:number, height:number, right:number}, strip: {side:string, left:number, top:number, width:number, height:number} } | null}
+       */
+      function measureHudStrip(panel) {
+        const rect = panelRectOf(panel);
+        if (!rect) return null;
 
         // 会话内容区：场的宿主，同时给出补场要贴合的那条带子的边界。
         let box = null;
@@ -5993,6 +6090,34 @@ window.__ModuleLoader__.load({
           viewportHeight: doc.documentElement.clientHeight,
           pad: 24,
         });
+        return { rect, strip };
+      }
+
+      /**
+       * 把补场图层的盒子对齐到「面板所在那一侧的带子」而不是面板本身。
+       *
+       * v0.2.5 按「面板矩形外扩 24px」铺，实机上露出两个问题：
+       *   1. 顶边成了一条直线——补场比会话内容区高出十几像素，右栏就浮出一块带硬边的「补丁」；
+       *   2. 面板左侧那圈外扩区落在内容区之上，两层场叠在一起，亮格 233 → 243、暗格 233 → 218，
+       *      肉眼就是一条发脏的竖带。
+       * 所以：补场不得压进内容区（内容区自己那层场已经在那儿），上缘对齐内容区上沿，
+       * 另一侧一直铺到视口边——这样它和内容区的场并成同一条带子，只是相位不同。
+       *
+       * v0.5.2：面板可以被停靠到内容区**左侧**（dsh-awesome-hud 的位置切换），
+       * 而 v0.5.1 及之前这里硬编码「left = 内容区右缘、width 铺到视口右缘」，
+       * 于是面板停靠左侧时补场要么落在面板对面那条空缝里、要么宽度为 0 直接不显示——
+       * 表现就是「面板在左边时，面板背后没有动效背景」。现在按面板所在的那一侧取带子。
+       */
+      function placeHudBackdrop(panel) {
+        if (!hudBackdropEl) return;
+        const measured = measureHudStrip(panel);
+        if (!measured) {
+          setFlag(hudBackdropEl, "data-on", false);
+          hudBoxSignature = "";
+          if (hudField) hudField.update({ idle: false, interact: false });
+          return;
+        }
+        const strip = measured.strip;
 
         // 面板完全落在内容区里（那一带已被内容区自己的场盖住）：不需要补场。
         if (strip.width < 2 || strip.height < 2) {
@@ -6017,11 +6142,41 @@ window.__ModuleLoader__.load({
       }
 
       /**
+       * 把鲸鱼网格层的盒子对齐到与补场完全相同的竖带（v0.5.3）。
+       *
+       * 几何来源与补场共用 `measureHudStrip`，因此两层的左右界、上缘与高度永远一致。
+       * 带子无效时只把图层藏起来（`data-off`）而不销毁：面板尺寸短时归零（折叠、切换停靠）
+       * 属于过渡状态，下一帧 `ResizeObserver` 会把它放回来，重建引擎只会白丢一次字形烘焙。
+       * 真正该销毁的时机（关鲸鱼、关面板、切页）由 `syncHudWhale` / `clearStage` 负责。
+       */
+      function placeHudWhale(panel) {
+        if (!hudWhaleEl) return;
+        const measured = measureHudStrip(panel);
+        if (!measured || measured.strip.width < 2 || measured.strip.height < 2) {
+          setFlag(hudWhaleEl, "data-off", true);
+          hudWhaleBoxSignature = "";
+          return;
+        }
+        const strip = measured.strip;
+        const boxSignature = `${strip.side}|${Math.round(strip.left)}|${Math.round(strip.top)}|${Math.round(strip.width)}|${Math.round(strip.height)}`;
+        if (boxSignature !== hudWhaleBoxSignature) {
+          hudWhaleBoxSignature = boxSignature;
+          hudWhaleEl.setAttribute("data-mui-hud-side", strip.side);
+          hudWhaleEl.style.left = `${Math.round(strip.left)}px`;
+          hudWhaleEl.style.top = `${Math.round(strip.top)}px`;
+          hudWhaleEl.style.width = `${Math.round(strip.width)}px`;
+          hudWhaleEl.style.height = `${Math.round(strip.height)}px`;
+        }
+        setFlag(hudWhaleEl, "data-off", false);
+      }
+
+      /**
        * HUD 面板补场：面板在、且**当前所在页**的「UI动效总开关」与「背景」都开着时才有意义。
        *
        * v0.5.0：面板玻璃要模糊的就是这片补场，所以两道开关与 syncRoot 里的
        * data-mui-hud-glass 完全一致——该页背景关掉后补场与玻璃一起消失，不留「发虚但没内容」的状态。
-       * 参数也取当前页那一份：补场与它所在页面的信号场必须是同一片观感，否则接缝处会露馅。
+       * v0.5.3：鲸鱼网格是另一个独立图层，不改这条闸门；只开鲸鱼时面板仍保持原生外观。
+       * 参数取当前页那一份：补场与它所在页面的信号场必须是同一片观感，否则接缝处会露馅。
        */
       function syncHudBackdrop(state, dark) {
         const panel = doc.querySelector(".hud-panel");
@@ -6084,13 +6239,91 @@ window.__ModuleLoader__.load({
         watchHudPanel(panel);
       }
 
+      /**
+       * HUD 面板区域的鲸鱼网格层（v0.5.3）。
+       *
+       * 闸门（用户决策）：全局总开关 + 当前页「UI动效总开关」+ 当前页「鲸鱼」+ 面板存在，
+       * **不要求**当前页「背景」——面板网格是鲸鱼那一层的延伸，不是信号场补场的延伸。
+       * 交互也跟随「鲸鱼」开关：鲸鱼层开着就响应指针/点击，不读该页「背景鼠标交互」。
+       *
+       * 内容是「网格 + 指针交互」而不是缩小版海洋：用鲸鱼引擎的 gridOnly 模式（空鲸鱼、零小鱼）。
+       * 参数只取当前页鲸鱼分组里的观感项（栅格/网格透明度/速度/尾迹/透明度/主题），
+       * 种群项固定成常量，避免调整鲸鱼数量或小鱼数量时白白重建一次画布。
+       *
+       * 该页关闭鲸鱼、面板关闭、离开会话页时整层销毁：引擎持有 ResizeObserver /
+       * IntersectionObserver / window 指针监听，留着不画比拆掉更费。
+       */
+      function hudGridWanted(state) {
+        return resolvePanelGridTarget({
+          page,
+          master: state.enabled,
+          pageEnabled: pageScopeOf(state, page).enabled,
+          whaleEnabled: whaleScopeOf(state, page).enabled,
+        });
+      }
+
+      function syncHudWhale(state, dark) {
+        const panel = doc.querySelector(".hud-panel");
+        if (!hudGridWanted(state) || !panel) {
+          destroyHudWhale();
+          return;
+        }
+        if (!hudWhaleEl) {
+          hudWhaleEl = doc.createElement("div");
+          hudWhaleEl.setAttribute("data-mui-whale-hud", "");
+          hudWhaleEl.setAttribute("aria-hidden", "true");
+          hudWhaleEl.style.position = "fixed";
+          hudWhaleEl.style.pointerEvents = "none";
+          hudWhaleEl.style.overflow = "hidden";
+        }
+        // 先就位再建引擎：引擎按容器尺寸初始化，插进面板同层后才量得到正确的视口尺寸。
+        anchorHudWhale(panel);
+        const options = {
+          ...whaleOptions(state, dark, page),
+          gridOnly: true,
+          // 用户决策：交互跟随「鲸鱼」开关（已由 hudGridWanted 打开），不跟随背景交互。
+          interact: true,
+          // 网格层没有实体：固定种群参数，避免调鲸鱼数量 / 小鱼数量时触发无谓重建。
+          species: "humpback",
+          count: 1,
+          size: 1,
+          fishCount: 0,
+        };
+        if (!hudWhaleField) {
+          hudWhaleField = createWhaleField(hudWhaleEl, options);
+          // 适配器内部兜底失败时会在图层上留痕；这里只做自检用的备注，不额外打日志。
+          hudWhaleNote = hudWhaleEl.hasAttribute("data-whale-fallback") ? "fallback:no-canvas" : "grid";
+        } else {
+          hudWhaleField.update(options);
+        }
+        placeHudWhale(panel);
+        watchHudPanel(panel);
+      }
+
       /** 面板会随窗口缩放/内容变化改高度，观察它自己的尺寸。 */
       function watchHudPanel(panel) {
         if (!panel || panel === hudPanelWatched) return;
         if (hudObserver) hudObserver.disconnect();
         hudPanelWatched = panel;
-        hudObserver = new ResizeObserver(() => placeHudBackdrop(panel));
+        hudObserver = new ResizeObserver(() => {
+          // 两个图层共用同一个观察器：各自在内部判空，缺失的那层直接返回。
+          placeHudBackdrop(panel);
+          placeHudWhale(panel);
+        });
         hudObserver.observe(panel);
+      }
+
+      /**
+       * 两个 HUD 图层共用一个面板观察器：只有**都不存在**时才真正释放。
+       * 只关背景（补场销毁、网格还在）或只关鲸鱼（网格销毁、补场还在）时都必须继续观察。
+       */
+      function releaseHudWatch() {
+        if (hudBackdropEl || hudWhaleEl) return;
+        if (hudObserver) {
+          hudObserver.disconnect();
+          hudObserver = null;
+        }
+        hudPanelWatched = null;
       }
 
       function destroyHudBackdrop() {
@@ -6102,13 +6335,24 @@ window.__ModuleLoader__.load({
           hudBackdropEl.remove();
           hudBackdropEl = null;
         }
-        if (hudObserver) {
-          hudObserver.disconnect();
-          hudObserver = null;
-        }
-        hudPanelWatched = null;
         hudNote = "-";
         hudBoxSignature = "";
+        releaseHudWatch();
+      }
+
+      /** 拆掉 HUD 鲸鱼网格层：适配器、画布、节点、几何签名一起清。 */
+      function destroyHudWhale() {
+        if (hudWhaleField) {
+          hudWhaleField.destroy();
+          hudWhaleField = null;
+        }
+        if (hudWhaleEl) {
+          hudWhaleEl.remove();
+          hudWhaleEl = null;
+        }
+        hudWhaleNote = "-";
+        hudWhaleBoxSignature = "";
+        releaseHudWatch();
       }
 
       // ---- 标题 -------------------------------------------------------------
@@ -6329,6 +6573,8 @@ window.__ModuleLoader__.load({
           page === PAGE_CHAT && !!chatScope.enabled && !!chatScope.glass,
         );
         // HUD 面板没有独立开关：跟随**当前所在页**的总开关 + 背景开关（见 resolvePanelTargets 注释）。
+        // v0.5.3 的鲸鱼网格不参与这条闸门：只开鲸鱼、关掉背景时面板保持原生外观（不强制毛玻璃），
+        // 网格只铺在面板背后的竖带图层里。
         const targets = resolvePanelTargets({
           page,
           pageEnabled: pageScopeOf(state, page).enabled,
@@ -6454,6 +6700,11 @@ window.__ModuleLoader__.load({
         lines.push(
           `hudBackdrop: ${short(hudBackdropEl)} ${size(hudBackdropEl)} side=${hudBackdropEl ? String(hudBackdropEl.getAttribute("data-mui-hud-side") || "-") : "-"} on=${hudBackdropEl && hudBackdropEl.hasAttribute("data-on") ? "yes" : "no"} z=${hudBackdropEl ? css(hudBackdropEl, "zIndex") : "-"} parent=${short(hudBackdropEl && hudBackdropEl.parentElement)} sameAsPanel=${hudBackdropEl && hudPanel && hudBackdropEl.parentElement === hudPanel.parentElement ? "yes" : "no"} engine=${hudNote}`,
         );
+        // HUD 网格层（v0.5.3）：与补场同一条竖带、插在补场与面板之间。
+        // `on` 反读 data-off（带子无效时图层还在、只是藏起来），gridOnly 固定为 yes。
+        lines.push(
+          `hudWhale: ${short(hudWhaleEl)} ${size(hudWhaleEl)} side=${hudWhaleEl ? String(hudWhaleEl.getAttribute("data-mui-hud-side") || "-") : "-"} on=${hudWhaleEl && !hudWhaleEl.hasAttribute("data-off") ? "yes" : "no"} z=${hudWhaleEl ? css(hudWhaleEl, "zIndex") : "-"} parent=${short(hudWhaleEl && hudWhaleEl.parentElement)} sameAsPanel=${hudWhaleEl && hudPanel && hudWhaleEl.parentElement === hudPanel.parentElement ? "yes" : "no"} gridOnly=yes engine=${hudWhaleNote} fallback=${hudWhaleEl && hudWhaleEl.hasAttribute("data-whale-fallback") ? "yes" : "no"}`,
+        );
         // 座位背衬：只该盖住「输入框下方信息行」那一条，回读实测高度与伪元素是否命中。
         const seatEl = doc.querySelector("[data-composer-seat]");
         const cardEl = doc.querySelector("[data-composer-card]");
@@ -6552,6 +6803,8 @@ window.__ModuleLoader__.load({
         // 必须排在 syncField 之后：鲸鱼图层靠「后插入」取得高于信号场的层叠位置。
         syncWhale(state, dark);
         syncHudBackdrop(state, dark);
+        // v0.5.3：网格层必须排在补场之后，才能插到补场与面板之间（压在补场之上、面板之下）。
+        syncHudWhale(state, dark);
 
         if (titleWanted(state)) mountTitle(state);
         else {

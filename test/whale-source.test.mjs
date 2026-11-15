@@ -83,9 +83,9 @@ test('whale-engine: Kanji 渲染器整段移除', async () => {
   assert.equal(code.includes('AsciiRenderer'), true);
 });
 
-test('whale-engine: 五处适配点都在', async () => {
+test('whale-engine: 六处适配点都在', async () => {
   const source = await read('src/whale-engine.js');
-  for (const marker of ['[适配 1]', '[适配 2]', '[适配 3]', '[适配 4]', '[适配 5]']) {
+  for (const marker of ['[适配 1]', '[适配 2]', '[适配 3]', '[适配 4]', '[适配 5]', '[适配 6]']) {
     assert.equal(source.includes(marker), true, `缺少适配点标注：${marker}`);
   }
   // 帧率与交互的运行期入口
@@ -160,7 +160,8 @@ test('styles: 鲸鱼图层与字体声明就位，且没有新增 backdrop-filte
   assert.match(CSS, /\[data-mui-whale\] > canvas\{/);
   // 毛玻璃**规则**条数基线：输入框卡片 / 座位背衬 / HUD 面板 = 3 条。
   // v0.5.2 的羽化过渡没有新增规则，而是给座位背衬本身加了 mask（模糊随上沿一起渐隐），
-  // 所以这里仍是 3。只数声明位置而不数字符串出现次数：注释里提到 backdrop-filter 不该让基线漂移。
+  // v0.5.3 的 HUD 网格层不做毛玻璃、也不改面板玻璃配方，所以这里仍是 3。
+  // 只数声明位置而不数字符串出现次数：注释里提到 backdrop-filter 不该让基线漂移。
   const glassDecls = new Set();
   for (const m of CSS.matchAll(/(?:^|[;{])\s*(?:-webkit-)?backdrop-filter\s*:/g)) {
     glassDecls.add(CSS.lastIndexOf('{', m.index));

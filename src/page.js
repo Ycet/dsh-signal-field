@@ -49,6 +49,9 @@ export function resolvePageKind(input) {
  * 没有可模糊的内容，补场与面板玻璃就应该一起回到原生外观。
  * 它**不**受当前页「输入框毛玻璃效果」开关控制（那个开关只管输入框卡片）。
  *
+ * v0.5.3 的鲸鱼网格**不改变**这条规则：网格只在自己的图层里绘制，
+ * 面板玻璃仍然只跟随「背景」，不会因为鲸鱼开着就变成毛玻璃。
+ *
  * @param {{ page?: string, pageEnabled?: unknown, backgroundEnabled?: unknown }} input
  * @returns {{ hud: boolean }}
  */
@@ -57,6 +60,26 @@ export function resolvePanelTargets(input) {
   const inScope = src.page === PAGE_HERO || src.page === PAGE_CHAT;
   if (!inScope) return { hud: false };
   return { hud: !!src.pageEnabled && !!src.backgroundEnabled };
+}
+
+/**
+ * 决定「HUD 面板区域的鲸鱼网格层」是否应该存在（v0.5.3）。
+ *
+ * 与 {@link resolvePanelTargets}（信号场补场 + 面板毛玻璃）刻意分成两套闸门：
+ *   - 补场存在的理由是「给面板玻璃一片真实的场去模糊」，所以它跟随该页「背景」开关；
+ *   - 面板网格存在的理由是「鲸鱼那一层的观感向面板区域延伸」，所以它跟随该页「鲸鱼」开关，
+ *     **不看背景**。否则「只开鲸鱼、关掉背景」时，内容区有鲸鱼网格、面板区域却光秃秃的，
+ *     两层本来是同一套观感，接缝会很突兀。
+ *
+ * 具体闸门与内容区鲸鱼层完全一致（全局总开关 + 当前页总开关 + 当前页鲸鱼开关 + 会话页），
+ * 因此直接复用 {@link resolveWhaleTarget}；本函数只承担「语义命名 + 单一出口」的职责，
+ * 面板是否存在、带子几何是否有效由调用方（stage.js）继续判定。
+ *
+ * @param {{ page?: string, pageEnabled?: unknown, master?: unknown, whaleEnabled?: unknown }} input
+ * @returns {boolean}
+ */
+export function resolvePanelGridTarget(input) {
+  return resolveWhaleTarget(input);
 }
 
 /**

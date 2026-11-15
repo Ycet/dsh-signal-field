@@ -93,11 +93,14 @@ export function createWhaleField(layer, options) {
    * @param {number} [input.opacity]
    * @param {number} [input.fps]
    * @param {boolean} [input.interact]
+   * @param {boolean} [input.gridOnly] 只画底纹网格与指针交互，不生成鲸鱼与鱼群（v0.5.3）
    */
   function update(input) {
     if (disposed || failed) return;
     const src = read(input);
     const dark = !!src.dark;
+    // 网格-only 是「种群级」开关：它决定引擎里有没有实体，只能重建不能热更新。
+    const gridOnly = src.gridOnly === true;
     const species = src.species === "orca" ? "orca" : "humpback";
     const count = finite(src.count, 1);
     const size = finite(src.size, 1);
@@ -120,7 +123,8 @@ export function createWhaleField(layer, options) {
     }
 
     // 种群签名：只有这些决定「有几个实体、多大、格子多细」，改动必须重建引擎。
-    const nextPopulation = `${species}|${count}|${size}|${gridScale}|${fishCount}`;
+    // v0.5.3 把 gridOnly 也放进来：网格-only 与完整海洋是两种引擎形态，切换必须重建。
+    const nextPopulation = `${gridOnly ? "grid" : "full"}|${species}|${count}|${size}|${gridScale}|${fishCount}`;
     // 观感签名：其余能热更新的参数，外加主题。
     const nextAppearance = `${speed}|${bodySwing}|${turnAgility}|${tailFrequency}|${dark}|${gridOpacity}|${wake}`;
 
@@ -147,6 +151,7 @@ export function createWhaleField(layer, options) {
           wake,
           fps,
           interact,
+          gridOnly,
         });
       } catch (error) {
         // 兜底：鲸鱼画不出来不该拖垮信号场、标题、毛玻璃。

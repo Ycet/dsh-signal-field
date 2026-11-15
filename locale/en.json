@@ -35,7 +35,7 @@
     "rowTitleSpeed": "Headline animation speed",
     "rowTitleSpeedHint": "How fast the sweep runner, reveal lens and hover-to-outline transitions run; 1× is the current feel. Applies live while dragging, with no replay.",
     "rowWhale": "Whales",
-    "rowWhaleHint": "Stacks an ASCII whale layer on the current page, above the signal field; the new-session and chat pages keep separate parameters, and the Trace and Stats views show it too.",
+    "rowWhaleHint": "Stacks an ASCII whale layer on the current page, above the signal field; the new-session and chat pages keep separate parameters, and the Trace and Stats views show it too. The HUD panel's band also gets the same ASCII grid with pointer/click interaction (no whales); it follows this switch, not the backdrop switch.",
     "rowWhaleSpecies": "Whale species",
     "rowWhaleSpeciesHint": "Humpback has longer flippers and wider flukes; orca is slightly smaller with white markings.",
     "whaleHumpback": "Humpback",

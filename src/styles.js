@@ -96,6 +96,22 @@ html[data-mui-active] [data-conversation-content] [data-conversation-composer-ov
   position:absolute;inset:0;display:block;width:100%;height:100%;
   font-family:"Whales Mono",ui-monospace,Menlo,monospace;font-weight:600;
 }
+/* HUD 面板区域的鲸鱼网格层（v0.5.3）。
+   与信号场补场是同级兄弟：固定在面板所在的悬浮层里、插在补场之后与面板之前，
+   所以它压在信号场之上、面板之下，z-index:0 就够（不需要负 z）。
+   定位（left/top/width/height）由 JS 按与补场相同的竖带写成内联样式；
+   这里只保留固定定位、裁剪、不吃指针事件与鲸鱼透明度。
+   data-off 只在带子暂时无效（面板折叠/尺寸为 0/浮在内容区中间）时隐藏图层，
+   不销毁引擎：下一帧 ResizeObserver 会把它放回来，重建一次只会白丢字形烘焙。 */
+[data-mui-whale-hud]{
+  position:fixed;inset:auto;z-index:0;pointer-events:none;overflow:hidden;
+  opacity:var(--mui-whale-opacity,1);
+}
+[data-mui-whale-hud][data-off]{visibility:hidden}
+[data-mui-whale-hud] > canvas{
+  position:absolute;inset:0;display:block;width:100%;height:100%;
+  font-family:"Whales Mono",ui-monospace,Menlo,monospace;font-weight:600;
+}
 
 /* ===== 蓝图标题 =====
    标题现在是 hero 行内的一个块：宽高由 JS 按目标字号（42px）反推后写成内联样式，
@@ -266,7 +282,6 @@ html[data-mui-scope][data-mui-hud-glass][data-mui-dark] .hud-panel::before{
     background:color-mix(in srgb, var(--dsw-alias-bg-layer-1) 92%, transparent);
   }
 }
-
 /* ===== 「UI 动画」设置页 ===== */.mui-page{display:flex;flex-direction:column;gap:16px;padding:2px 0 24px;font-size:13px;line-height:20px;color:var(--dsw-alias-label-primary)}
 .mui-lead{margin:0;color:var(--dsw-alias-label-secondary);font-size:13px;line-height:20px}
 /* 卡片（v0.4.0）：每个模块一张。只用主题 token 的**描边式**卡片（圆角 + 1px 边 + 透明底），

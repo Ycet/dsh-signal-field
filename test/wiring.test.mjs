@@ -91,7 +91,8 @@ function element(tag) {
       return null;
     },
     getBoundingClientRect() {
-      return { left: 0, top: 0, width: 0, height: 0, right: 0, bottom: 0 };
+      // v0.5.3：HUD 面板与内容区的几何由用例按需覆盖（补场/网格的竖带计算需要非零矩形）。
+      return node.rect || { left: 0, top: 0, width: 0, height: 0, right: 0, bottom: 0 };
     },
     getContext() {
       return null;
@@ -123,6 +124,24 @@ function documentStub(options) {
   if (conversation) conversation.setAttribute('data-content-phase', phase);
   doc.conversation = conversation;
 
+  // v0.5.3：可选地模拟 dsh-awesome-hud 的悬浮面板（.hud-panel 挂在 shell.overlay 里）。
+  // 几何给非零值，补场与 HUD 网格层的竖带计算才会真正执行。
+  const panel = options && options.hudPanel ? element('section') : null;
+  if (panel) {
+    panel.className = 'hud-panel';
+    panel.setAttribute('data-side', 'right');
+    const overlay = element('div');
+    overlay.append(panel);
+    doc.body.append(overlay);
+    doc.hudPanel = panel;
+    doc.hudOverlay = overlay;
+    // 内容区 900x800，面板贴住内容区右缘、两侧各留一点视口边距：带子应为 900→1220。
+    if (conversation) conversation.rect = { left: 0, top: 0, width: 900, height: 800, right: 900, bottom: 800 };
+    panel.rect = { left: 908, top: 12, width: 300, height: 760, right: 1208, bottom: 772 };
+    doc.documentElement.clientWidth = 1220;
+    doc.documentElement.clientHeight = 820;
+  }
+
   // v0.5.1：模拟聊天页里的子视图标记（轨迹的滚动容器 / 统计表头），
   // 用来验证「切到轨迹、统计视图后鲸鱼图层仍在，且 data-mui-active 不被收回」。
   const view = options && options.conversationView;
@@ -133,6 +152,7 @@ function documentStub(options) {
     if (!conversation) return null;
     const sel = String(selector);
     if (sel === '[data-conversation-content]') return conversation;
+    if (sel === '.hud-panel') return panel || null;
     if (sel === '[data-content-phase="hero"]') {
       return conversation.getAttribute('data-content-phase') === 'hero' ? conversation : null;
     }
@@ -465,11 +485,12 @@ test('wiring: 自检文本可生成（覆盖座位背衬与 HUD 补场两段）'
 // ---- v0.4.0：鲸鱼图层的装配 ------------------------------------------------
 
 /** 在给定存档下装配一次，返回替身 DOM 与鲸鱼图层查询结果。 */
-async function mountWith(settings, conversationPhase = 'hero', conversationView) {
+async function mountWith(settings, conversationPhase = 'hero', conversationView, extra) {
   const { mod, doc } = await loadModule({
     conversationPhase,
     conversationView,
     settings: settings === undefined ? undefined : JSON.stringify(settings),
+    ...(extra || {}),
   });
   const ctx = {
     effect(factory) {
@@ -490,7 +511,7 @@ async function mountWith(settings, conversationPhase = 'hero', conversationView)
   };
   mod.apply(ctx);
   const layers = doc.conversation.children.filter((child) => child.hasAttribute('data-mui-whale'));
-  return { doc, layers };
+  return { doc, layers, panel: doc.hudPanel || null, overlay: doc.hudOverlay || null };
 }
 
 test('wiring: hero 页默认挂出鲸鱼图层，且引擎失败时走兜底不抛错', async () => {
@@ -588,4 +609,111 @@ test('wiring: 两页都关掉动效后 data-mui-active 不残留', async () => {
     'active',
   );
   assert.equal(doc.documentElement.hasAttribute('data-mui-active'), false, '没有任何图层时不得留下作用域标记');
+});
+
+// ---- v0.5.3：HUD 面板区域的鲸鱼网格层 ---------------------------------------
+
+/** 取 HUD 悬浮层里的网格图层（与内容区的 [data-mui-whale] 区分开）。 */
+function hudGridLayers(overlay) {
+  if (!overlay) return [];
+  return overlay.children.filter((child) => child.hasAttribute('data-mui-whale-hud'));
+}
+
+test('wiring: HUD 面板打开时挂出网格层，且排在补场之后、面板之前', async () => {
+  // 替身没有 Canvas2D，引擎必定构造失败——这一条同时验证「图层挂上了」与「失败被兜住」。
+  const { overlay, panel } = await mountWith(undefined, 'hero', undefined, { hudPanel: true });
+  const layers = hudGridLayers(overlay);
+  assert.equal(layers.length, 1, '面板打开时应有且只有一个 HUD 网格层');
+  const layer = layers[0];
+  assert.equal(layer.hasAttribute('aria-hidden'), true, '网格层必须对读屏隐藏');
+  assert.equal(layer.children.length, 1, '图层里应有一个 canvas');
+  assert.equal(layer.children[0].tagName, 'CANVAS');
+  // 层序：补场 → 网格 → 面板。网格在补场之前会被盖住，在面板之后会盖住面板。
+  const backdrop = overlay.children.find((child) => child.hasAttribute('data-mui-field-hud'));
+  assert.ok(backdrop, '默认设置下补场也应在');
+  assert.ok(overlay.children.indexOf(backdrop) < overlay.children.indexOf(layer), '补场必须排在网格层之前');
+  assert.equal(overlay.children.indexOf(layer), overlay.children.indexOf(panel) - 1, '网格层必须是面板的前一个兄弟');
+  // 几何来自与补场相同的竖带：内容区右缘 900 → 视口右缘 1220，高度铺到视口底。
+  assert.equal(layer.getAttribute('data-mui-hud-side'), 'right');
+  assert.equal(layer.style.left, '900px');
+  assert.equal(layer.style.top, '0px');
+  assert.equal(layer.style.width, '320px');
+  assert.equal(layer.style.height, '820px');
+  assert.equal(layer.hasAttribute('data-off'), false, '有几何时不应隐藏');
+  assert.equal(layer.hasAttribute('data-whale-fallback'), true, '无 Canvas2D 时应标记兜底状态');
+});
+
+test('wiring: 关掉鲸鱼后不建 HUD 网格层（闸门跟随鲸鱼）', async () => {
+  const { overlay } = await mountWith(
+    { version: 3, pages: { hero: { whale: { enabled: false } } } },
+    'hero',
+    undefined,
+    { hudPanel: true },
+  );
+  assert.equal(hudGridLayers(overlay).length, 0, '关掉鲸鱼后 HUD 区不该再有网格层');
+});
+
+test('wiring: 只关背景、鲸鱼仍开时 HUD 网格层仍在（与背景解耦）', async () => {
+  const { overlay } = await mountWith(
+    { version: 3, pages: { chat: { background: { enabled: false }, whale: { enabled: true } } } },
+    'active',
+    undefined,
+    { hudPanel: true },
+  );
+  const layers = hudGridLayers(overlay);
+  assert.equal(layers.length, 1, '背景关闭不应牵连 HUD 网格层');
+  // 反证：补场跟随背景，这个组合下不应存在。
+  const backdrop = overlay.children.find((child) => child.hasAttribute('data-mui-field-hud'));
+  assert.equal(backdrop, undefined, '背景关掉后不应创建 HUD 补场');
+  // 用户要求：只开鲸鱼、关掉背景时 HUD 不需要毛玻璃。
+  // 网格层仍在背后的竖带里，但面板玻璃继续只跟随「背景」。
+  const { doc } = await mountWith(
+    { version: 3, pages: { chat: { background: { enabled: false }, whale: { enabled: true } } } },
+    'active',
+    undefined,
+    { hudPanel: true },
+  );
+  const root = doc.documentElement;
+  assert.equal(root.hasAttribute('data-mui-hud-glass'), false, '只开鲸鱼时不得强制面板毛玻璃');
+});
+
+test('wiring: 只开背景时面板玻璃开（原闸门不变）', async () => {
+  const { doc } = await mountWith(
+    { version: 3, pages: { chat: { background: { enabled: true }, whale: { enabled: false } } } },
+    'active',
+    undefined,
+    { hudPanel: true },
+  );
+  const root = doc.documentElement;
+  assert.equal(root.hasAttribute('data-mui-hud-glass'), true, '背景开时面板玻璃照旧');
+});
+
+test('wiring: 背景与鲸鱼都关时面板回到原生外观', async () => {
+  const { doc, overlay } = await mountWith(
+    { version: 3, pages: { chat: { background: { enabled: false }, whale: { enabled: false } } } },
+    'active',
+    undefined,
+    { hudPanel: true },
+  );
+  const root = doc.documentElement;
+  assert.equal(root.hasAttribute('data-mui-hud-glass'), false, '没有可模糊内容时玻璃必须关');
+  assert.equal(hudGridLayers(overlay).length, 0, '鲸鱼关时不应有网格层');
+});
+
+test('wiring: 页总开关关闭时不建 HUD 网格层', async () => {
+  const { overlay } = await mountWith(
+    { version: 3, pages: { hero: { enabled: false } } },
+    'hero',
+    undefined,
+    { hudPanel: true },
+  );
+  assert.equal(hudGridLayers(overlay).length, 0, '页总开关关闭时网格层也应停用');
+});
+
+test('wiring: 没有 HUD 面板时不建网格层', async () => {
+  const { overlay } = await mountWith(undefined, 'hero');
+  assert.equal(overlay, null, '未打开面板时不应有悬浮层');
+  // 没有面板就没有 HUD 图层；内容区鲸鱼层不受影响。
+  const { doc } = await mountWith(undefined, 'hero');
+  assert.equal(doc.hudOverlay, undefined);
 });
