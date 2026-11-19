@@ -123,6 +123,9 @@ test('build: 产物包含当前版本的作用域钩子', async () => {
     'data-mui-hud-glass',
     'gridOnly',
     'function measureTitle',
+    'function resolveStageRect',
+    'titleStage:',
+    'titleScroll:',
     'function resolvePanelTargets',
     'function resolvePanelGridTarget',
   ]) {

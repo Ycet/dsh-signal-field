@@ -1471,6 +1471,27 @@ export function createStage(options) {
         `whale[${speedPage}]=${whaleScopeOf(snapshot, speedPage).speed}x hud=follow`,
     );
 
+    // v0.5.4：标题舞台是否真的收进了滚动容器。滚动条回归只看这两行：
+    // 舞台右/下边缘不得越过滚动容器 client 盒，vExtra/hExtra 应保持 0。
+    const stageInfo = title && typeof title.stageRect === "function" ? title.stageRect() : null;
+    lines.push(
+      stageInfo
+        ? `titleStage: ox=${stageInfo.ox} oy=${stageInfo.oy} ${stageInfo.w}x${stageInfo.h}`
+        : "titleStage: none",
+    );
+    const scrollEl = doc.querySelector("[data-conversation-scroll]");
+    if (scrollEl) {
+      const vExtra = Math.round(scrollEl.scrollHeight - scrollEl.clientHeight);
+      const hExtra = Math.round(scrollEl.scrollWidth - scrollEl.clientWidth);
+      lines.push(
+        `titleScroll: ${short(scrollEl)} client=${scrollEl.clientWidth}x${scrollEl.clientHeight} ` +
+          `scroll=${scrollEl.scrollWidth}x${scrollEl.scrollHeight} ` +
+          `vExtra=${vExtra > 0 ? "+" : ""}${vExtra} hExtra=${hExtra > 0 ? "+" : ""}${hExtra}`,
+      );
+    } else {
+      lines.push("titleScroll: -");
+    }
+
     if (history.length > 0) {
       lines.push("--- history (newest last) ---");
       for (const entry of history.slice(-14)) lines.push(entry);

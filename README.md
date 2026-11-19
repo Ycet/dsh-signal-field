@@ -1,9 +1,9 @@
-# dsh-signal-field v0.5.3
+# dsh-signal-field v0.5.4
 
 [![中文](https://img.shields.io/badge/简体中文-red?style=for-the-badge)](README.md)
 [![EN](https://img.shields.io/badge/English-blue?style=for-the-badge)](README_en.md)
 
-![version](https://img.shields.io/badge/version-v0.5.3-blue?style=for-the-badge)
+![version](https://img.shields.io/badge/version-v0.5.4-blue?style=for-the-badge)
 ![license](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
 ![platform](https://img.shields.io/badge/platform-DSH%20Web%20%2F%20Desktop-informational?style=for-the-badge)
 
@@ -155,10 +155,10 @@ plugin_manager remove_bundle  target=dsh-signal-field
 
 ```sh
 # 方式一：GitHub 依赖（锁定版本 tag，需本机有 git）
-dsh plugin --profile web add "github:Ycet/dsh-signal-field#v0.5.3"
+dsh plugin --profile web add "github:Ycet/dsh-signal-field#v0.5.4"
 
 # 方式二：Release 资产 tarball（无需 git）
-dsh plugin --profile web add "https://github.com/Ycet/dsh-signal-field/releases/download/v0.5.3/dsh-signal-field-0.5.3.tgz"
+dsh plugin --profile web add "https://github.com/Ycet/dsh-signal-field/releases/download/v0.5.4/dsh-signal-field-0.5.4.tgz"
 
 # 桌面端把 --profile web 换成 --profile desktop（使用桌面端自带 CLI）
 ```

@@ -244,3 +244,17 @@ test('parity: data-mui-active 由「信号场或鲸鱼」共同决定，只开�
     '座位背衬规则应受 data-mui-active 控制',
   );
 });
+
+test('parity: 标题舞台以滚动容器 client 盒为裁剪边界（v0.5.4）', async () => {
+  // 这一条防的是「开启标题后新建会话页出现滚动条」：
+  // 舞台右/下边缘一旦越过 [data-conversation-scroll] 的 client 盒，
+  // 滚动容器就会多出可滚余量；取整误差也会被计入。
+  const tech = await readFile(new URL('../src/techtext.js', import.meta.url), 'utf8');
+  assert.match(tech, /export function resolveStageRect/, '舞台矩形必须抽成可测纯函数');
+  assert.match(tech, /\[data-conversation-scroll\]/, '必须定位真正的滚动容器');
+  assert.match(tech, /clientWidth/, '必须使用 client 盒宽度（排除滚动条与边框）');
+  assert.match(tech, /clientHeight/, '必须使用 client 盒高度');
+  assert.match(tech, /Math\.floor\(right\)/, '舞台右缘必须向内取整');
+  assert.match(tech, /Math\.floor\(bottom\)/, '舞台下缘必须向内取整');
+  assert.match(tech, /stageRect\(\)/, '引擎必须暴露舞台矩形供自检回读');
+});

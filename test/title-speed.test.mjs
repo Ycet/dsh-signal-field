@@ -65,13 +65,15 @@ test('标题: setSpeed 存在，且不触发重烘焙', () => {
   assert.match(body, /speedValue\(value\)/, 'setSpeed 必须走统一的倍率钳位');
 });
 
-test('标题: 降级桩也暴露 setSpeed，保证接口一致', () => {
-  // Canvas2D 不可用时返回的桩对象若缺 setSpeed，stage 的 syncTitle 会直接抛错。
-  assert.match(
-    SOURCE,
-    /return \{ refresh\(\) \{\}, setSpeed\(\) \{\}, destroy\(\)/,
-    '降级返回的桩对象必须与正常返回的接口一致',
-  );
+test('标题: 降级桩也暴露完整接口（含 setSpeed/stageRect），保证调用方不抛错', () => {
+  // Canvas2D 不可用时返回的桩对象若缺方法，stage 的 syncTitle / diagnose 会直接抛错。
+  const stubStart = SOURCE.indexOf('if (!ctx || !scratchCtx)');
+  const stubEnd = SOURCE.indexOf('let width = 1;');
+  assert.ok(stubStart > 0 && stubEnd > stubStart, '无法界定降级桩代码块');
+  const stub = SOURCE.slice(stubStart, stubEnd);
+  for (const method of ['refresh()', 'setSpeed()', 'destroy()', 'redraw()', 'stageRect()']) {
+    assert.equal(stub.includes(method), true, `降级桩缺少方法：${method}`);
+  }
 });
 
 test('标题: 三个速度相关时间常数走 scaleTau，不再是写死的字面量', () => {

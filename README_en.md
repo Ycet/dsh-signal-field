@@ -1,9 +1,9 @@
-# dsh-signal-field v0.5.3
+# dsh-signal-field v0.5.4
 
 [![中文](https://img.shields.io/badge/简体中文-red?style=for-the-badge)](README.md)
 [![EN](https://img.shields.io/badge/English-blue?style=for-the-badge)](README_en.md)
 
-![version](https://img.shields.io/badge/version-v0.5.3-blue?style=for-the-badge)
+![version](https://img.shields.io/badge/version-v0.5.4-blue?style=for-the-badge)
 ![license](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
 ![platform](https://img.shields.io/badge/platform-DSH%20Web%20%2F%20Desktop-informational?style=for-the-badge)
 
@@ -155,10 +155,10 @@ plugin_manager remove_bundle  target=dsh-signal-field
 
 ```sh
 # Option 1: GitHub dependency (pinned to a release tag; requires git)
-dsh plugin --profile web add "github:Ycet/dsh-signal-field#v0.5.3"
+dsh plugin --profile web add "github:Ycet/dsh-signal-field#v0.5.4"
 
 # Option 2: Release asset tarball (no git required)
-dsh plugin --profile web add "https://github.com/Ycet/dsh-signal-field/releases/download/v0.5.3/dsh-signal-field-0.5.3.tgz"
+dsh plugin --profile web add "https://github.com/Ycet/dsh-signal-field/releases/download/v0.5.4/dsh-signal-field-0.5.4.tgz"
 
 # Desktop: replace --profile web with --profile desktop (using the desktop-bundled CLI)
 ```

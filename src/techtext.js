@@ -77,6 +77,94 @@ const TECH_FIT_WIDTH = 0.92;
 const TECH_FIT_HEIGHT = 0.72;
 
 /**
+ * 计算标题舞台矩形（容器相对坐标，CSS px）。
+ *
+ * 设计盒（designWidth × designHeight）负责布局与交互热区；舞台比设计盒大，
+ * 用于承载拖出设计盒的字形。舞台一旦越过**滚动容器的可视 client 盒**，就会给
+ * `[data-conversation-scroll]` 制造可滚动余量 —— 新建会话页因此出现滚动条。
+ * 所以这里以滚动容器为裁剪边界，并把右/下边缘**向内取整**，连 1px 的取整误差
+ * 也不留给滚动容器。取不到滚动容器时退回内容面并内缩 2px（滚动容器 margin-right 的量级）。
+ *
+ * @param {{
+ *   own: {left:number, top:number, width:number, height:number},
+ *   host?: {left:number, top:number, width:number, height:number}|null,
+ *   scroller?: {left:number, top:number, clientLeft?:number, clientTop?:number, clientWidth:number, clientHeight:number}|null,
+ *   designWidth: number,
+ *   designHeight: number,
+ *   maxWidth?: number,
+ *   maxHeight?: number,
+ *   margin?: number,
+ * }} input 设计盒、内容面、滚动容器与上限。
+ * @returns {{ox:number, oy:number, w:number, h:number}} 舞台相对容器左上角的位置与尺寸。
+ */
+export function resolveStageRect(input) {
+  const source = input || {};
+  const own = source.own || { left: 0, top: 0, width: 0, height: 0 };
+  const designWidth = Math.max(1, Math.round(Number(source.designWidth) || 1));
+  const designHeight = Math.max(1, Math.round(Number(source.designHeight) || 1));
+  const maxWidth = Math.max(designWidth, Number(source.maxWidth) || TECH_STAGE_MAX_W);
+  const maxHeight = Math.max(designHeight, Number(source.maxHeight) || TECH_STAGE_MAX_H);
+  const ownLeft = Number(own.left) || 0;
+  const ownTop = Number(own.top) || 0;
+
+  let left = 0;
+  let top = 0;
+  let right = designWidth;
+  let bottom = designHeight;
+
+  const scroller = source.scroller;
+  const scrollerReady =
+    !!scroller && Number(scroller.clientWidth) > 0 && Number(scroller.clientHeight) > 0;
+  const host = source.host;
+  const hostReady = !!host && Number(host.width) > 0 && Number(host.height) > 0;
+
+  if (scrollerReady) {
+    // 滚动容器的 padding 盒（client 区域）：它才是真正的裁剪祖先。
+    const boxLeft = Number(scroller.left || 0) + Number(scroller.clientLeft || 0) - ownLeft;
+    const boxTop = Number(scroller.top || 0) + Number(scroller.clientTop || 0) - ownTop;
+    left = Math.min(left, boxLeft);
+    top = Math.min(top, boxTop);
+    right = Math.max(right, boxLeft + Number(scroller.clientWidth));
+    bottom = Math.max(bottom, boxTop + Number(scroller.clientHeight));
+  } else if (hostReady) {
+    // 旧版/非常规布局兜底：内容面右、下各内缩 2px（与滚动容器的 margin-right 同量级）。
+    const boxLeft = Number(host.left || 0) - ownLeft;
+    const boxTop = Number(host.top || 0) - ownTop;
+    const boxRight = boxLeft + Math.max(0, Number(host.width) - 2);
+    const boxBottom = boxTop + Math.max(0, Number(host.height) - 2);
+    left = Math.min(left, boxLeft);
+    top = Math.min(top, boxTop);
+    right = Math.max(right, boxRight);
+    bottom = Math.max(bottom, boxBottom);
+  } else {
+    // 连内容面都没有：沿用 v0.5.3 的四周外扩兜底。
+    const margin = Number(source.margin) || TECH_STAGE_MARGIN;
+    left = Math.min(left, -margin);
+    top = Math.min(top, -margin);
+    right = Math.max(right, designWidth + margin);
+    bottom = Math.max(bottom, designHeight + margin);
+  }
+
+  // 向内取整：右/下必须落在可视盒内；左/上 floor 到更外侧，避免把设计盒裁掉。
+  left = Math.floor(left);
+  top = Math.floor(top);
+  right = Math.max(Math.floor(right), designWidth);
+  bottom = Math.max(Math.floor(bottom), designHeight);
+
+  const unionW = right - left;
+  const unionH = bottom - top;
+  // 先满足设计盒，再受舞台上限约束；超限时以并集中心裁剪。
+  const w = Math.max(designWidth, Math.min(unionW, maxWidth));
+  const h = Math.max(designHeight, Math.min(unionH, maxHeight));
+  let ox = Math.min(0, Math.round(left + (unionW - w) / 2));
+  let oy = Math.min(0, Math.round(top + (unionH - h) / 2));
+  // 最后再钳一次右/下边缘：取整后也不允许越过滚动容器。
+  ox = Math.min(ox, right - w);
+  oy = Math.min(oy, bottom - h);
+  return { ox, oy, w, h };
+}
+
+/**
  * 按「目标字号」反推设计盒尺寸。
  *
  * 引擎会用 `min(1, width*0.92/墨宽, height*0.72/墨高)` 把文字缩放到盒子里，
@@ -161,7 +249,18 @@ export function createTechText(container, text, opts) {
   if (!ctx || !scratchCtx) {
     // Canvas2D 不可用时的降级桩：接口必须和正常返回**完全一致**，
     // 否则调用方（stage 的 syncTitle）会在 setSpeed 上抛错。
-    return { refresh() {}, setSpeed() {}, destroy() { canvas.remove(); }, redraw() {} };
+    return {
+      refresh() {},
+      setSpeed() {},
+      destroy() {
+        canvas.remove();
+      },
+      redraw() {},
+      // v0.5.4：自检会回读舞台矩形；降级时明确返回空，让 diagnose 打印 none。
+      stageRect() {
+        return null;
+      },
+    };
   }
 
   let width = 1;
@@ -180,6 +279,9 @@ export function createTechText(container, text, opts) {
   let last = performance.now();
   let visible = false;
   let alive = true;
+  // v0.5.4：舞台要跟随滚动容器的 client 盒变化（滚动条出现/消失会改变它）。
+  let resizeObserver = null;
+  let observedScroller = null;
   let layoutKey = "";
   let requestedFont = "";
   let word = null;
@@ -696,43 +798,77 @@ export function createTechText(container, text, opts) {
   }
 
   /**
-   * 计算舞台矩形：设计盒与最近的内容面取并集，再钳到上限。
-   * 拿不到内容面时按设计盒四周外扩兜底。
+   * 让 ResizeObserver 跟随当前的滚动容器。
+   *
+   * 滚动条出现/消失、面板让位等都会改变 `[data-conversation-scroll]` 的
+   * client 盒，但内容面本身的尺寸不一定变；只观察容器与内容面会让舞台尺寸过期。
    */
-  function measureStage() {
-    let left = 0;
-    let top = 0;
-    let right = width;
-    let bottom = height;
-    let host = null;
-    try {
-      host = container.closest ? container.closest("[data-mui-surface]") : null;
-    } catch {
-      host = null;
-    }
-    const own = container.getBoundingClientRect();
-    if (host && own.width > 0) {
-      const box = host.getBoundingClientRect();
-      if (box.width > 0 && box.height > 0) {
-        left = Math.min(left, box.left - own.left);
-        top = Math.min(top, box.top - own.top);
-        right = Math.max(right, box.left - own.left + box.width);
-        bottom = Math.max(bottom, box.top - own.top + box.height);
+  function watchScroller(next) {
+    if (next === observedScroller) return;
+    if (resizeObserver) {
+      if (observedScroller) {
+        try {
+          resizeObserver.unobserve(observedScroller);
+        } catch {
+          /* 已被移除的节点忽略 */
+        }
+      }
+      if (next) {
+        try {
+          resizeObserver.observe(next);
+        } catch {
+          /* 非 Element 节点忽略 */
+        }
       }
     }
-    if (right - left < width + 2) {
-      left = -TECH_STAGE_MARGIN;
-      right = width + TECH_STAGE_MARGIN;
-      top = -TECH_STAGE_MARGIN;
-      bottom = height + TECH_STAGE_MARGIN;
+    observedScroller = next;
+  }
+
+  /**
+   * 计算舞台矩形：设计盒与滚动容器可视 client 盒取并集，再钳到上限。
+   *
+   * v0.5.4：裁剪边界从内容面改成滚动容器。内容面比滚动容器宽 2px（`.scrollBody`
+   * 的 margin-right），舞台贴内容面右缘会给滚动容器制造横向溢出；占位式滚动条
+   * 再吃掉高度后就会多出竖向可滚区域，正是「开启标题后页面能小幅上下滑」的来源。
+   */
+  function measureStage() {
+    let host = null;
+    let scroller = null;
+    try {
+      host = container.closest ? container.closest("[data-mui-surface]") : null;
+      scroller = container.closest ? container.closest("[data-conversation-scroll]") : null;
+    } catch {
+      host = null;
+      scroller = null;
     }
-    const unionW = Math.ceil(right - left);
-    const unionH = Math.ceil(bottom - top);
-    stage.w = Math.max(width, Math.min(unionW, TECH_STAGE_MAX_W));
-    stage.h = Math.max(height, Math.min(unionH, TECH_STAGE_MAX_H));
-    // 超上限时以并集中心裁剪，并保证设计盒始终落在舞台内。
-    stage.ox = Math.min(0, Math.round(left + (unionW - stage.w) / 2));
-    stage.oy = Math.min(0, Math.round(top + (unionH - stage.h) / 2));
+    watchScroller(scroller);
+
+    const own = container.getBoundingClientRect();
+    const hostBox = host && own.width > 0 ? host.getBoundingClientRect() : null;
+    let scrollerBox = null;
+    // 只要标题已量出尺寸就用滚动容器做边界；内容面属性暂时缺失也不退回旧行为。
+    if (own.width > 0 && scroller && scroller.clientWidth > 0 && scroller.clientHeight > 0) {
+      const box = scroller.getBoundingClientRect();
+      scrollerBox = {
+        left: box.left,
+        top: box.top,
+        clientLeft: scroller.clientLeft || 0,
+        clientTop: scroller.clientTop || 0,
+        clientWidth: scroller.clientWidth,
+        clientHeight: scroller.clientHeight,
+      };
+    }
+    const rect = resolveStageRect({
+      own,
+      host: hostBox,
+      scroller: scrollerBox,
+      designWidth: width,
+      designHeight: height,
+    });
+    stage.ox = rect.ox;
+    stage.oy = rect.oy;
+    stage.w = rect.w;
+    stage.h = rect.h;
     stageOxDev = Math.round(stage.ox * dpr);
     stageOyDev = Math.round(stage.oy * dpr);
   }
@@ -844,7 +980,7 @@ export function createTechText(container, text, opts) {
 
   if (settings.draggable || settings.selection) attachInteractions();
 
-  const resizeObserver = new ResizeObserver(resize);
+  resizeObserver = new ResizeObserver(resize);
   resizeObserver.observe(container);
   // 内容面尺寸变化（窗口缩放、侧栏开合）时舞台要跟着重算。
   try {
@@ -898,10 +1034,17 @@ export function createTechText(container, text, opts) {
     },
     /** 静态重绘（无障碍/隐藏状态下用）。 */
     redraw: drawStatic,
+    /**
+     * v0.5.4：回读舞台矩形（容器相对坐标），供自检确认它是否收进了滚动容器。
+     * @returns {{ox:number, oy:number, w:number, h:number}} 舞台矩形副本。
+     */
+    stageRect() {
+      return { ox: stage.ox, oy: stage.oy, w: stage.w, h: stage.h };
+    },
     destroy() {
       alive = false;
       cancelAnimationFrame(frameHandle);
-      resizeObserver.disconnect();
+      if (resizeObserver) resizeObserver.disconnect();
       intersectionObserver.disconnect();
       detachInteractions();
       canvas.remove();

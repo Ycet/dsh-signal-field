@@ -480,6 +480,9 @@ test('wiring: 自检文本可生成（覆盖座位背衬与 HUD 补场两段）'
   assert.match(text, /seatVeil:/, '自检应回读座位背衬');
   assert.match(text, /hudBackdrop:/, '自检应回读 HUD 补场');
   assert.match(text, /sameAsPanel=/, '自检应回读补场与面板是否同层');
+  // v0.5.4：标题舞台与滚动容器余量（滚动条回归只靠这两行判断）
+  assert.match(text, /titleStage:/, '自检应回读标题舞台');
+  assert.match(text, /titleScroll:/, '自检应回读滚动容器余量');
 });
 
 // ---- v0.4.0：鲸鱼图层的装配 ------------------------------------------------

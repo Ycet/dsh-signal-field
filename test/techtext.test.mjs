@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { measureTitle } from '../src/techtext.js';
+import { measureTitle, resolveStageRect } from '../src/techtext.js';
 
 /**
  * 标题盒子反推的单元测试。
@@ -98,4 +98,111 @@ test('measureTitle: 字号越大盒子越大，且对垃圾输入不抛错', () 
     if (previous === undefined) delete globalThis.document;
     else globalThis.document = previous;
   }
+});
+
+/**
+ * v0.5.4：舞台必须收进 `[data-conversation-scroll]` 的 client 盒。
+ *
+ * 这组用例锁住「开启标题后新建会话页出现滚动条」的回归：舞台右/下边缘一旦越界，
+ * 滚动容器就会多出可滚动余量；因此断言精确等于可视盒右/下界，而不是只断言不越界。
+ */
+test('resolveStageRect: 舞台右/下边缘精确对齐滚动容器 client 盒', () => {
+  const rect = resolveStageRect({
+    own: { left: 300, top: 300, width: 460, height: 42 },
+    host: { left: 260, top: 0, width: 900, height: 823 },
+    scroller: {
+      left: 260,
+      top: 76,
+      clientLeft: 0,
+      clientTop: 0,
+      clientWidth: 880,
+      clientHeight: 740,
+    },
+    designWidth: 460,
+    designHeight: 43,
+  });
+  assert.deepEqual(rect, { ox: -40, oy: -224, w: 880, h: 740 });
+  // 滚动容器相对容器左上角的右/下界：-40 + 880 / -224 + 740
+  assert.equal(rect.ox + rect.w, 840);
+  assert.equal(rect.oy + rect.h, 516);
+});
+
+test('resolveStageRect: 小数矩形向内取整，不把 0.x 的溢出留给滚动容器', () => {
+  const rect = resolveStageRect({
+    own: { left: 120.2, top: 300.9, width: 440, height: 43 },
+    host: { left: 100, top: 0, width: 900, height: 823 },
+    scroller: {
+      left: 100.6,
+      top: 50.4,
+      clientLeft: 0,
+      clientTop: 0,
+      clientWidth: 800.7,
+      clientHeight: 700.8,
+    },
+    designWidth: 440,
+    designHeight: 43,
+  });
+  assert.equal(Number.isInteger(rect.ox), true);
+  assert.equal(Number.isInteger(rect.oy), true);
+  assert.equal(Number.isInteger(rect.w), true);
+  assert.equal(Number.isInteger(rect.h), true);
+  // floor(100.6 - 120.2 + 800.7) = floor(781.1) = 781
+  assert.equal(rect.ox + rect.w, 781);
+  // floor(50.4 - 300.9 + 700.8) = floor(450.3) = 450
+  assert.equal(rect.oy + rect.h, 450);
+});
+
+test('resolveStageRect: 没有滚动容器时退回内容面并右/下内缩 2px', () => {
+  const rect = resolveStageRect({
+    own: { left: 10, top: 10, width: 460, height: 43 },
+    host: { left: 0, top: 0, width: 1000, height: 800 },
+    scroller: null,
+    designWidth: 460,
+    designHeight: 43,
+  });
+  // 内容面相对容器：左/上 -10，右/下 990/790；再各内缩 2px
+  assert.equal(rect.ox + rect.w, 988);
+  assert.equal(rect.oy + rect.h, 788);
+});
+
+test('resolveStageRect: 可视区比设计盒窄时优先保证标题完整', () => {
+  const rect = resolveStageRect({
+    own: { left: 0, top: 0, width: 460, height: 43 },
+    host: { left: 0, top: 0, width: 300, height: 200 },
+    scroller: {
+      left: 0,
+      top: 0,
+      clientLeft: 0,
+      clientTop: 0,
+      clientWidth: 300,
+      clientHeight: 200,
+    },
+    designWidth: 460,
+    designHeight: 43,
+  });
+  assert.ok(rect.w >= 460, '舞台宽度不能小于设计盒');
+  assert.ok(rect.h >= 43, '舞台高度不能小于设计盒');
+  assert.ok(rect.ox <= 0 && rect.oy <= 0, '舞台原点不能为正，否则设计盒会偏移');
+});
+
+test('resolveStageRect: 超出舞台上限时仍包含设计盒并收在可视盒内', () => {
+  const rect = resolveStageRect({
+    own: { left: 500, top: 400, width: 460, height: 43 },
+    host: { left: 0, top: 0, width: 3200, height: 2600 },
+    scroller: {
+      left: 100,
+      top: 60,
+      clientLeft: 0,
+      clientTop: 0,
+      clientWidth: 3000,
+      clientHeight: 2500,
+    },
+    designWidth: 460,
+    designHeight: 43,
+  });
+  assert.equal(rect.w, 2000);
+  assert.equal(rect.h, 1500);
+  assert.ok(rect.ox + rect.w <= 2600, '舞台右缘不得越过滚动容器');
+  assert.ok(rect.oy + rect.h <= 2560, '舞台下缘不得越过滚动容器');
+  assert.ok(rect.ox <= 0 && rect.oy <= 0);
 });
